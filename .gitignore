@@ -1,9 +1,11 @@
-.# --- Node & package managers ---
+# --- Node & package managers ---
 node_modules/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
+*.log
+logs/
 
 # Lockfiles SHOULD be committed (for repeatable installs)
 # package-lock.json
@@ -12,11 +14,13 @@ pnpm-debug.log*
 
 # --- Environment / secrets ---
 .env
+.env.local
 .env.*.local
-
-# Ignore env files inside subfolders too (backend/frontend)
 **/.env
+**/.env.local
 **/.env.*.local
+!.env.example
+!**/.env.example
 
 # --- Build / caches / coverage ---
 dist/
@@ -27,6 +31,7 @@ out/
 .cache/
 .tmp/
 *.tsbuildinfo
+.nyc_output/
 
 # --- OS / editors ---
 .DS_Store
@@ -34,3 +39,5 @@ Thumbs.db
 .vscode/
 .idea/
 *.swp
+*~
+.eslintcache
