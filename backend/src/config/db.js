@@ -1,18 +1,50 @@
-import mongoose from "mongoose";
+import mongoose from 'mongoose';
 
-// This function will connect our application to MongoDB
-export async function connectDB() {
-  // Get the connection string from environment variables (.env file)
-  const uri = process.env.MONGODB_URI;
-  
-  // If the URI is not provided, throw an error so the app fails fast
-  if (!uri) throw new Error("MONGODB_URI not set");
+export async function connectDB(uri) {
+    if (!uri) {
+        console.error('❌ MongoDB URI is not provided');
+        process.exit(1);
+    }
 
-  // Connect to MongoDB with Mongoose
-  // - uri: the cluster URL from Atlas or local MongoDB
-  // - dbName: optional database name, default is "trash2cash"
-  await mongoose.connect(uri, { dbName: process.env.MONGODB_DB || "trash2cash" });
+    try {
+        // Set mongoose options
+        mongoose.set('strictQuery', true);
+        
+        // Connection options
+        const options = {
+            maxPoolSize: 10,
+            serverSelectionTimeoutMS: 5000,
+            socketTimeoutMS: 45000,
+            bufferCommands: false
+        };
 
-  // If successful, log to console
-  console.log("✅ MongoDB connected");
+        await mongoose.connect(uri, options);
+        console.log('✅ MongoDB connected successfully');
+        
+        // Handle connection events
+        mongoose.connection.on('error', (err) => {
+            console.error('❌ MongoDB connection error:', err);
+        });
+        
+        mongoose.connection.on('disconnected', () => {
+            console.warn('⚠️ MongoDB disconnected');
+        });
+        
+        mongoose.connection.on('reconnected', () => {
+            console.log('🔄 MongoDB reconnected');
+        });
+        
+    } catch (err) {
+        console.error('❌ MongoDB connection failed:', err.message);
+        process.exit(1);
+    }
+}
+
+export async function disconnectDB() {
+    try {
+        await mongoose.disconnect();
+        console.log('📴 MongoDB disconnected');
+    } catch (err) {
+        console.error('❌ Error disconnecting from MongoDB:', err.message);
+    }
 }
