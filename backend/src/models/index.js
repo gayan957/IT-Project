@@ -10,3 +10,6 @@ export { default as UserSchedule } from './UserSchedule.js';
 export { default as AgentBin } from './AgentBin.js';
 export { default as AgentSchedule } from './AgentSchedule.js';
 export { default as WasteWarehouse } from './WasteWarehouse.js';
+export { default as WastePrice } from './WastePrice.js';
+export { default as WarehouseWastePrice } from './WarehouseWastePrice.js';
+export { default as Salary } from './Salary.js';

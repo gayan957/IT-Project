@@ -44,6 +44,10 @@ import RecyclerRegister from './pages/RecyclerRegister';
 import RecyclerDashboard from './pages/RecyclerDashboard';
 import RecyclerProtectedRoute from './components/RecyclerProtectedRoute';
 import AdminWastePrices from './components/AdminWastePrices';
+import AdminWarehouseWastePrices from './components/AdminWarehouseWastePrices';
+import FinanceManagementDashboard from './pages/FinanceManagementDashboard';
+import FinanceDashboardOverview from './pages/FinanceDashboardOverview';
+import FinanceSalaryManagement from './pages/FinanceSalaryManagement';
 import SalaryCalculation from './pages/SalaryCalculation';
 import AgentSalaries from './pages/AgentSalaries';
 import AgentSalaryInquiry from './pages/AgentSalaryInquiry';
@@ -178,7 +182,35 @@ const router = createBrowserRouter([
           { path: 'schedules', element: <AdminSchedules /> },
           { path: 'bins', element: <AdminBins /> },
           { path: 'waste-prices', element: <AdminWastePrices /> },
+          { path: 'warehouse-waste-prices', element: <AdminWarehouseWastePrices /> },
           // Add more admin routes here as needed
+        ],
+      },
+      // Standalone Finance Management Dashboard
+      {
+        path: 'admin/finance',
+        element: (
+          <ProtectedRoute allowedRoles={['admin']}>
+            <FinanceManagementDashboard />
+          </ProtectedRoute>
+        ),
+        children: [
+          {
+            index: true,
+            element: (
+              <ProtectedRoute allowedRoles={['admin']}>
+                <FinanceDashboardOverview />
+              </ProtectedRoute>
+            ),
+          },
+          {
+            path: 'salaries',
+            element: (
+              <ProtectedRoute allowedRoles={['admin']}>
+                <FinanceSalaryManagement />
+              </ProtectedRoute>
+            ),
+          },
         ],
       },
     ],

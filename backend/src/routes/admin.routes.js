@@ -24,7 +24,13 @@ import {
     listBins,
     getBinById,
     updateBinById,
-    deleteBinById
+    deleteBinById,
+    // Salary management functions
+    getAllSalaries,
+    getSalaryById,
+    updateSalaryById,
+    deleteSalaryById,
+    getAllAgents
 } from '../controllers/admin.controller.js';
 
 
@@ -67,9 +73,15 @@ router.get('/bins/:binId', getBinById);
 router.put('/bins/:binId', updateBinById);
 router.delete('/bins/:binId', deleteBinById);
 
+// Salary Management
+router.get('/salaries', getAllSalaries);
+router.get('/salaries/:salaryId', getSalaryById);
+router.put('/salaries/:salaryId', updateSalaryById);
+router.delete('/salaries/:salaryId', deleteSalaryById);
+router.get('/agents', getAllAgents);
+
 // Todos
 //router.get('/todos', listAllTodos);
 //router.delete('/todos/:todoId', deleteTodoById);
-
 
 export default router;

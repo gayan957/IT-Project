@@ -380,3 +380,62 @@ export const getAgentSalaries = async (req, res, next) => {
     next(error);
   }
 };
+
+// --- ADMIN SALARY MANAGEMENT CONTROLLERS ---
+
+// Get all salary records (admin)
+export const getAllSalariesAdmin = async (req, res, next) => {
+  try {
+    const salaries = await Salary.find().sort({ createdAt: -1 });
+    res.json({ success: true, data: salaries });
+  } catch (error) {
+    console.error('Error fetching all salaries (admin):', error);
+    next(error);
+  }
+};
+
+// Get a single salary record by ID (admin)
+export const getSalaryByIdAdmin = async (req, res, next) => {
+  try {
+    const { salaryId } = req.params;
+    const salary = await Salary.findById(salaryId);
+    if (!salary) {
+      return res.status(404).json({ success: false, message: 'Salary record not found' });
+    }
+    res.json({ success: true, data: salary });
+  } catch (error) {
+    console.error('Error fetching salary by ID (admin):', error);
+    next(error);
+  }
+};
+
+// Update a salary record (admin)
+export const updateSalaryAdmin = async (req, res, next) => {
+  try {
+    const { salaryId } = req.params;
+    const update = req.body;
+    const salary = await Salary.findByIdAndUpdate(salaryId, update, { new: true });
+    if (!salary) {
+      return res.status(404).json({ success: false, message: 'Salary record not found' });
+    }
+    res.json({ success: true, data: salary });
+  } catch (error) {
+    console.error('Error updating salary (admin):', error);
+    next(error);
+  }
+};
+
+// Delete a salary record (admin)
+export const deleteSalaryAdmin = async (req, res, next) => {
+  try {
+    const { salaryId } = req.params;
+    const deleted = await Salary.findByIdAndDelete(salaryId);
+    if (!deleted) {
+      return res.status(404).json({ success: false, message: 'Salary record not found' });
+    }
+    res.json({ success: true, message: 'Salary record deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting salary (admin):', error);
+    next(error);
+  }
+};

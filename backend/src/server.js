@@ -18,6 +18,7 @@ import pickupPartnerRoutes from './routes/pickupPartner.routes.js';
 import recyclerRoutes from './routes/recycler.routes.js';
 import collectionRoutes from './routes/collection.routes.js';
 import wastePriceRoutes from './routes/wastePrice.routes.js';
+import warehouseWastePriceRoutes from './routes/warehouseWastePrice.routes.js';
 import agentScheduleRoutes from './routes/agentSchedule.routes.js';
 import salaryRoutes from './routes/salary.routes.js';
 // import BlynkPollingService from './services/blynkPolling.js';
@@ -85,8 +86,9 @@ app.use('/api/pickup-partners', pickupPartnerRoutes);
 app.use('/api/recyclers', recyclerRoutes);
 app.use('/api/collections', collectionRoutes);
 app.use('/api/waste-prices', wastePriceRoutes);
+app.use('/api/admin/warehouse-waste-prices', warehouseWastePriceRoutes);
 app.use('/api/agent-schedules', agentScheduleRoutes);
-app.use('/api/salaries', salaryRoutes);
+app.use('/api/salary', salaryRoutes);
 
 // Health check
 app.get('/', (req, res) => {

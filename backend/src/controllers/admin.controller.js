@@ -3,6 +3,8 @@ import PickUpPartner from '../models/PickUpPartner.js';
 import Recycler from '../models/Recycler.js';
 import UserSchedule from '../models/UserSchedule.js';
 import Bin from '../models/Bin.js';
+import Salary from '../models/Salary.js';
+import PickUpAgent from '../models/PickUpAgent.js';
 import bcrypt from 'bcryptjs';
 //import Todo from '../models/Todo.js';
 
@@ -365,6 +367,145 @@ export async function deleteBinById(req, res, next) {
         res.json({ message: 'Bin deleted successfully' });
     } catch (err) { 
         console.error('Error deleting bin:', err);
+        next(err); 
+    }
+}
+
+// ---- Salary Management (admin only) ----
+
+export async function getAllSalaries(req, res, next) {
+    try {
+        const { month, agentId } = req.query;
+        
+        let query = {};
+        if (month) query['attendance.month'] = month;
+        if (agentId) query.pickupAgentId = agentId;
+        
+        const salaries = await Salary.find(query)
+            .populate('pickupAgent', 'name agentId email phoneNumber')
+            .populate('pickupPartner', 'name email')
+            .sort({ 'attendance.month': -1, createdAt: -1 });
+        
+        res.json({
+            success: true,
+            data: salaries,
+            count: salaries.length
+        });
+    } catch (err) { 
+        console.error('Error fetching salaries:', err);
+        next(err); 
+    }
+}
+
+export async function getSalaryById(req, res, next) {
+    try {
+        const salary = await Salary.findById(req.params.salaryId)
+            .populate('pickupAgent', 'name agentId email phoneNumber')
+            .populate('pickupPartner', 'name email');
+        
+        if (!salary) return res.status(404).json({ 
+            success: false, 
+            message: 'Salary record not found' 
+        });
+        
+        res.json({
+            success: true,
+            data: salary
+        });
+    } catch (err) { 
+        console.error('Error fetching salary:', err);
+        next(err); 
+    }
+}
+
+export async function updateSalaryById(req, res, next) {
+    try {
+        const allowedUpdates = [
+            'attendance.workingDays', 
+            'attendance.overtimeHours', 
+            'attendance.noPayDays',
+            'salary.basic',
+            'salary.deductions.noPay',
+            'salary.deductions.loans',
+            'salary.allowances.food',
+            'salary.allowances.medical',
+            'salary.allowances.cola',
+            'salary.perks.overtime',
+            'salary.perks.bonus'
+        ];
+        
+        const updates = {};
+        Object.keys(req.body).forEach(key => {
+            if (allowedUpdates.includes(key)) {
+                const keys = key.split('.');
+                if (keys.length === 1) {
+                    updates[key] = req.body[key];
+                } else if (keys.length === 2) {
+                    if (!updates[keys[0]]) updates[keys[0]] = {};
+                    updates[keys[0]][keys[1]] = req.body[key];
+                } else if (keys.length === 3) {
+                    if (!updates[keys[0]]) updates[keys[0]] = {};
+                    if (!updates[keys[0]][keys[1]]) updates[keys[0]][keys[1]] = {};
+                    updates[keys[0]][keys[1]][keys[2]] = req.body[key];
+                }
+            }
+        });
+        
+        const salary = await Salary.findByIdAndUpdate(
+            req.params.salaryId, 
+            updates, 
+            { new: true, runValidators: true }
+        ).populate('pickupAgent', 'name agentId email phoneNumber')
+         .populate('pickupPartner', 'name email');
+        
+        if (!salary) return res.status(404).json({ 
+            success: false, 
+            message: 'Salary record not found' 
+        });
+        
+        res.json({ 
+            success: true,
+            message: 'Salary updated successfully', 
+            data: salary 
+        });
+    } catch (err) { 
+        console.error('Error updating salary:', err);
+        next(err); 
+    }
+}
+
+export async function deleteSalaryById(req, res, next) {
+    try {
+        const salary = await Salary.findByIdAndDelete(req.params.salaryId);
+        if (!salary) return res.status(404).json({ 
+            success: false, 
+            message: 'Salary record not found' 
+        });
+        
+        res.json({ 
+            success: true,
+            message: 'Salary record deleted successfully' 
+        });
+    } catch (err) { 
+        console.error('Error deleting salary:', err);
+        next(err); 
+    }
+}
+
+export async function getAllAgents(req, res, next) {
+    try {
+        const agents = await PickUpAgent.find()
+            .populate('partnerId', 'name email')
+            .select('name agentId email phoneNumber address partnerId')
+            .sort({ name: 1 });
+        
+        res.json({
+            success: true,
+            data: agents,
+            count: agents.length
+        });
+    } catch (err) { 
+        console.error('Error fetching agents:', err);
         next(err); 
     }
 }

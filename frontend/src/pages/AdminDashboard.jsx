@@ -21,6 +21,7 @@ export default function AdminDashboard() {
     { path: '/admin/dashboard/schedules', label: 'Schedule Management', icon: '📅' },
     { path: '/admin/dashboard/bins', label: 'Bin Management', icon: '🗑️' },
     { path: '/admin/dashboard/waste-prices', label: 'Waste Prices', icon: '💰' },
+    { path: '/admin/dashboard/warehouse-waste-prices', label: 'Warehouse Waste Prices', icon: '🏭' },
     { path: '/admin/dashboard/analytics', label: 'Analytics', icon: '📈' },
     { path: '/admin/dashboard/settings', label: 'Settings', icon: '⚙️' }
   ];
@@ -87,6 +88,30 @@ export default function AdminDashboard() {
             <div className="mb-8">
               <h2 className="text-lg font-bold text-gray-900 mb-2">Navigation</h2>
               <div className="w-12 h-1 bg-gradient-to-r from-emerald-500 to-teal-500 rounded-full"></div>
+            </div>
+            
+            {/* Finance Management Dashboard Link */}
+            <div className="mb-6">
+              <Link
+                to="/admin/finance"
+                className="group relative bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-2xl p-4 shadow-xl border border-white/20 hover:shadow-2xl transition-all duration-500 hover:scale-105 overflow-hidden block"
+              >
+                <div className="absolute inset-0 bg-gradient-to-r from-green-400 to-emerald-500 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+                <div className="relative flex items-center space-x-3">
+                  <div className="w-10 h-10 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform duration-300">
+                    <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  </div>
+                  <div className="flex-1">
+                    <p className="font-bold text-white text-base group-hover:text-green-50 transition-colors">Finance Management Dashboard</p>
+                    <p className="text-green-100 text-xs group-hover:text-green-50 transition-colors">Comprehensive financial management</p>
+                  </div>
+                  <svg className="w-5 h-5 text-white/80 group-hover:text-white transition-colors duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                </div>
+              </Link>
             </div>
             <ul className="space-y-2">
               {navigationItems.map((item) => (
