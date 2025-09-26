@@ -73,21 +73,31 @@ export const deleteWastePrice = async (wasteType, token) => {
   }
 };
 
-// Waste type constants for frontend use
+// Waste type constants for frontend use - consistent with backend WastePrice model
 export const WASTE_TYPES = [
-  'organic',
-  'plastic', 
-  'paper',
+  'plastic',
+  'paper', 
   'glass',
   'metal',
-  'electronic',
-  'mixed',
-  'other'
+  'organic',
+  'coconut-shell',
+  'e-waste',
+  'mixed'
 ];
 
 // Helper function to format waste type display names
 export const formatWasteTypeName = (wasteType) => {
-  return wasteType.charAt(0).toUpperCase() + wasteType.slice(1);
+  const displayNames = {
+    'plastic': 'Plastic',
+    'paper': 'Paper',
+    'glass': 'Glass',
+    'metal': 'Metal',
+    'organic': 'Organic',
+    'coconut-shell': 'Coconut Shell',
+    'e-waste': 'E-Waste',
+    'mixed': 'Mixed'
+  };
+  return displayNames[wasteType] || wasteType.charAt(0).toUpperCase() + wasteType.slice(1);
 };
 
 // Helper function to format price display

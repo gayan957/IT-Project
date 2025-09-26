@@ -19,6 +19,7 @@ export default function AdminDashboard() {
     { path: '/admin/dashboard/pickup-agents', label: 'Pickup Agents', icon: '🚚' },
     { path: '/admin/dashboard/recyclers', label: 'Recycler Management', icon: '♻️' },
     { path: '/admin/dashboard/schedules', label: 'Schedule Management', icon: '📅' },
+    { path: '/admin/dashboard/bins', label: 'Bin Management', icon: '🗑️' },
     { path: '/admin/dashboard/waste-prices', label: 'Waste Prices', icon: '💰' },
     { path: '/admin/dashboard/analytics', label: 'Analytics', icon: '📈' },
     { path: '/admin/dashboard/settings', label: 'Settings', icon: '⚙️' }
@@ -260,6 +261,24 @@ export default function AdminDashboard() {
                         <div>
                           <p className="font-bold text-emerald-900 text-lg group-hover:text-emerald-700 transition-colors">Schedule Overview</p>
                           <p className="text-sm text-emerald-700/70 group-hover:text-emerald-600 transition-colors">Monitor pickup schedules</p>
+                        </div>
+                      </div>
+                    </Link>
+
+                    <Link
+                      to="/admin/dashboard/bins"
+                      className="group relative bg-white/60 backdrop-blur-sm rounded-2xl p-6 border border-white/30 hover:shadow-2xl transition-all duration-500 hover:scale-105 overflow-hidden"
+                    >
+                      <div className="absolute inset-0 bg-gradient-to-br from-green-500/10 to-green-600/10 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+                      <div className="relative flex items-center space-x-4">
+                        <div className="w-12 h-12 bg-gradient-to-br from-green-500 to-green-600 rounded-xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform duration-300">
+                          <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                          </svg>
+                        </div>
+                        <div>
+                          <p className="font-bold text-green-900 text-lg group-hover:text-green-700 transition-colors">Bin Management</p>
+                          <p className="text-sm text-green-700/70 group-hover:text-green-600 transition-colors">Monitor waste bins</p>
                         </div>
                       </div>
                     </Link>

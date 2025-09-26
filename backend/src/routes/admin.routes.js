@@ -16,7 +16,15 @@ import {
     getRecyclerById,
     createRecycler,
     updateRecyclerById,
-    deleteRecyclerById
+    deleteRecyclerById,
+    listSchedules,
+    getScheduleById,
+    updateScheduleById,
+    deleteScheduleById,
+    listBins,
+    getBinById,
+    updateBinById,
+    deleteBinById
 } from '../controllers/admin.controller.js';
 
 
@@ -46,6 +54,18 @@ router.get('/recyclers/:recyclerId', getRecyclerById);
 router.post('/recyclers', createRecycler);
 router.put('/recyclers/:recyclerId', updateRecyclerById);
 router.delete('/recyclers/:recyclerId', deleteRecyclerById);
+
+// Schedules
+router.get('/schedules', listSchedules);
+router.get('/schedules/:scheduleId', getScheduleById);
+router.put('/schedules/:scheduleId', updateScheduleById);
+router.delete('/schedules/:scheduleId', deleteScheduleById);
+
+// Bins
+router.get('/bins', listBins);
+router.get('/bins/:binId', getBinById);
+router.put('/bins/:binId', updateBinById);
+router.delete('/bins/:binId', deleteBinById);
 
 // Todos
 //router.get('/todos', listAllTodos);

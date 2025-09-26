@@ -20,12 +20,12 @@ export async function downloadPaySlipPdf({ slip }) {
     const pageWidth = doc.internal.pageSize.getWidth();
     const pageHeight = doc.internal.pageSize.getHeight();
     
-    // Safe data extraction with defaults
+    // Safe data extraction with defaults - matching AgentSalaryInquiry structure
     const {
       employee = {},
       attendance = {},
       salary = { allowances: {}, perks: {}, deductions: {} },
-      statutory = {},
+      meta = {},
       totals = {},
       createdAt
     } = slip;
@@ -57,20 +57,22 @@ export async function downloadPaySlipPdf({ slip }) {
       },
       deductions: {
         noPay: salary.deductions?.noPay || 0,
+        epf: salary.deductions?.epf || 0,
+        etf: salary.deductions?.etf || 0,
         loans: salary.deductions?.loans || 0
       }
     };
 
     const safeTotals = {
+      totalAllowances: totals.totalAllowances || 0,
       grossSalary: totals.grossSalary || 0,
       totalDeductions: totals.totalDeductions || 0,
       netSalary: totals.netSalary || 0
     };
 
-    const safeStatutory = {
-      epfEmployee: statutory.epfEmployee || 0,
-      epfEmployer: statutory.epfEmployer || 0,
-      etfEmployer: statutory.etfEmployer || 0
+    const safeMeta = {
+      epfBase: meta.epfBase || 0,
+      epfEmployer: meta.epfEmployer || 0
     };
 
     // Helper function for currency formatting
@@ -225,7 +227,7 @@ export async function downloadPaySlipPdf({ slip }) {
     y += 25;
     y = ensurePageSpace(y, 80);
 
-    // Professional Salary Breakdown Section
+    // Professional Salary Breakdown Section - Fixed spacing and layout
     doc.setTextColor(25, 46, 94);
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(16);
@@ -236,142 +238,171 @@ export async function downloadPaySlipPdf({ slip }) {
     doc.setLineWidth(1.5);
     doc.line(20, y + 4, pageWidth - 20, y + 4);
     
-    y += 15;
-    
-    // Earnings Section (Left Side) with modern styling
-    doc.setFillColor(240, 253, 244); // Light green background
-    doc.rect(20, y - 5, 85, 120, 'F');
-    
-    doc.setTextColor(25, 46, 94);
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(14);
-    doc.text('EARNINGS', 25, y);
-    
-    doc.setDrawColor(16, 185, 129);
-    doc.setLineWidth(2);
-    doc.line(25, y + 2, 95, y + 2);
-    
-    y += 12;
-    doc.setTextColor(51, 65, 85);
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(11);
-    
-    let earningsY = y;
-    
-    // Basic salary with emphasis
-    doc.setFont('helvetica', 'bold');
-    doc.text('Base Salary', 25, earningsY);
-    doc.setFont('helvetica', 'bold');
-    doc.setTextColor(16, 185, 129);
-    doc.text(formatCurrency(safeSalary.basic), 95, earningsY, { align: 'right' });
-    earningsY += 10;
-    
-    // Allowances with conditional display
-    doc.setTextColor(51, 65, 85);
-    doc.setFont('helvetica', 'normal');
-    
-    if (safeSalary.allowances.food > 0) {
-      doc.text('Food Allowance', 25, earningsY);
-      doc.setFont('helvetica', 'normal');
-      doc.text(formatCurrency(safeSalary.allowances.food), 95, earningsY, { align: 'right' });
-      doc.setFont('helvetica', 'normal');
-      earningsY += 8;
-    }
-    
-    if (safeSalary.allowances.medical > 0) {
-      doc.text('Medical Allowance', 25, earningsY);
-      doc.text(formatCurrency(safeSalary.allowances.medical), 95, earningsY, { align: 'right' });
-      earningsY += 8;
-    }
-    
-    if (safeSalary.allowances.cola > 0) {
-      doc.text('Cost of Living', 25, earningsY);
-      doc.text(formatCurrency(safeSalary.allowances.cola), 95, earningsY, { align: 'right' });
-      earningsY += 8;
-    }
-    
-    // Performance incentives
-    if (safeSalary.perks.overtime > 0) {
-      doc.text('Overtime Payment', 25, earningsY);
-      doc.text(formatCurrency(safeSalary.perks.overtime), 95, earningsY, { align: 'right' });
-      earningsY += 8;
-    }
-    
-    if (safeSalary.perks.bonus > 0) {
-      doc.text('Performance Bonus', 25, earningsY);
-      doc.text(formatCurrency(safeSalary.perks.bonus), 95, earningsY, { align: 'right' });
-      earningsY += 8;
-    }
-    
-    // Total earnings with emphasis
-    earningsY += 8;
-    doc.setDrawColor(16, 185, 129);
-    doc.setLineWidth(1);
-    doc.line(25, earningsY - 3, 95, earningsY - 3);
-    
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(12);
-    doc.setTextColor(25, 46, 94);
-    doc.text('GROSS EARNINGS', 25, earningsY);
-    doc.setTextColor(16, 185, 129);
-    doc.setFontSize(14);
-    doc.text(formatCurrency(safeTotals.grossSalary), 95, earningsY, { align: 'right' });
-    
-    // Deductions Section (Right Side) with professional styling
-    let deductionsY = y - 12;
-    
-    doc.setFillColor(254, 242, 242); // Light red background
-    doc.rect(110, deductionsY - 5, 85, 120, 'F');
-    
-    doc.setTextColor(25, 46, 94);
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(14);
-    doc.text('DEDUCTIONS', 115, deductionsY);
-    
-    doc.setDrawColor(239, 68, 68);
-    doc.setLineWidth(2);
-    doc.line(115, deductionsY + 2, 185, deductionsY + 2);
-    
-    deductionsY += 12;
-    doc.setTextColor(51, 65, 85);
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(11);
-    
-    // Statutory deductions
-    if (safeStatutory.epfEmployee > 0) {
-      doc.text('EPF Contribution (8%)', 115, deductionsY);
-      doc.text(formatCurrency(safeStatutory.epfEmployee), 185, deductionsY, { align: 'right' });
-      deductionsY += 8;
-    }
-    
-    // Other deductions
-    if (safeSalary.deductions.noPay > 0) {
-      doc.text('Absence Deduction', 115, deductionsY);
-      doc.text(formatCurrency(safeSalary.deductions.noPay), 185, deductionsY, { align: 'right' });
-      deductionsY += 8;
-    }
-    
-    if (safeSalary.deductions.loans > 0) {
-      doc.text('Loan Repayment', 115, deductionsY);
-      doc.text(formatCurrency(safeSalary.deductions.loans), 185, deductionsY, { align: 'right' });
-      deductionsY += 8;
-    }
-    
-    // Total deductions with emphasis
-    deductionsY += 8;
-    doc.setDrawColor(239, 68, 68);
-    doc.setLineWidth(1);
-    doc.line(115, deductionsY - 3, 185, deductionsY - 3);
-    
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(12);
-    doc.setTextColor(25, 46, 94);
-    doc.text('TOTAL DEDUCTIONS', 115, deductionsY);
-    doc.setTextColor(239, 68, 68);
-    doc.setFontSize(14);
-    doc.text(formatCurrency(safeTotals.totalDeductions), 185, deductionsY, { align: 'right' });
+    y += 20;
+    y = ensurePageSpace(y, 100);
 
-    y = Math.max(earningsY, deductionsY) + 20;
+    // Section 1: Basic & Allowances (Left Column)
+    const salaryLeftCol = 20;
+    const salaryMiddleCol = 75;
+    const salaryRightCol = 130;
+    const salaryColWidth = 50;
+    
+    // Basic & Allowances Section
+    doc.setFillColor(240, 253, 244); // Light green background
+    doc.rect(salaryLeftCol - 2, y - 5, salaryColWidth, 80, 'F');
+    
+    doc.setTextColor(25, 46, 94);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(11);
+    doc.text('BASIC & ALLOWANCES', salaryLeftCol, y);
+    
+    doc.setDrawColor(16, 185, 129);
+    doc.setLineWidth(1);
+    doc.line(salaryLeftCol, y + 2, salaryLeftCol + salaryColWidth - 5, y + 2);
+    
+    let leftY = y + 10;
+    doc.setTextColor(51, 65, 85);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8);
+    
+    // Basic salary
+    doc.setFont('helvetica', 'bold');
+    doc.text('Basic Salary:', salaryLeftCol, leftY);
+    doc.setFont('helvetica', 'normal');
+    doc.text(formatCurrency(safeSalary.basic), salaryLeftCol + salaryColWidth - 5, leftY, { align: 'right' });
+    leftY += 7;
+    
+    // Allowances
+    doc.setFont('helvetica', 'bold');
+    doc.text('ALLOWANCES:', salaryLeftCol, leftY);
+    leftY += 6;
+    
+    doc.setFont('helvetica', 'normal');
+    doc.text('Food:', salaryLeftCol + 2, leftY);
+    doc.text(formatCurrency(safeSalary.allowances.food), salaryLeftCol + salaryColWidth - 5, leftY, { align: 'right' });
+    leftY += 5;
+    
+    doc.text('Medical:', salaryLeftCol + 2, leftY);
+    doc.text(formatCurrency(safeSalary.allowances.medical), salaryLeftCol + salaryColWidth - 5, leftY, { align: 'right' });
+    leftY += 5;
+    
+    doc.text('COLA:', salaryLeftCol + 2, leftY);
+    doc.text(formatCurrency(safeSalary.allowances.cola), salaryLeftCol + salaryColWidth - 5, leftY, { align: 'right' });
+    leftY += 8;
+    
+    // Total allowances
+    doc.setDrawColor(16, 185, 129);
+    doc.setLineWidth(0.5);
+    doc.line(salaryLeftCol, leftY - 2, salaryLeftCol + salaryColWidth - 5, leftY - 2);
+    
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(16, 185, 129);
+    doc.text('Total Allowances:', salaryLeftCol, leftY);
+    doc.text(formatCurrency(safeTotals.totalAllowances), salaryLeftCol + salaryColWidth - 5, leftY, { align: 'right' });
+    leftY += 8;
+    
+    // Gross salary
+    doc.setDrawColor(16, 185, 129);
+    doc.setLineWidth(1);
+    doc.line(salaryLeftCol, leftY - 2, salaryLeftCol + salaryColWidth - 5, leftY - 2);
+    
+    doc.setTextColor(25, 46, 94);
+    doc.text('GROSS SALARY:', salaryLeftCol, leftY);
+    doc.setTextColor(16, 185, 129);
+    doc.text(formatCurrency(safeTotals.grossSalary), salaryLeftCol + salaryColWidth - 5, leftY, { align: 'right' });
+
+    // Section 2: Perks & Overtime (Middle Column)
+    doc.setFillColor(250, 252, 255); // Light blue background
+    doc.rect(salaryMiddleCol - 2, y - 5, salaryColWidth, 80, 'F');
+    
+    doc.setTextColor(25, 46, 94);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(11);
+    doc.text('PERKS & OVERTIME', salaryMiddleCol, y);
+    
+    doc.setDrawColor(59, 130, 246);
+    doc.setLineWidth(1);
+    doc.line(salaryMiddleCol, y + 2, salaryMiddleCol + salaryColWidth - 5, y + 2);
+    
+    let middleY = y + 10;
+    doc.setTextColor(51, 65, 85);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8);
+    
+    doc.text('Overtime Pay:', salaryMiddleCol, middleY);
+    doc.text(formatCurrency(safeSalary.perks.overtime), salaryMiddleCol + salaryColWidth - 5, middleY, { align: 'right' });
+    middleY += 7;
+    
+    doc.text('Bonus:', salaryMiddleCol, middleY);
+    doc.text(formatCurrency(safeSalary.perks.bonus), salaryMiddleCol + salaryColWidth - 5, middleY, { align: 'right' });
+    middleY += 10;
+    
+    // EPF Details
+    doc.setFont('helvetica', 'bold');
+    doc.text('EPF DETAILS:', salaryMiddleCol, middleY);
+    middleY += 6;
+    
+    doc.setFont('helvetica', 'normal');
+    doc.text('EPF Base:', salaryMiddleCol + 2, middleY);
+    doc.text(formatCurrency(safeMeta.epfBase), salaryMiddleCol + salaryColWidth - 5, middleY, { align: 'right' });
+    middleY += 5;
+    
+    doc.text('Employer EPF:', salaryMiddleCol + 2, middleY);
+    doc.text(formatCurrency(safeMeta.epfEmployer), salaryMiddleCol + salaryColWidth - 5, middleY, { align: 'right' });
+
+    // Section 3: Deductions (Right Column)
+    doc.setFillColor(254, 242, 242); // Light red background
+    doc.rect(salaryRightCol - 2, y - 5, salaryColWidth, 80, 'F');
+    
+    doc.setTextColor(25, 46, 94);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(11);
+    doc.text('DEDUCTIONS', salaryRightCol, y);
+    
+    doc.setDrawColor(239, 68, 68);
+    doc.setLineWidth(1);
+    doc.line(salaryRightCol, y + 2, salaryRightCol + salaryColWidth - 5, y + 2);
+    
+    let rightY = y + 10;
+    doc.setTextColor(51, 65, 85);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8);
+    
+    doc.text('No Pay:', salaryRightCol, rightY);
+    doc.setTextColor(239, 68, 68);
+    doc.text(formatCurrency(safeSalary.deductions.noPay), salaryRightCol + salaryColWidth - 5, rightY, { align: 'right' });
+    rightY += 7;
+    
+    doc.setTextColor(51, 65, 85);
+    doc.text('EPF (Employee):', salaryRightCol, rightY);
+    doc.setTextColor(239, 68, 68);
+    doc.text(formatCurrency(safeSalary.deductions.epf), salaryRightCol + salaryColWidth - 5, rightY, { align: 'right' });
+    rightY += 7;
+    
+    doc.setTextColor(51, 65, 85);
+    doc.text('ETF:', salaryRightCol, rightY);
+    doc.setTextColor(239, 68, 68);
+    doc.text(formatCurrency(safeSalary.deductions.etf), salaryRightCol + salaryColWidth - 5, rightY, { align: 'right' });
+    rightY += 7;
+    
+    doc.setTextColor(51, 65, 85);
+    doc.text('Loans:', salaryRightCol, rightY);
+    doc.setTextColor(239, 68, 68);
+    doc.text(formatCurrency(safeSalary.deductions.loans), salaryRightCol + salaryColWidth - 5, rightY, { align: 'right' });
+    rightY += 10;
+    
+    // Total deductions
+    doc.setDrawColor(239, 68, 68);
+    doc.setLineWidth(1);
+    doc.line(salaryRightCol, rightY - 2, salaryRightCol + salaryColWidth - 5, rightY - 2);
+    
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(25, 46, 94);
+    doc.text('TOTAL DEDUCTIONS:', salaryRightCol, rightY);
+    doc.setTextColor(239, 68, 68);
+    doc.text(formatCurrency(safeTotals.totalDeductions), salaryRightCol + salaryColWidth - 5, rightY, { align: 'right' });
+
+    y += 90;
     y = ensurePageSpace(y, 35);
     
     // Professional Net Salary Highlight
@@ -419,18 +450,20 @@ export async function downloadPaySlipPdf({ slip }) {
     y += 18;
     
     // Professional layout for contributions
-    const contrib1 = 40;
-    const contrib2 = pageWidth / 2 + 20;
+    const contribCol1 = 40;
+    const contribCol2 = pageWidth / 2 + 20;
     
     doc.setFont('helvetica', 'bold');
-    doc.text('EPF Employer (12%)', contrib1, y);
+    doc.text('EPF Employer (12%)', contribCol1, y);
     doc.setFont('helvetica', 'normal');
-    doc.text(formatCurrency(safeStatutory.epfEmployer), contrib1 + 60, y);
+    doc.text(formatCurrency(safeMeta.epfEmployer), contribCol1 + 60, y);
     
     doc.setFont('helvetica', 'bold');
-    doc.text('ETF Contribution (3%)', contrib2, y);
+    doc.text('ETF Contribution (3%)', contribCol2, y);
     doc.setFont('helvetica', 'normal');
-    doc.text(formatCurrency(safeStatutory.etfEmployer), contrib2 + 60, y);
+    // Calculate ETF as 3% of basic salary
+    const etfAmount = safeSalary.basic * 0.03;
+    doc.text(formatCurrency(etfAmount), contribCol2 + 60, y);
 
     // Professional Footer
     y = pageHeight - 35;
@@ -495,7 +528,7 @@ const formatDate = (date) => {
   });
 };
 
-// Pay slip component
+// Pay slip component - Updated to match AgentSalaryInquiry structure
 const AgentSalarySlip = forwardRef(({ salaryData }, ref) => {
   console.log('AgentSalarySlip rendered with data:', salaryData);
   
@@ -508,12 +541,12 @@ const AgentSalarySlip = forwardRef(({ salaryData }, ref) => {
     employee = {}, 
     attendance = {}, 
     salary = { allowances: {}, perks: {}, deductions: {} }, 
-    statutory = {}, 
+    meta = {}, 
     totals = {}, 
     createdAt 
   } = salaryData;
 
-  // Ensure we have default values for required fields
+  // Ensure we have default values for required fields - matching AgentSalaryInquiry
   const safeEmployee = {
     name: employee.name || 'N/A',
     agentId: employee.agentId || 'N/A',
@@ -541,188 +574,207 @@ const AgentSalarySlip = forwardRef(({ salaryData }, ref) => {
     },
     deductions: {
       noPay: salary.deductions?.noPay || 0,
+      epf: salary.deductions?.epf || 0,
+      etf: salary.deductions?.etf || 0,
       loans: salary.deductions?.loans || 0
     }
   };
 
   const safeTotals = {
+    totalAllowances: totals.totalAllowances || 0,
     grossSalary: totals.grossSalary || 0,
     totalDeductions: totals.totalDeductions || 0,
     netSalary: totals.netSalary || 0
   };
 
-  const safeStatutory = {
-    epfEmployee: statutory.epfEmployee || 0,
-    epfEmployer: statutory.epfEmployer || 0,
-    etfEmployer: statutory.etfEmployer || 0
+  const safeMeta = {
+    epfBase: meta.epfBase || 0,
+    epfEmployer: meta.epfEmployer || 0
   };
 
   return (
-    <div ref={ref} className="bg-white p-8 max-w-4xl mx-auto" style={{ minHeight: '800px' }}>
+    <div ref={ref} className="bg-white p-8 max-w-6xl mx-auto" style={{ minHeight: '1000px' }}>
       {/* Header */}
-      <div className="border-b-2 border-gray-200 pb-6 mb-6">
+      <div className="border-b-2 border-gray-200 pb-6 mb-8">
         <div className="flex justify-between items-start">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900 mb-2">TRASH2CASH</h1>
+            <h1 className="text-3xl font-bold text-gray-900 mb-2">TRASH2CASH</h1>
             <p className="text-gray-600">Waste Management Solutions</p>
             <p className="text-sm text-gray-500 mt-1">Colombo, Sri Lanka</p>
           </div>
           <div className="text-right">
-            <h2 className="text-xl font-semibold text-gray-800 mb-1">SALARY SLIP</h2>
+            <h2 className="text-2xl font-semibold text-gray-800 mb-1">SALARY SLIP</h2>
             <p className="text-sm text-gray-600">Pay Period: {safeAttendance.month}</p>
             <p className="text-sm text-gray-600">Generated: {formatDate(createdAt || new Date())}</p>
           </div>
         </div>
       </div>
 
-      {/* Employee Information */}
-      <div className="grid grid-cols-2 gap-8 mb-8">
-        <div>
-          <h3 className="text-lg font-semibold text-gray-800 mb-4 border-b border-gray-200 pb-2">
-            Employee Information
-          </h3>
-          <div className="space-y-2">
-            <div className="flex justify-between">
-              <span className="text-gray-600">Name:</span>
-              <span className="font-medium">{safeEmployee.name}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-gray-600">Agent ID:</span>
-              <span className="font-medium">{safeEmployee.agentId}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-gray-600">EPF No:</span>
-              <span className="font-medium">{safeEmployee.epfNo}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-gray-600">Email:</span>
-              <span className="font-medium">{safeEmployee.email}</span>
-            </div>
+      {/* Employee Information - Matching AgentSalaryInquiry layout */}
+      <div className="bg-gradient-to-r from-gray-50 to-blue-50 rounded-xl p-6 mb-8">
+        <h3 className="text-xl font-semibold text-gray-800 mb-6 border-b border-gray-200 pb-2">
+          Employee Information
+        </h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div>
+            <p className="text-sm text-gray-600 mb-1">Agent Name</p>
+            <p className="font-semibold text-gray-800">{safeEmployee.name}</p>
           </div>
-        </div>
-        
-        <div>
-          <h3 className="text-lg font-semibold text-gray-800 mb-4 border-b border-gray-200 pb-2">
-            Attendance Details
-          </h3>
-          <div className="space-y-2">
-            <div className="flex justify-between">
-              <span className="text-gray-600">Working Days:</span>
-              <span className="font-medium">{safeAttendance.workingDays}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-gray-600">Overtime Hours:</span>
-              <span className="font-medium">{safeAttendance.overtimeHours}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-gray-600">No Pay Days:</span>
-              <span className="font-medium">{safeAttendance.noPayDays}</span>
-            </div>
+          <div>
+            <p className="text-sm text-gray-600 mb-1">Agent ID</p>
+            <p className="font-semibold text-gray-800">{safeEmployee.agentId}</p>
+          </div>
+          <div>
+            <p className="text-sm text-gray-600 mb-1">Email</p>
+            <p className="font-semibold text-gray-800">{safeEmployee.email}</p>
+          </div>
+          <div>
+            <p className="text-sm text-gray-600 mb-1">EPF Number</p>
+            <p className="font-semibold text-gray-800">{safeEmployee.epfNo}</p>
           </div>
         </div>
       </div>
 
-      {/* Salary Breakdown */}
-      <div className="grid grid-cols-2 gap-8 mb-8">
-        {/* Earnings */}
-        <div>
-          <h3 className="text-lg font-semibold text-gray-800 mb-4 border-b border-gray-200 pb-2">
-            Earnings
-          </h3>
+      {/* Attendance Details - Matching AgentSalaryInquiry */}
+      <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl p-6 mb-8">
+        <h3 className="text-xl font-semibold text-gray-800 mb-6 border-b border-gray-200 pb-2">
+          Attendance Details
+        </h3>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          <div className="text-center">
+            <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-3">
+              <span className="text-2xl text-green-600">✓</span>
+            </div>
+            <p className="text-sm text-gray-600">Working Days</p>
+            <p className="text-2xl font-bold text-green-600">{safeAttendance.workingDays}</p>
+          </div>
+          <div className="text-center">
+            <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-3">
+              <span className="text-2xl text-blue-600">⏰</span>
+            </div>
+            <p className="text-sm text-gray-600">Overtime Hours</p>
+            <p className="text-2xl font-bold text-blue-600">{safeAttendance.overtimeHours}</p>
+          </div>
+          <div className="text-center">
+            <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-3">
+              <span className="text-2xl text-red-600">✗</span>
+            </div>
+            <p className="text-sm text-gray-600">No Pay Days</p>
+            <p className="text-2xl font-bold text-red-600">{safeAttendance.noPayDays}</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Comprehensive Salary Breakdown - Three Column Layout */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
+        {/* Basic Salary & Allowances */}
+        <div className="bg-gradient-to-r from-purple-50 to-pink-50 rounded-xl p-6">
+          <h4 className="text-lg font-semibold text-gray-800 mb-4">Basic & Allowances</h4>
           <div className="space-y-3">
             <div className="flex justify-between">
               <span className="text-gray-600">Basic Salary:</span>
-              <span className="font-medium">{formatCurrency(safeSalary.basic)}</span>
+              <span className="font-semibold text-gray-800">{formatCurrency(safeSalary.basic)}</span>
             </div>
-            
-            {safeSalary.allowances.food > 0 && (
-              <div className="flex justify-between">
-                <span className="text-gray-600">Food Allowance:</span>
-                <span className="font-medium">{formatCurrency(safeSalary.allowances.food)}</span>
+            <div className="border-t border-purple-200 pt-3">
+              <p className="text-sm font-medium text-gray-700 mb-2">Allowances:</p>
+              <div className="space-y-2 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Food Allowance:</span>
+                  <span className="text-gray-800">{formatCurrency(safeSalary.allowances.food)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Medical Allowance:</span>
+                  <span className="text-gray-800">{formatCurrency(safeSalary.allowances.medical)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600">COLA:</span>
+                  <span className="text-gray-800">{formatCurrency(safeSalary.allowances.cola)}</span>
+                </div>
               </div>
-            )}
-            
-            {safeSalary.allowances.medical > 0 && (
-              <div className="flex justify-between">
-                <span className="text-gray-600">Medical Allowance:</span>
-                <span className="font-medium">{formatCurrency(safeSalary.allowances.medical)}</span>
+            </div>
+            <div className="border-t border-purple-200 pt-3">
+              <div className="flex justify-between font-semibold">
+                <span className="text-purple-700">Total Allowances:</span>
+                <span className="text-purple-700">{formatCurrency(safeTotals.totalAllowances)}</span>
               </div>
-            )}
-            
-            {safeSalary.allowances.cola > 0 && (
-              <div className="flex justify-between">
-                <span className="text-gray-600">COLA:</span>
-                <span className="font-medium">{formatCurrency(safeSalary.allowances.cola)}</span>
-              </div>
-            )}
-            
-            {safeSalary.perks.overtime > 0 && (
-              <div className="flex justify-between">
-                <span className="text-gray-600">Overtime Pay:</span>
-                <span className="font-medium">{formatCurrency(safeSalary.perks.overtime)}</span>
-              </div>
-            )}
-            
-            {safeSalary.perks.bonus > 0 && (
-              <div className="flex justify-between">
-                <span className="text-gray-600">Bonus:</span>
-                <span className="font-medium">{formatCurrency(safeSalary.perks.bonus)}</span>
-              </div>
-            )}
-            
-            <div className="border-t border-gray-200 pt-2 font-semibold">
-              <div className="flex justify-between">
-                <span>Total Earnings:</span>
-                <span>{formatCurrency(safeTotals.grossSalary)}</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Perks & Overtime */}
+        <div className="bg-gradient-to-r from-indigo-50 to-blue-50 rounded-xl p-6">
+          <h4 className="text-lg font-semibold text-gray-800 mb-4">Perks & Overtime</h4>
+          <div className="space-y-3">
+            <div className="flex justify-between">
+              <span className="text-gray-600">Overtime Pay:</span>
+              <span className="font-semibold text-gray-800">{formatCurrency(safeSalary.perks.overtime)}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-gray-600">Bonus:</span>
+              <span className="font-semibold text-gray-800">{formatCurrency(safeSalary.perks.bonus)}</span>
+            </div>
+            <div className="border-t border-indigo-200 pt-3">
+              <p className="text-sm font-medium text-gray-700 mb-2">EPF Details:</p>
+              <div className="space-y-2 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-gray-600">EPF Base:</span>
+                  <span className="text-gray-800">{formatCurrency(safeMeta.epfBase)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Employer EPF:</span>
+                  <span className="text-gray-800">{formatCurrency(safeMeta.epfEmployer)}</span>
+                </div>
               </div>
             </div>
           </div>
         </div>
 
         {/* Deductions */}
-        <div>
-          <h3 className="text-lg font-semibold text-gray-800 mb-4 border-b border-gray-200 pb-2">
-            Deductions
-          </h3>
+        <div className="bg-gradient-to-r from-red-50 to-pink-50 rounded-xl p-6">
+          <h4 className="text-lg font-semibold text-gray-800 mb-4">Deductions</h4>
           <div className="space-y-3">
-            {safeSalary.deductions.noPay > 0 && (
-              <div className="flex justify-between">
-                <span className="text-gray-600">No Pay Deduction:</span>
-                <span className="font-medium">{formatCurrency(safeSalary.deductions.noPay)}</span>
-              </div>
-            )}
-            
-            {safeStatutory.epfEmployee > 0 && (
-              <div className="flex justify-between">
-                <span className="text-gray-600">EPF (8%):</span>
-                <span className="font-medium">{formatCurrency(safeStatutory.epfEmployee)}</span>
-              </div>
-            )}
-            
-            {safeSalary.deductions.loans > 0 && (
-              <div className="flex justify-between">
-                <span className="text-gray-600">Loans & Advances:</span>
-                <span className="font-medium">{formatCurrency(safeSalary.deductions.loans)}</span>
-              </div>
-            )}
-            
-            <div className="border-t border-gray-200 pt-2 font-semibold">
-              <div className="flex justify-between">
-                <span>Total Deductions:</span>
-                <span>{formatCurrency(safeTotals.totalDeductions)}</span>
+            <div className="flex justify-between">
+              <span className="text-gray-600">No Pay:</span>
+              <span className="font-semibold text-red-600">-{formatCurrency(safeSalary.deductions.noPay)}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-gray-600">EPF (Employee):</span>
+              <span className="font-semibold text-red-600">-{formatCurrency(safeSalary.deductions.epf)}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-gray-600">ETF:</span>
+              <span className="font-semibold text-red-600">-{formatCurrency(safeSalary.deductions.etf)}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-gray-600">Loans:</span>
+              <span className="font-semibold text-red-600">-{formatCurrency(safeSalary.deductions.loans)}</span>
+            </div>
+            <div className="border-t border-red-200 pt-3">
+              <div className="flex justify-between font-semibold">
+                <span className="text-red-700">Total Deductions:</span>
+                <span className="text-red-700">-{formatCurrency(safeTotals.totalDeductions)}</span>
               </div>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Net Salary */}
-      <div className="bg-green-50 rounded-lg p-6 mb-8">
-        <div className="flex justify-between items-center">
-          <h3 className="text-xl font-bold text-gray-800">Net Salary:</h3>
-          <span className="text-2xl font-bold text-green-600">
-            {formatCurrency(safeTotals.netSalary)}
-          </span>
+      {/* Salary Summary - Matching AgentSalaryInquiry */}
+      <div className="bg-gradient-to-r from-emerald-50 to-green-50 rounded-xl p-6 mb-8">
+        <h4 className="text-xl font-semibold text-gray-800 mb-6">Salary Summary</h4>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 text-center">
+          <div>
+            <p className="text-sm text-gray-600 mb-2">Gross Salary</p>
+            <p className="text-3xl font-bold text-blue-600">{formatCurrency(safeTotals.grossSalary)}</p>
+          </div>
+          <div>
+            <p className="text-sm text-gray-600 mb-2">Total Deductions</p>
+            <p className="text-3xl font-bold text-red-600">-{formatCurrency(safeTotals.totalDeductions)}</p>
+          </div>
+          <div className="bg-white rounded-lg p-4 shadow-md">
+            <p className="text-sm text-gray-600 mb-2">Net Salary</p>
+            <p className="text-4xl font-bold text-green-600">{formatCurrency(safeTotals.netSalary)}</p>
+          </div>
         </div>
       </div>
 
@@ -731,22 +783,23 @@ const AgentSalarySlip = forwardRef(({ salaryData }, ref) => {
         <h3 className="text-lg font-semibold text-gray-800 mb-4">
           Employer Contributions (Information Only)
         </h3>
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-2 gap-6">
           <div className="flex justify-between">
-            <span className="text-gray-600">EPF (12%):</span>
-            <span className="font-medium">{formatCurrency(safeStatutory.epfEmployer)}</span>
+            <span className="text-gray-600">EPF Employer (12%):</span>
+            <span className="font-medium">{formatCurrency(safeMeta.epfEmployer)}</span>
           </div>
           <div className="flex justify-between">
             <span className="text-gray-600">ETF (3%):</span>
-            <span className="font-medium">{formatCurrency(safeStatutory.etfEmployer)}</span>
+            <span className="font-medium">{formatCurrency(safeSalary.basic * 0.03)}</span>
           </div>
         </div>
       </div>
 
       {/* Footer */}
-      <div className="border-t-2 border-gray-200 pt-4 text-center text-sm text-gray-500">
+      <div className="border-t-2 border-gray-200 pt-6 text-center text-sm text-gray-500">
         <p>This is a computer-generated salary slip and does not require a signature.</p>
         <p className="mt-2">For any queries, please contact the HR department.</p>
+        <p className="mt-2 font-medium">Document ID: PS-{safeEmployee.agentId}-{new Date().toISOString().slice(0, 7)}</p>
       </div>
     </div>
   );

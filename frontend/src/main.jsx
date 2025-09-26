@@ -37,6 +37,8 @@ import PartnerScheduleCollection from './pages/PartnerScheduleCollection';
 import AdminPickupPartners from './pages/AdminPickupPartners';
 import AdminPickupAgents from './pages/AdminPickupAgents';
 import AdminRecyclers from './pages/AdminRecyclers';
+import AdminSchedules from './pages/AdminSchedules';
+import AdminBins from './pages/AdminBins';
 import RecyclerLogin from './pages/RecyclerLogin';
 import RecyclerRegister from './pages/RecyclerRegister';
 import RecyclerDashboard from './pages/RecyclerDashboard';
@@ -173,6 +175,8 @@ const router = createBrowserRouter([
           { path: 'pickup-partners', element: <AdminPickupPartners /> },
           { path: 'pickup-agents', element: <AdminPickupAgents /> },
           { path: 'recyclers', element: <AdminRecyclers /> },
+          { path: 'schedules', element: <AdminSchedules /> },
+          { path: 'bins', element: <AdminBins /> },
           { path: 'waste-prices', element: <AdminWastePrices /> },
           // Add more admin routes here as needed
         ],
