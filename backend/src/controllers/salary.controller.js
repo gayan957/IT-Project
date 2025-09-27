@@ -1,6 +1,7 @@
 import Salary from '../models/Salary.js';
 import PickUpAgent from '../models/PickUpAgent.js';
 import PickUpPartner from '../models/PickUpPartner.js';
+import { sendSalarySlipEmail as sendEmailService } from '../services/emailService.js';
 
 // Salary calculation utilities
 class SalaryCalculator {
@@ -437,5 +438,112 @@ export const deleteSalaryAdmin = async (req, res, next) => {
   } catch (error) {
     console.error('Error deleting salary (admin):', error);
     next(error);
+  }
+};
+
+// Send salary slip via email
+export const sendSalarySlipEmail = async (req, res, next) => {
+  try {
+    console.log('📧 Starting email sending process...');
+    const { salaryId } = req.params;
+    const { pdfData } = req.body;
+
+    console.log('📋 Request data:', { salaryId, hasPdfData: !!pdfData });
+
+    // Validate required data
+    if (!pdfData) {
+      console.log('❌ No PDF data provided');
+      return res.status(400).json({ 
+        success: false, 
+        message: 'PDF data is required' 
+      });
+    }
+
+    // Get salary record with employee details
+    console.log('🔍 Finding salary record...');
+    const salary = await Salary.findById(salaryId);
+
+    if (!salary) {
+      console.log('❌ Salary record not found');
+      return res.status(404).json({ 
+        success: false, 
+        message: 'Salary record not found' 
+      });
+    }
+
+    console.log('✅ Salary record found:', { 
+      employeeName: salary.employee?.name, 
+      employeeEmail: salary.employee?.email,
+      agentId: salary.employee?.agentId,
+      month: salary.attendance?.month
+    });
+
+    // Validate employee email
+    if (!salary.employee || !salary.employee.email || salary.employee.email === 'N/A') {
+      console.log('❌ Employee email not found or invalid');
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Employee email not found or invalid' 
+      });
+    }
+
+    // Convert base64 to buffer
+    console.log('🔄 Converting PDF data to buffer...');
+    
+    // Validate base64 format
+    const base64Regex = /^[A-Za-z0-9+/]*={0,2}$/;
+    if (!base64Regex.test(pdfData)) {
+      console.log('❌ Invalid base64 PDF data format');
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Invalid PDF data format' 
+      });
+    }
+    
+    const pdfBuffer = Buffer.from(pdfData, 'base64');
+    console.log('✅ PDF buffer created, size:', pdfBuffer.length, 'bytes');
+
+    // Send email
+    console.log('📤 Sending email...');
+    const emailResult = await sendEmailService({
+      recipientEmail: salary.employee.email,
+      recipientName: salary.employee.name,
+      agentId: salary.employee.agentId,
+      month: salary.attendance.month,
+      pdfBuffer: pdfBuffer
+    });
+
+    console.log('✅ Email sent successfully:', emailResult);
+
+    // Update salary record to mark as sent
+    console.log('💾 Updating salary record...');
+    await Salary.findByIdAndUpdate(salaryId, {
+      emailSent: true,
+      emailSentAt: new Date()
+    });
+
+    console.log('🎉 Process completed successfully');
+    res.json({
+      success: true,
+      message: `Salary slip sent successfully to ${salary.employee.email}`,
+      emailId: emailResult.messageId
+    });
+
+  } catch (error) {
+    console.error('💥 DETAILED ERROR in sendSalarySlipEmail:', error);
+    console.error('Error name:', error.name);
+    console.error('Error message:', error.message);
+    console.error('Error stack:', error.stack);
+    
+    // Log additional context
+    console.error('Request params:', req.params);
+    console.error('Request body keys:', Object.keys(req.body || {}));
+    console.error('User info:', req.user ? { id: req.user.id, role: req.user.role } : 'No user');
+    
+    res.status(500).json({ 
+      success: false, 
+      message: error.message || 'Failed to send salary slip email',
+      error: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
   }
 };
