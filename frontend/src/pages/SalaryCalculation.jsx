@@ -288,7 +288,7 @@ export default function SalaryCalculation() {
                         type="number"
                         value={formData.attendance.workingDays}
                         onChange={(e) => updateFormData('attendance.workingDays', Number(e.target.value))}
-                        placeholder="0"
+                        placeholder="22"
                         min="0"
                         max="31"
                         className="bg-white border-slate-300 focus:border-emerald-500 focus:ring-emerald-500"
@@ -427,18 +427,6 @@ export default function SalaryCalculation() {
                       />
                     </Field>
 
-                    <Field label="Overtime Pay" helpText="Auto-calculated from attendance">
-                      <Input
-                        type="number"
-                        value={formData.salary.perks.overtime}
-                        onChange={(e) => updateFormData('salary.perks.overtime', Number(e.target.value))}
-                        placeholder="0"
-                        min="0"
-                        step="0.01"
-                        className="bg-gradient-to-r from-green-50 to-green-100 border-green-200 focus:border-green-500 focus:ring-green-500"
-                      />
-                    </Field>
-
                     <Field label="Bonus & Incentives">
                       <Input
                         type="number"
@@ -448,6 +436,18 @@ export default function SalaryCalculation() {
                         min="0"
                         step="0.01"
                         className="bg-white border-slate-300 focus:border-green-500 focus:ring-green-500"
+                      />
+                    </Field>
+
+                    <Field label="Overtime Pay" helpText="Auto-calculated from attendance">
+                      <Input
+                        type="number"
+                        value={formData.salary.perks.overtime}
+                        onChange={(e) => updateFormData('salary.perks.overtime', Number(e.target.value))}
+                        placeholder="0"
+                        min="0"
+                        step="0.01"
+                        className="bg-gradient-to-r from-green-50 to-green-100 border-green-200 focus:border-green-500 focus:ring-green-500"
                       />
                     </Field>
                   </div>
@@ -479,7 +479,7 @@ export default function SalaryCalculation() {
                       />
                     </Field>
 
-                    <Field label="EPF (Employee 8%)" helpText="Auto-calculated">
+                    <Field label="EPF (Employee 8%)">
                       <Input
                         type="number"
                         value={previewCalculation?.statutory.epfEmployee || 0}
@@ -489,12 +489,22 @@ export default function SalaryCalculation() {
                       />
                     </Field>
 
-                    <Field label="ETF (Employer 3%)" helpText="Information only">
+                    <Field label="ETF (Employer 3%)">
                       <Input
                         type="number"
                         value={previewCalculation?.statutory.etfEmployer || 0}
                         readOnly
                         placeholder="30"
+                        className="bg-gradient-to-r from-slate-100 to-slate-200 border-slate-300 cursor-not-allowed"
+                      />
+                    </Field>
+
+                    <Field label="EPF (Employer 12%)">
+                      <Input
+                        type="number"
+                        value={previewCalculation?.statutory.epfEmployer || 0}
+                        readOnly
+                        placeholder="120"
                         className="bg-gradient-to-r from-slate-100 to-slate-200 border-slate-300 cursor-not-allowed"
                       />
                     </Field>
@@ -508,16 +518,6 @@ export default function SalaryCalculation() {
                         min="0"
                         step="0.01"
                         className="bg-white border-slate-300 focus:border-red-500 focus:ring-red-500"
-                      />
-                    </Field>
-
-                    <Field label="EPF (Employer 12%)" helpText="Information only">
-                      <Input
-                        type="number"
-                        value={previewCalculation?.statutory.epfEmployer || 0}
-                        readOnly
-                        placeholder="120"
-                        className="bg-gradient-to-r from-slate-100 to-slate-200 border-slate-300 cursor-not-allowed"
                       />
                     </Field>
                   </div>
@@ -639,15 +639,15 @@ export default function SalaryCalculation() {
             </div>
             
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              {/* Basic Salary */}
+              {/* Gross Salary */}
               <div className="bg-gradient-to-br from-slate-100 via-slate-200 to-slate-300 rounded-2xl p-6 border border-slate-300 hover:shadow-lg transition-all duration-300">
                 <div className="flex items-center justify-between mb-4">
                   <div className="w-10 h-10 bg-slate-500 rounded-xl flex items-center justify-center shadow-md">
                     <span className="text-white text-lg">💼</span>
                   </div>
                 </div>
-                <p className="text-slate-700 text-sm font-semibold mb-1">Basic Salary</p>
-                <p className="text-2xl font-bold text-slate-900">{previewCalculation.formattedAmounts.basic}</p>
+                <p className="text-slate-700 text-sm font-semibold mb-1">Gross Salary</p>
+                <p className="text-2xl font-bold text-slate-900">{SalaryCalculator.formatCurrency(previewCalculation.totals.grossSalary)}</p>
               </div>
 
               {/* Total Allowances */}
