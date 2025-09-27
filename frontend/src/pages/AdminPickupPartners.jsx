@@ -6,6 +6,7 @@ const AdminPickupPartners = () => {
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingPartner, setEditingPartner] = useState(null);
+  const [searchTerm, setSearchTerm] = useState('');
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -23,6 +24,21 @@ const AdminPickupPartners = () => {
   useEffect(() => {
     fetchPartners();
   }, []);
+
+  // Filter partners based on search term
+  const filteredPartners = partners.filter(partner => {
+    if (!searchTerm) return true;
+    
+    const searchLower = searchTerm.toLowerCase();
+    return (
+      partner.name?.toLowerCase().includes(searchLower) ||
+      partner.email?.toLowerCase().includes(searchLower) ||
+      partner.companyName?.toLowerCase().includes(searchLower) ||
+      partner.partnerId?.toLowerCase().includes(searchLower) ||
+      partner.phoneNumber?.includes(searchTerm) ||
+      partner.contactPerson?.toLowerCase().includes(searchLower)
+    );
+  });
 
   const fetchPartners = async () => {
     try {
@@ -153,6 +169,62 @@ const AdminPickupPartners = () => {
         >
           Add New Partner
         </button>
+      </div>
+
+      {/* Search Section */}
+      <div className="bg-white shadow rounded-lg p-6">
+        <div className="flex flex-col sm:flex-row gap-4 items-center">
+          <div className="flex-1 w-full">
+            <label htmlFor="search" className="block text-sm font-medium text-gray-700 mb-2">
+              Search Partners
+            </label>
+            <div className="relative">
+              <input
+                id="search"
+                type="text"
+                placeholder="Search by name, email, company, partner ID, phone, or contact person..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
+              />
+              <svg
+                className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+            </div>
+          </div>
+          
+          {/* Clear Search Button */}
+          {searchTerm && (
+            <div className="flex items-end">
+              <button
+                onClick={() => setSearchTerm('')}
+                className="px-4 py-3 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-all duration-200 flex items-center gap-2"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+                Clear
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* Search Results Summary */}
+        <div className="mt-4 text-sm text-gray-600">
+          {searchTerm ? (
+            <p>
+              Showing {filteredPartners.length} of {partners.length} partners
+              {searchTerm && ` matching "${searchTerm}"`}
+            </p>
+          ) : (
+            <p>Showing all {partners.length} partners</p>
+          )}
+        </div>
       </div>
 
       {showForm && (
@@ -327,7 +399,7 @@ const AdminPickupPartners = () => {
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
-            {Array.isArray(partners) && partners.map((partner) => (
+            {Array.isArray(filteredPartners) && filteredPartners.map((partner) => (
               <tr key={partner._id}>
                 <td className="px-6 py-4 whitespace-nowrap">
                   <div>
@@ -374,6 +446,17 @@ const AdminPickupPartners = () => {
         {(!Array.isArray(partners) || partners.length === 0) && (
           <div className="text-center py-8 text-gray-500">
             No pickup partners found. Create your first partner to get started.
+          </div>
+        )}
+        {Array.isArray(partners) && partners.length > 0 && filteredPartners.length === 0 && searchTerm && (
+          <div className="text-center py-8 text-gray-500">
+            <svg className="w-16 h-16 mx-auto mb-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+            <p className="text-lg font-medium text-gray-600 mb-2">No matching partners found</p>
+            <p className="text-gray-500">
+              No results found for "{searchTerm}". Try adjusting your search terms.
+            </p>
           </div>
         )}
       </div>

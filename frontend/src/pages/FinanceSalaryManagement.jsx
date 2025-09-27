@@ -11,6 +11,8 @@ export default function FinanceSalaryManagement() {
   const [editId, setEditId] = useState(null);
   const [editData, setEditData] = useState({});
   const [deleteLoading, setDeleteLoading] = useState(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedMonth, setSelectedMonth] = useState('');
 
   // Real-time calculation preview for editing (similar to SalaryCalculation.jsx)
   const editPreviewCalculation = useMemo(() => {
@@ -30,6 +32,26 @@ export default function FinanceSalaryManagement() {
       }
     };
   }, [editData, editId]);
+
+  // Filter salaries based on search term and selected month
+  const filteredSalaries = useMemo(() => {
+    return salaries.filter(salary => {
+      const matchesSearch = searchTerm === '' || 
+        salary.employee?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        salary.employee?.agentId?.toLowerCase().includes(searchTerm.toLowerCase());
+      
+      const matchesMonth = selectedMonth === '' || 
+        salary.attendance?.month?.toLowerCase() === selectedMonth.toLowerCase();
+      
+      return matchesSearch && matchesMonth;
+    });
+  }, [salaries, searchTerm, selectedMonth]);
+
+  // Get unique months from all salary records for filter dropdown
+  const availableMonths = useMemo(() => {
+    const months = [...new Set(salaries.map(salary => salary.attendance?.month).filter(Boolean))];
+    return months.sort();
+  }, [salaries]);
 
   // Fetch all salary records (admin)
   useEffect(() => {
@@ -221,13 +243,108 @@ export default function FinanceSalaryManagement() {
         </h1>
         <p className="text-lg text-slate-600">View, edit, and delete salary records for all employees</p>
       </div>
+
+      {/* Search and Filter Section */}
+      <div className="bg-white/90 backdrop-blur-sm rounded-2xl shadow-lg border border-white/20 p-6 mb-8">
+        <div className="flex flex-col md:flex-row gap-4 items-center">
+          <div className="flex-1">
+            <label htmlFor="search" className="block text-sm font-medium text-gray-700 mb-2">
+              Search by Employee Name or Agent ID
+            </label>
+            <div className="relative">
+              <input
+                id="search"
+                type="text"
+                placeholder="Enter employee name or agent ID..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
+              />
+              <svg
+                className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+            </div>
+          </div>
+          
+          <div className="w-full md:w-64">
+            <label htmlFor="monthFilter" className="block text-sm font-medium text-gray-700 mb-2">
+              Filter by Month
+            </label>
+            <select
+              id="monthFilter"
+              value={selectedMonth}
+              onChange={(e) => setSelectedMonth(e.target.value)}
+              className="w-full py-3 px-4 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
+            >
+              <option value="">All Months</option>
+              {availableMonths.map((month) => (
+                <option key={month} value={month}>
+                  {month}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Clear Filters Button */}
+          {(searchTerm || selectedMonth) && (
+            <div className="flex items-end">
+              <button
+                onClick={() => {
+                  setSearchTerm('');
+                  setSelectedMonth('');
+                }}
+                className="px-4 py-3 bg-gray-500 text-white rounded-xl hover:bg-gray-600 transition-all duration-200 flex items-center gap-2"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+                Clear
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* Search Results Summary */}
+        <div className="mt-4 text-sm text-gray-600">
+          {searchTerm || selectedMonth ? (
+            <p>
+              Showing {filteredSalaries.length} of {salaries.length} records
+              {searchTerm && ` matching "${searchTerm}"`}
+              {selectedMonth && ` for ${selectedMonth}`}
+            </p>
+          ) : (
+            <p>Showing all {salaries.length} records</p>
+          )}
+        </div>
+      </div>
+
       {error && <div className="mb-4 text-red-600 font-medium">{error}</div>}
       {success && <div className="mb-4 text-green-600 font-medium">{success}</div>}
       {salaries.length === 0 ? (
         <div className="text-center py-16 text-slate-500">No salary records found.</div>
+      ) : filteredSalaries.length === 0 ? (
+        <div className="text-center py-16 text-slate-500">
+          <svg className="w-16 h-16 mx-auto mb-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+          </svg>
+          <p className="text-lg font-medium text-gray-600 mb-2">No matching records found</p>
+          <p className="text-gray-500">
+            {searchTerm && selectedMonth 
+              ? `Try adjusting your search for "${searchTerm}" or selected month "${selectedMonth}"`
+              : searchTerm 
+                ? `No results found for "${searchTerm}"`
+                : `No records found for "${selectedMonth}"`
+            }
+          </p>
+        </div>
       ) : (
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
-          {salaries.map((salary) => (
+          {filteredSalaries.map((salary) => (
             <div key={salary._id} className="bg-white/90 backdrop-blur-sm rounded-3xl shadow-xl border border-white/20 p-8 hover:shadow-2xl transition-all duration-300 hover:-translate-y-1">
               {/* Card Header */}
               <div className="flex items-center justify-between mb-6">
