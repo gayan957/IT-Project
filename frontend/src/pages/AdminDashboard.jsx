@@ -22,6 +22,7 @@ export default function AdminDashboard() {
     { path: '/admin/dashboard/bins', label: 'Bin Management', icon: '🗑️' },
     { path: '/admin/dashboard/waste-prices', label: 'Waste Prices', icon: '💰' },
     { path: '/admin/dashboard/warehouse-waste-prices', label: 'Warehouse Waste Prices', icon: '🏭' },
+    { path: '/admin/dashboard/ai-forecasting', label: 'Waste Price Forecasting', icon: '🤖' },
     { path: '/admin/dashboard/analytics', label: 'Analytics', icon: '📈' },
     { path: '/admin/dashboard/settings', label: 'Settings', icon: '⚙️' }
   ];
