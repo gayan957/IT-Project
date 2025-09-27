@@ -18,6 +18,7 @@ export default function FinanceManagementDashboard() {
           id: 'analytics',
           label: 'Revenue Analytics',
           icon: '📈',
+          path: '/admin/finance/analytics',
           description: 'Revenue trends and profit analysis'
         },
         {
