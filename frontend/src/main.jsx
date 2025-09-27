@@ -51,6 +51,8 @@ import FinanceSalaryManagement from './pages/FinanceSalaryManagement';
 import SalaryCalculation from './pages/SalaryCalculation';
 import AgentSalaries from './pages/AgentSalaries';
 import AgentSalaryInquiry from './pages/AgentSalaryInquiry';
+import PickupPartnerOrders from './pages/PickupPartnerOrders';
+import AdminWasteOrders from './pages/AdminWasteOrders';
 import './index.css';
 
 const router = createBrowserRouter([
@@ -150,6 +152,7 @@ const router = createBrowserRouter([
         children: [
           { path: 'bin-collection', element: <PartnerBinCollection /> },
           { path: 'schedule-collection', element: <PartnerScheduleCollection /> },
+          { path: 'orders', element: <PickupPartnerOrders /> },
           { path: 'agents', element: <PickupAgentManagement /> },
           { path: 'calculate-salary', element: <SalaryCalculation /> },
           { path: 'agent-salaries', element: <AgentSalaries /> },
@@ -200,6 +203,14 @@ const router = createBrowserRouter([
             element: (
               <ProtectedRoute allowedRoles={['admin']}>
                 <FinanceDashboardOverview />
+              </ProtectedRoute>
+            ),
+          },
+          {
+            path: 'waste-orders',
+            element: (
+              <ProtectedRoute allowedRoles={['admin']}>
+                <AdminWasteOrders />
               </ProtectedRoute>
             ),
           },

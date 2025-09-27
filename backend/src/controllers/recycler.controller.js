@@ -1,5 +1,7 @@
 import Recycler from '../models/Recycler.js';
 import WasteWarehouse from '../models/WasteWarehouse.js';
+import WarehouseWastePrice from '../models/WarehouseWastePrice.js';
+import OrderWaste from '../models/OrderWaste.js';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 
@@ -384,6 +386,234 @@ export const getRecyclerStatistics = async (req, res) => {
         res.status(500).json({
             success: false,
             error: 'Failed to fetch statistics'
+        });
+    }
+};
+
+// Place Order for Waste
+export const placeOrder = async (req, res) => {
+    try {
+        const { wasteWarehouseId, weight } = req.body;
+        const recyclerId = req.user.id;
+
+        // Validate input
+        if (!wasteWarehouseId || !weight || weight <= 0) {
+            return res.status(400).json({
+                success: false,
+                error: 'Valid waste warehouse ID and weight are required'
+            });
+        }
+
+        // Find the waste warehouse
+        const wasteWarehouse = await WasteWarehouse.findById(wasteWarehouseId);
+        if (!wasteWarehouse) {
+            return res.status(404).json({
+                success: false,
+                error: 'Waste warehouse not found'
+            });
+        }
+
+        // Check if enough waste is available
+        if (wasteWarehouse.totalWeight < weight) {
+            return res.status(400).json({
+                success: false,
+                error: `Insufficient waste available. Only ${wasteWarehouse.totalWeight}kg available.`
+            });
+        }
+
+        // Get pricing information
+        const priceInfo = await WarehouseWastePrice.findOne({ 
+            wasteType: wasteWarehouse.wasteType 
+        });
+        
+        if (!priceInfo) {
+            return res.status(404).json({
+                success: false,
+                error: 'Pricing information not found for this waste type'
+            });
+        }
+
+        // Calculate amounts
+        const wasteAmount = weight * priceInfo.pricePerKg;
+        const adminTaxAmount = weight * priceInfo.adminTaxPerKg;
+        const totalAmount = wasteAmount + adminTaxAmount;
+
+        // Create the order
+        const newOrder = new OrderWaste({
+            wasteWarehouseId,
+            recyclerId,
+            wasteAmount,
+            adminTaxAmount,
+            totalOrderValue: totalAmount,
+            weight: weight
+        });
+
+        // Save the order (this will populate metadata via pre-save middleware)
+        await newOrder.save();
+
+        // Reduce the weight from warehouse
+        wasteWarehouse.totalWeight -= weight;
+        await wasteWarehouse.save();
+
+        // Populate the order with related data for response
+        const populatedOrder = await OrderWaste.findById(newOrder._id)
+            .populate('wasteWarehouseId', 'wasteType location')
+            .populate('recyclerId', 'name facilityName')
+            .populate('meta.pickupPartnerId', 'companyName');
+
+        res.status(201).json({
+            success: true,
+            message: 'Order placed successfully',
+            data: {
+                orderId: populatedOrder._id,
+                totalAmount,
+                order: populatedOrder
+            }
+        });
+
+    } catch (error) {
+        console.error('Error placing order:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Failed to place order'
+        });
+    }
+};
+
+// Get Order Price Quote
+export const getOrderQuote = async (req, res) => {
+    try {
+        const { wasteWarehouseId, weight } = req.query;
+
+        // Validate input
+        if (!wasteWarehouseId || !weight || weight <= 0) {
+            return res.status(400).json({
+                success: false,
+                error: 'Valid waste warehouse ID and weight are required'
+            });
+        }
+
+        // Find the waste warehouse
+        const wasteWarehouse = await WasteWarehouse.findById(wasteWarehouseId);
+        if (!wasteWarehouse) {
+            return res.status(404).json({
+                success: false,
+                error: 'Waste warehouse not found'
+            });
+        }
+
+        // Check if enough waste is available
+        if (wasteWarehouse.totalWeight < weight) {
+            return res.status(400).json({
+                success: false,
+                error: `Insufficient waste available. Only ${wasteWarehouse.totalWeight}kg available.`,
+                availableWeight: wasteWarehouse.totalWeight
+            });
+        }
+
+        // Get pricing information
+        const priceInfo = await WarehouseWastePrice.findOne({ 
+            wasteType: wasteWarehouse.wasteType 
+        });
+        
+        if (!priceInfo) {
+            return res.status(404).json({
+                success: false,
+                error: 'Pricing information not found for this waste type'
+            });
+        }
+
+        // Calculate amounts
+        const wasteAmount = weight * priceInfo.pricePerKg;
+        const adminTaxAmount = weight * priceInfo.adminTaxPerKg;
+        const totalAmount = wasteAmount + adminTaxAmount;
+
+        res.json({
+            success: true,
+            data: {
+                weight: parseFloat(weight),
+                wasteType: wasteWarehouse.wasteType,
+                pricePerKg: priceInfo.pricePerKg,
+                adminTaxPerKg: priceInfo.adminTaxPerKg,
+                wasteAmount,
+                adminTaxAmount,
+                totalAmount,
+                availableWeight: wasteWarehouse.totalWeight
+            }
+        });
+
+    } catch (error) {
+        console.error('Error getting order quote:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Failed to get order quote'
+        });
+    }
+};
+
+// Get Recycler Orders
+export const getRecyclerOrders = async (req, res) => {
+    try {
+        const recyclerId = req.user.id;
+        const { status } = req.query;
+
+        // Build query options
+        const options = {};
+        if (status) {
+            options.status = status;
+        }
+
+        // Get orders for this recycler
+        const orders = await OrderWaste.getOrdersByRecycler(recyclerId, options);
+
+        res.json({
+            success: true,
+            data: orders
+        });
+
+    } catch (error) {
+        console.error('Error fetching recycler orders:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Failed to fetch orders'
+        });
+    }
+};
+
+// Process (Complete) a Recycler Order
+export const processRecyclerOrder = async (req, res) => {
+    try {
+        const recyclerId = req.user.id;
+        const { orderId } = req.params;
+
+        // Find the order
+        const order = await OrderWaste.findOne({
+            _id: orderId,
+            recyclerId: recyclerId,
+            status: 'approved'
+        });
+
+        if (!order) {
+            return res.status(404).json({
+                success: false,
+                error: 'Order not found or not approved'
+            });
+        }
+
+        // Complete the order using the model method
+        const completedOrder = await order.completeOrder();
+
+        res.json({
+            success: true,
+            message: 'Order processed successfully',
+            data: completedOrder
+        });
+
+    } catch (error) {
+        console.error('Error processing order:', error);
+        res.status(500).json({
+            success: false,
+            error: error.message || 'Failed to process order'
         });
     }
 };

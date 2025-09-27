@@ -13,3 +13,4 @@ export { default as WasteWarehouse } from './WasteWarehouse.js';
 export { default as WastePrice } from './WastePrice.js';
 export { default as WarehouseWastePrice } from './WarehouseWastePrice.js';
 export { default as Salary } from './Salary.js';
+export { default as OrderWaste } from './OrderWaste.js';

@@ -8,7 +8,11 @@ import {
     getRecyclerWarehouse,
     getAvailableWaste,
     updateRecyclerPassword,
-    getRecyclerStatistics
+    getRecyclerStatistics,
+    placeOrder,
+    getOrderQuote,
+    getRecyclerOrders,
+    processRecyclerOrder
 } from '../controllers/recycler.controller.js';
 import { authenticateRecycler } from '../middleware/auth.js';
 
@@ -26,5 +30,9 @@ router.put('/password/:id', updateRecyclerPassword);
 router.get('/warehouse', authenticateRecycler, getRecyclerWarehouse);
 router.get('/available-waste', authenticateRecycler, getAvailableWaste);
 router.get('/statistics', authenticateRecycler, getRecyclerStatistics);
+router.get('/order-quote', authenticateRecycler, getOrderQuote);
+router.post('/place-order', authenticateRecycler, placeOrder);
+router.get('/orders', authenticateRecycler, getRecyclerOrders);
+router.patch('/orders/:orderId/process', authenticateRecycler, processRecyclerOrder);
 
 export default router;

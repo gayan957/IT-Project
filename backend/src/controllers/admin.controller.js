@@ -3,8 +3,6 @@ import PickUpPartner from '../models/PickUpPartner.js';
 import Recycler from '../models/Recycler.js';
 import UserSchedule from '../models/UserSchedule.js';
 import Bin from '../models/Bin.js';
-import Salary from '../models/Salary.js';
-import PickUpAgent from '../models/PickUpAgent.js';
 import bcrypt from 'bcryptjs';
 //import Todo from '../models/Todo.js';
 
@@ -371,141 +369,177 @@ export async function deleteBinById(req, res, next) {
     }
 }
 
-// ---- Salary Management (admin only) ----
+// ---- Waste Order management (admin only) ----
 
-export async function getAllSalaries(req, res, next) {
+// Get all waste orders
+export async function getAllWasteOrders(req, res, next) {
     try {
-        const { month, agentId } = req.query;
+        const { page = 1, limit = 20, status } = req.query;
         
+        // Import OrderWaste model
+        const OrderWaste = (await import('../models/OrderWaste.js')).default;
+
+        // Build query
         let query = {};
-        if (month) query['attendance.month'] = month;
-        if (agentId) query.pickupAgentId = agentId;
+        if (status && status !== 'all') {
+            query.orderStatus = status;
+        }
+
+        const skip = (parseInt(page) - 1) * parseInt(limit);
         
-        const salaries = await Salary.find(query)
-            .populate('pickupAgent', 'name agentId email phoneNumber')
-            .populate('pickupPartner', 'name email')
-            .sort({ 'attendance.month': -1, createdAt: -1 });
-        
+        const [orders, totalOrders] = await Promise.all([
+            OrderWaste.find(query)
+                .populate('wasteWarehouseId', 'wasteType totalWeight')
+                .populate('recyclerId', 'name email companyName')
+                .populate('approvedBy', 'name email username')
+                .populate('meta.pickupPartnerId', 'companyName email')
+                .sort({ createdAt: -1 })
+                .skip(skip)
+                .limit(parseInt(limit)),
+            OrderWaste.countDocuments(query)
+        ]);
+
+        const totalPages = Math.ceil(totalOrders / parseInt(limit));
+
         res.json({
             success: true,
-            data: salaries,
-            count: salaries.length
-        });
-    } catch (err) { 
-        console.error('Error fetching salaries:', err);
-        next(err); 
-    }
-}
-
-export async function getSalaryById(req, res, next) {
-    try {
-        const salary = await Salary.findById(req.params.salaryId)
-            .populate('pickupAgent', 'name agentId email phoneNumber')
-            .populate('pickupPartner', 'name email');
-        
-        if (!salary) return res.status(404).json({ 
-            success: false, 
-            message: 'Salary record not found' 
-        });
-        
-        res.json({
-            success: true,
-            data: salary
-        });
-    } catch (err) { 
-        console.error('Error fetching salary:', err);
-        next(err); 
-    }
-}
-
-export async function updateSalaryById(req, res, next) {
-    try {
-        const allowedUpdates = [
-            'attendance.workingDays', 
-            'attendance.overtimeHours', 
-            'attendance.noPayDays',
-            'salary.basic',
-            'salary.deductions.noPay',
-            'salary.deductions.loans',
-            'salary.allowances.food',
-            'salary.allowances.medical',
-            'salary.allowances.cola',
-            'salary.perks.overtime',
-            'salary.perks.bonus'
-        ];
-        
-        const updates = {};
-        Object.keys(req.body).forEach(key => {
-            if (allowedUpdates.includes(key)) {
-                const keys = key.split('.');
-                if (keys.length === 1) {
-                    updates[key] = req.body[key];
-                } else if (keys.length === 2) {
-                    if (!updates[keys[0]]) updates[keys[0]] = {};
-                    updates[keys[0]][keys[1]] = req.body[key];
-                } else if (keys.length === 3) {
-                    if (!updates[keys[0]]) updates[keys[0]] = {};
-                    if (!updates[keys[0]][keys[1]]) updates[keys[0]][keys[1]] = {};
-                    updates[keys[0]][keys[1]][keys[2]] = req.body[key];
-                }
+            orders: orders,
+            pagination: {
+                currentPage: parseInt(page),
+                totalPages,
+                totalOrders,
+                hasNext: parseInt(page) < totalPages,
+                hasPrev: parseInt(page) > 1
             }
         });
-        
-        const salary = await Salary.findByIdAndUpdate(
-            req.params.salaryId, 
-            updates, 
-            { new: true, runValidators: true }
-        ).populate('pickupAgent', 'name agentId email phoneNumber')
-         .populate('pickupPartner', 'name email');
-        
-        if (!salary) return res.status(404).json({ 
-            success: false, 
-            message: 'Salary record not found' 
-        });
-        
-        res.json({ 
-            success: true,
-            message: 'Salary updated successfully', 
-            data: salary 
-        });
-    } catch (err) { 
-        console.error('Error updating salary:', err);
-        next(err); 
+    } catch (err) {
+        console.error('Error fetching waste orders:', err);
+        next(err);
     }
 }
 
-export async function deleteSalaryById(req, res, next) {
+// Get waste order statistics
+export async function getWasteOrderStats(req, res, next) {
     try {
-        const salary = await Salary.findByIdAndDelete(req.params.salaryId);
-        if (!salary) return res.status(404).json({ 
-            success: false, 
-            message: 'Salary record not found' 
+        const OrderWaste = (await import('../models/OrderWaste.js')).default;
+
+        const [statusCounts, totalValue] = await Promise.all([
+            OrderWaste.aggregate([
+                {
+                    $group: {
+                        _id: '$orderStatus',
+                        count: { $sum: 1 }
+                    }
+                }
+            ]),
+            OrderWaste.aggregate([
+                {
+                    $group: {
+                        _id: null,
+                        totalValue: { $sum: '$totalOrderValue' }
+                    }
+                }
+            ])
+        ]);
+
+        const stats = {
+            pending: 0,
+            approved: 0,
+            completed: 0,
+            cancelled: 0,
+            totalValue: totalValue[0]?.totalValue || 0
+        };
+
+        statusCounts.forEach(item => {
+            stats[item._id] = item.count;
         });
-        
-        res.json({ 
-            success: true,
-            message: 'Salary record deleted successfully' 
-        });
-    } catch (err) { 
-        console.error('Error deleting salary:', err);
-        next(err); 
+
+        res.json(stats);
+    } catch (err) {
+        console.error('Error fetching waste order stats:', err);
+        next(err);
     }
 }
 
-export async function getAllAgents(req, res, next) {
+// Approve a waste order
+export async function approveWasteOrder(req, res, next) {
     try {
-        const agents = await PickUpAgent.find()
-            .populate('partnerId', 'name email')
-            .select('name agentId email phoneNumber address partnerId')
-            .sort({ name: 1 });
-        
+        const { orderId } = req.params;
+        const adminId = req.user.id;
+
+        const OrderWaste = (await import('../models/OrderWaste.js')).default;
+
+        const order = await OrderWaste.findById(orderId);
+        if (!order) {
+            return res.status(404).json({
+                success: false,
+                message: 'Order not found'
+            });
+        }
+
+        if (order.orderStatus !== 'pending') {
+            return res.status(400).json({
+                success: false,
+                message: 'Only pending orders can be approved'
+            });
+        }
+
+        // Use the instance method to approve the order
+        await order.approveOrder(adminId);
+
+        // Get the updated order with populated fields
+        const updatedOrder = await OrderWaste.findById(orderId)
+            .populate('wasteWarehouseId', 'wasteType totalWeight')
+            .populate('recyclerId', 'name email companyName')
+            .populate('approvedBy', 'name email username');
+
         res.json({
             success: true,
-            data: agents,
-            count: agents.length
+            message: 'Order approved successfully',
+            order: updatedOrder
         });
-    } catch (err) { 
-        console.error('Error fetching agents:', err);
-        next(err); 
+    } catch (err) {
+        console.error('Error approving waste order:', err);
+        next(err);
+    }
+}
+
+// Reject a waste order
+export async function rejectWasteOrder(req, res, next) {
+    try {
+        const { orderId } = req.params;
+        const { reason } = req.body;
+
+        const OrderWaste = (await import('../models/OrderWaste.js')).default;
+
+        const order = await OrderWaste.findById(orderId);
+        if (!order) {
+            return res.status(404).json({
+                success: false,
+                message: 'Order not found'
+            });
+        }
+
+        if (order.orderStatus !== 'pending') {
+            return res.status(400).json({
+                success: false,
+                message: 'Only pending orders can be rejected'
+            });
+        }
+
+        // Update order status to cancelled
+        order.orderStatus = 'cancelled';
+        if (reason) {
+            order.rejectionReason = reason;
+        }
+        await order.save();
+
+        res.json({
+            success: true,
+            message: 'Order rejected successfully'
+        });
+    } catch (err) {
+        console.error('Error rejecting waste order:', err);
+        next(err);
     }
 }

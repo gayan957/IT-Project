@@ -1,10 +1,52 @@
-import axios from 'axios';
-
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
+
+// Helper function to handle API responses with auth error checking
+const handleApiResponse = async (response, errorMessage = 'Request failed') => {
+  if (!response.ok) {
+    const errorData = await response.json();
+    
+    // If it's an auth error, might need to re-login
+    if (response.status === 401) {
+      return { 
+        success: false, 
+        error: errorData.message || 'Authentication failed. Please log in again.',
+        requiresLogin: true 
+      };
+    }
+    
+    return { 
+      success: false, 
+      error: errorData.error || errorData.message || errorMessage 
+    };
+  }
+
+  const data = await response.json();
+  // If the backend response has success: true and data property, return the data
+  // Otherwise return the entire response
+  if (data.success === true && data.data) {
+    return { success: true, data: data.data };
+  }
+  return { success: true, data: data };
+};
 
 // Get authentication token
 const getAuthToken = () => {
-  return localStorage.getItem('token');
+  const token = localStorage.getItem('token');
+  
+  // Validate token format and existence
+  if (!token || token === 'null' || token === 'undefined' || token.trim() === '') {
+    console.warn('No valid token found in localStorage');
+    return null;
+  }
+  
+  // Basic JWT format validation (should have 3 parts separated by dots)
+  const tokenParts = token.split('.');
+  if (tokenParts.length !== 3) {
+    console.warn('Invalid JWT format detected:', token.substring(0, 20) + '...');
+    return null;
+  }
+  
+  return token.trim();
 };
 
 // Recycler Authentication
@@ -146,7 +188,11 @@ export const getRecyclerWarehouse = async () => {
   try {
     const token = getAuthToken();
     if (!token) {
-      throw new Error('No authentication token found');
+      return { 
+        success: false, 
+        error: 'No valid authentication token. Please log in again.',
+        requiresLogin: true 
+      };
     }
 
     const response = await fetch(`${API_BASE_URL}/api/recyclers/warehouse`, {
@@ -157,17 +203,10 @@ export const getRecyclerWarehouse = async () => {
       }
     });
 
-    if (!response.ok) {
-      if (response.status === 401) {
-        throw new Error('Authentication failed - please login again');
-      }
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-
-    return await response.json();
+    return await handleApiResponse(response, 'Failed to fetch warehouse data');
   } catch (error) {
-    console.error('Error fetching recycler warehouse:', error);
-    throw error;
+    console.error('Error getting recycler warehouse:', error);
+    return { success: false, error: error.message || 'Failed to fetch warehouse data' };
   }
 };
 
@@ -176,13 +215,17 @@ export const getAvailableWaste = async (page = 1, limit = 20, wasteType = 'all')
   try {
     const token = getAuthToken();
     if (!token) {
-      throw new Error('No authentication token found');
+      return { 
+        success: false, 
+        error: 'No valid authentication token. Please log in again.',
+        requiresLogin: true 
+      };
     }
 
     const queryParams = new URLSearchParams({
       page: page.toString(),
       limit: limit.toString(),
-      wasteType: wasteType
+      wasteType
     });
 
     const response = await fetch(`${API_BASE_URL}/api/recyclers/available-waste?${queryParams}`, {
@@ -193,26 +236,23 @@ export const getAvailableWaste = async (page = 1, limit = 20, wasteType = 'all')
       }
     });
 
-    if (!response.ok) {
-      if (response.status === 401) {
-        throw new Error('Authentication failed - please login again');
-      }
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-
-    return await response.json();
+    return await handleApiResponse(response, 'Failed to fetch available waste');
   } catch (error) {
     console.error('Error fetching available waste:', error);
-    throw error;
+    return { success: false, error: error.message || 'Failed to fetch available waste' };
   }
 };
 
-// Get recycler statistics
+// Get recycler statistics  
 export const getRecyclerStatistics = async () => {
   try {
     const token = getAuthToken();
     if (!token) {
-      throw new Error('No authentication token found');
+      return { 
+        success: false, 
+        error: 'No valid authentication token. Please log in again.',
+        requiresLogin: true 
+      };
     }
 
     const response = await fetch(`${API_BASE_URL}/api/recyclers/statistics`, {
@@ -223,17 +263,10 @@ export const getRecyclerStatistics = async () => {
       }
     });
 
-    if (!response.ok) {
-      if (response.status === 401) {
-        throw new Error('Authentication failed - please login again');
-      }
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-
-    return await response.json();
+    return await handleApiResponse(response, 'Failed to fetch statistics');
   } catch (error) {
     console.error('Error fetching recycler statistics:', error);
-    throw error;
+    return { success: false, error: error.message || 'Failed to fetch statistics' };
   }
 };
 
@@ -351,15 +384,144 @@ export const adminRecyclerApi = {
   }
 };
 
-export default {
-  registerRecycler,
-  loginRecycler,
-  logoutRecycler,
-  getRecyclerProfile,
-  updateRecycler,
-  updateRecyclerPassword,
-  getRecyclerWarehouse,
-  getAvailableWaste,
-  getRecyclerStatistics,
-  adminRecyclerApi
+// Order-related API functions
+export const getOrderQuote = async (wasteWarehouseId, weight) => {
+  try {
+    const token = getAuthToken();
+    
+    if (!token) {
+      return { 
+        success: false, 
+        error: 'No valid authentication token. Please log in again.',
+        requiresLogin: true 
+      };
+    }
+    
+    const response = await fetch(
+      `${API_BASE_URL}/api/recyclers/order-quote?wasteWarehouseId=${wasteWarehouseId}&weight=${weight}`,
+      {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      }
+    );
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      
+      // If it's an auth error, might need to re-login
+      if (response.status === 401) {
+        return { 
+          success: false, 
+          error: errorData.message || 'Authentication failed. Please log in again.',
+          requiresLogin: true 
+        };
+      }
+      
+      return { success: false, error: errorData.error || errorData.message || 'Failed to get quote' };
+    }
+
+    const data = await response.json();
+    return { success: true, data: data.data };
+  } catch (error) {
+    console.error('Error getting order quote:', error);
+    return { success: false, error: error.message || 'Failed to get quote' };
+  }
+};
+
+export const placeOrder = async (wasteWarehouseId, weight) => {
+  try {
+    const token = getAuthToken();
+    const response = await fetch(`${API_BASE_URL}/api/recyclers/place-order`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        wasteWarehouseId,
+        weight
+      })
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      return { success: false, error: errorData.error || 'Failed to place order' };
+    }
+
+    const data = await response.json();
+    return { success: true, data: data.data };
+  } catch (error) {
+    console.error('Error placing order:', error);
+    return { success: false, error: error.message || 'Failed to place order' };
+  }
+};
+
+// Get Recycler's Orders
+export const getRecyclerOrders = async (status = null) => {
+  try {
+    const token = getAuthToken();
+    if (!token) {
+      return { 
+        success: false, 
+        error: 'No valid authentication token. Please log in again.',
+        requiresLogin: true 
+      };
+    }
+
+    let url = `${API_BASE_URL}/api/recyclers/orders`;
+    if (status) {
+      url += `?status=${encodeURIComponent(status)}`;
+    }
+    
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    return await handleApiResponse(response, 'Failed to fetch orders');
+  } catch (error) {
+    console.error('Error fetching recycler orders:', error);
+    return { success: false, error: error.message || 'Failed to fetch orders' };
+  }
+};
+
+// Process (complete) a recycler order
+export const processRecyclerOrder = async (orderId) => {
+  try {
+    const token = getAuthToken();
+    if (!token) {
+      return { 
+        success: false, 
+        error: 'No valid authentication token. Please log in again.',
+        requiresLogin: true 
+      };
+    }
+    
+    const response = await fetch(`${API_BASE_URL}/api/recyclers/orders/${orderId}/process`, {
+      method: 'PATCH',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    return await handleApiResponse(response, 'Failed to process order');
+  } catch (error) {
+    console.error('Error processing order:', error);
+    return { success: false, error: error.message || 'Failed to process order' };
+  }
+};
+
+// RecyclerAPI object for easy importing
+export const RecyclerAPI = {
+  getOrderQuote,
+  placeOrder,
+  getRecyclerOrders,
+  processRecyclerOrder
 };

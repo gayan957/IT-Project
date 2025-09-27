@@ -30,8 +30,16 @@ export default function RecyclerLogin() {
             });
 
             if (response.token) {
+                // Validate token format before storing
+                const token = response.token.trim();
+                const tokenParts = token.split('.');
+                
+                if (tokenParts.length !== 3) {
+                    throw new Error('Invalid token format received from server');
+                }
+                
                 // Store authentication data
-                localStorage.setItem('token', response.token);
+                localStorage.setItem('token', token);
                 localStorage.setItem('user', JSON.stringify(response.recycler));
                 localStorage.setItem('userRole', 'recycler');
 

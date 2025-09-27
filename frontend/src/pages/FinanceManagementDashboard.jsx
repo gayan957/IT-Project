@@ -81,6 +81,13 @@ export default function FinanceManagementDashboard() {
       title: 'Transactions & Payments',
       items: [
         {
+          id: 'waste-orders',
+          label: 'Waste Orders',
+          icon: '🗂️',
+          path: '/admin/finance/waste-orders',
+          description: 'Manage and approve waste orders'
+        },
+        {
           id: 'transactions',
           label: 'Transaction History',
           icon: '💳',

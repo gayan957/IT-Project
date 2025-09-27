@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { toast } from 'react-hot-toast';
+import api from '../lib/api';
 import PDFReportModal from '../components/PDFReportModal';
 
 export default function DashboardAnalytics() {
@@ -30,29 +31,23 @@ export default function DashboardAnalytics() {
       }
 
       // Fetch user collections data (bins and schedules combined)
-      const collectionsResponse = await fetch('/api/collections/user/history', {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
+      const collectionsResponse = await api.get('/api/collections/user/history');
       
       // Fetch user's completed schedule collections from AgentSchedule
-      const schedulesResponse = await fetch('/api/agent-schedules/user', {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
+      const schedulesResponse = await api.get('/api/agent-schedules/user');
 
       let collectionsData = [];
       let scheduleData = [];
 
-      if (collectionsResponse.ok) {
-        const collectionsResult = await collectionsResponse.json();
-        collectionsData = collectionsResult.collections || [];
+      if (collectionsResponse.status === 200) {
+        collectionsData = collectionsResponse.data.collections || [];
       } else {
         console.warn('Failed to fetch collections:', collectionsResponse.status);
       }
 
-      if (schedulesResponse.ok) {
-        const schedulesResult = await schedulesResponse.json();
+      if (schedulesResponse.status === 200) {
         // AgentSchedule API returns { collections: [...] } format
-        scheduleData = schedulesResult.collections || [];
+        scheduleData = schedulesResponse.data.collections || [];
       } else {
         console.warn('Failed to fetch schedule collections:', schedulesResponse.status);
       }
@@ -161,8 +156,15 @@ export default function DashboardAnalytics() {
       });
 
     } catch (error) {
-      console.error('Error fetching analytics:', error);
-      toast.error('Failed to load analytics data');
+      console.error('Failed to fetch collections:', error);
+      if (error.response?.status === 403) {
+        toast.error('Access denied. Please check your permissions.');
+      } else if (error.response?.status === 401) {
+        toast.error('Please log in to view analytics');
+        // Optionally redirect to login page
+      } else {
+        toast.error('Failed to load analytics data');
+      }
     } finally {
       setLoading(false);
     }

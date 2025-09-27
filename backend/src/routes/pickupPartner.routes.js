@@ -9,7 +9,8 @@ import {
     updateCollectionStatus,
     getPartnerWarehouse,
     getPartnerScheduleCollections,
-    updateScheduleCollectionStatus
+    updateScheduleCollectionStatus,
+    getPartnerOrders
 } from '../controllers/pickupPartner.controller.js';
 import { authenticatePickupPartner } from '../middleware/auth.js';
 
@@ -37,5 +38,7 @@ router.get('/warehouse', authenticatePickupPartner, getPartnerWarehouse);
 router.get('/schedule-collections', authenticatePickupPartner, getPartnerScheduleCollections);
 // Update schedule collection status
 router.put('/schedule-collections/:collectionId/status', authenticatePickupPartner, updateScheduleCollectionStatus);
+// Get orders for partner
+router.get('/orders', authenticatePickupPartner, getPartnerOrders);
 
 export default router;
