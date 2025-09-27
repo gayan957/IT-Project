@@ -55,6 +55,8 @@ const salarySchema = new mongoose.Schema({
     grossSalary: Number,
     netSalary: Number
   },
+  emailSent: { type: Boolean, default: false },
+  emailSentAt: { type: Date },
   createdAt: { type: Date, default: Date.now }
 });
 

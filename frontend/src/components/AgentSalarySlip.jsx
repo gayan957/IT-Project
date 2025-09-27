@@ -1,6 +1,267 @@
 import { forwardRef } from 'react';
 import jsPDF from 'jspdf';
 
+// PDF generator function for email sending - returns base64
+export async function generatePaySlipPdfBase64({ slip }) {
+  try {
+    console.log('Starting PDF generation for email...');
+    console.log('Slip data:', slip);
+    
+    if (typeof jsPDF === 'undefined') {
+      throw new Error('jsPDF library is not loaded');
+    }
+
+    if (!slip) {
+      throw new Error('Salary data not provided');
+    }
+
+    // Create PDF document
+    const doc = new jsPDF('p', 'mm', 'a4');
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
+    
+    // Safe data extraction with defaults - matching AgentSalaryInquiry structure
+    const {
+      employee = {},
+      attendance = {},
+      salary = { allowances: {}, perks: {}, deductions: {} },
+      totals = {},
+      createdAt
+    } = slip;
+
+    const safeEmployee = {
+      name: employee.name || 'N/A',
+      agentId: employee.agentId || 'N/A',
+      epfNo: employee.epfNo || 'N/A',
+      email: employee.email || 'N/A'
+    };
+
+    const safeAttendance = {
+      month: attendance.month || 'N/A',
+      workingDays: attendance.workingDays || 0,
+      overtimeHours: attendance.overtimeHours || 0,
+      noPayDays: attendance.noPayDays || 0
+    };
+
+    const safeSalary = {
+      basic: salary.basic || 0,
+      allowances: {
+        food: salary.allowances?.food || 0,
+        medical: salary.allowances?.medical || 0,
+        cola: salary.allowances?.cola || 0
+      },
+      perks: {
+        overtime: salary.perks?.overtime || 0,
+        bonus: salary.perks?.bonus || 0
+      },
+      deductions: {
+        noPay: salary.deductions?.noPay || 0,
+        epf: salary.deductions?.epf || 0,
+        etf: salary.deductions?.etf || 0,
+        loans: salary.deductions?.loans || 0
+      }
+    };
+
+    const safeTotals = {
+      totalAllowances: totals.totalAllowances || 0,
+      grossSalary: totals.grossSalary || 0,
+      totalDeductions: totals.totalDeductions || 0,
+      netSalary: totals.netSalary || 0
+    };
+
+    // Helper function for currency formatting
+    const formatCurrency = (amount) => {
+      return `Rs. ${Number(amount || 0).toLocaleString('en-LK', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+      })}`;
+    };
+
+    const formatDate = (date) => {
+      return new Date(date).toLocaleDateString('en-GB', {
+        day: '2-digit',
+        month: 'long',
+        year: 'numeric'
+      });
+    };
+
+    // Compact single-page layout
+    let y = 20;
+    
+    // Compact Header with company branding
+    doc.setFillColor(25, 46, 94);
+    doc.rect(0, 0, pageWidth, 30, 'F');
+    
+    // Company logo area
+    doc.setFillColor(255, 255, 255);
+    doc.circle(20, 15, 6, 'F');
+    doc.setFillColor(25, 46, 94);
+    doc.setFontSize(8);
+    doc.text('ECO', 17.5, 16.5);
+    
+    // Company name and payslip title
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(16);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Trash2Cash', 35, 18);
+    doc.setFontSize(11);
+    doc.setFont('helvetica', 'normal');
+    doc.text('Monthly Salary Slip', 35, 25);
+    
+    // Period and date
+    doc.setFontSize(9);
+    doc.text(`Period: ${safeAttendance.month}`, pageWidth - 60, 18);
+    doc.text(`Generated: ${formatDate(createdAt || new Date())}`, pageWidth - 60, 25);
+    
+    y = 40;
+    doc.setTextColor(0, 0, 0);
+
+    // Employee Information Section (Compact)
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(10);
+    doc.text('Employee Information', 15, y);
+    y += 8;
+
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(9);
+    
+    // Two-column layout for employee info
+    doc.text(`Name: ${safeEmployee.name}`, 15, y);
+    doc.text(`Agent ID: ${safeEmployee.agentId}`, 110, y);
+    y += 6;
+    doc.text(`EPF No: ${safeEmployee.epfNo}`, 15, y);
+    doc.text(`Email: ${safeEmployee.email}`, 110, y);
+    y += 10;
+
+    // Attendance Summary (Compact horizontal layout)
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(10);
+    doc.text('Attendance Summary', 15, y);
+    y += 8;
+
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(9);
+    const attendanceY = y;
+    doc.text(`Working Days: ${safeAttendance.workingDays}`, 15, attendanceY);
+    doc.text(`Overtime: ${safeAttendance.overtimeHours}h`, 70, attendanceY);
+    doc.text(`No Pay Days: ${safeAttendance.noPayDays}`, 125, attendanceY);
+    y += 12;
+
+    // Salary Breakdown (Single comprehensive section)
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(10);
+    doc.text('Salary Breakdown', 15, y);
+    y += 8;
+
+    // Draw table header
+    doc.setFillColor(240, 240, 240);
+    doc.rect(15, y - 3, pageWidth - 30, 8, 'F');
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(9);
+    doc.text('Description', 18, y + 2);
+    doc.text('Amount (Rs.)', pageWidth - 20, y + 2, { align: 'right' });
+    y += 10;
+
+    // Helper function for table rows
+    const addTableRow = (label, amount, isBold = false, isTotal = false) => {
+      if (isTotal) {
+        doc.setFillColor(250, 250, 250);
+        doc.rect(15, y - 3, pageWidth - 30, 7, 'F');
+      }
+      
+      doc.setFont('helvetica', isBold ? 'bold' : 'normal');
+      doc.setFontSize(9);
+      doc.text(label, 18, y + 1);
+      doc.text(formatCurrency(amount), pageWidth - 20, y + 1, { align: 'right' });
+      y += 6;
+    };
+
+    // Basic salary
+    addTableRow('Basic Salary', safeSalary.basic);
+    
+    // Allowances
+    if (safeSalary.allowances.food > 0) addTableRow('Food Allowance', safeSalary.allowances.food);
+    if (safeSalary.allowances.medical > 0) addTableRow('Medical Allowance', safeSalary.allowances.medical);
+    if (safeSalary.allowances.cola > 0) addTableRow('Cost of Living Allowance', safeSalary.allowances.cola);
+    
+    // Perks
+    if (safeSalary.perks.overtime > 0) addTableRow('Overtime Payment', safeSalary.perks.overtime);
+    if (safeSalary.perks.bonus > 0) addTableRow('Bonus', safeSalary.perks.bonus);
+    
+    // Subtotal
+    y += 2;
+    addTableRow('Total Allowances', safeTotals.totalAllowances, true, true);
+    addTableRow('Gross Salary', safeTotals.grossSalary, true, true);
+    
+    y += 3;
+    
+    // Deductions
+    if (safeSalary.deductions.noPay > 0) addTableRow('No Pay Deduction', safeSalary.deductions.noPay);
+    if (safeSalary.deductions.epf > 0) addTableRow('EPF (8%)', safeSalary.deductions.epf);
+    if (safeSalary.deductions.etf > 0) addTableRow('ETF (3%)', safeSalary.deductions.etf);
+    if (safeSalary.deductions.loans > 0) addTableRow('Loan Deduction', safeSalary.deductions.loans);
+    
+    y += 2;
+    addTableRow('Total Deductions', safeTotals.totalDeductions, true, true);
+    
+    y += 5;
+    
+    // Net salary (highlighted)
+    doc.setFillColor(220, 245, 220);
+    doc.rect(15, y - 3, pageWidth - 30, 10, 'F');
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(11);
+    doc.text('Net Salary', 18, y + 3);
+    doc.text(formatCurrency(safeTotals.netSalary), pageWidth - 20, y + 3, { align: 'right' });
+    y += 15;
+
+    // Footer with dotted line and signature areas (Compact)
+    y += 10;
+    
+    // Dotted line
+    doc.setLineDashPattern([1, 1], 0);
+    doc.line(15, y, pageWidth - 15, y);
+    doc.setLineDashPattern([], 0);
+    y += 8;
+
+    // Compact signature section
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8);
+    doc.text('Employee Signature: _________________', 15, y);
+    doc.text('HR Signature: _________________', pageWidth - 80, y);
+    y += 8;
+
+    // Footer note
+    doc.setFontSize(7);
+    doc.setTextColor(100, 100, 100);
+    doc.text('This is a system-generated payslip. No signature required.', 15, y);
+    doc.text(`Generated on ${formatDate(new Date())}`, pageWidth - 60, y);
+
+    // Return PDF as base64 string
+    const pdfOutput = doc.output('datauristring');
+    if (!pdfOutput || !pdfOutput.includes(',')) {
+      throw new Error('Invalid PDF output format');
+    }
+    
+    const pdfBase64 = pdfOutput.split(',')[1];
+    if (!pdfBase64 || pdfBase64.length < 100) {
+      throw new Error('Generated PDF appears to be too small or invalid');
+    }
+    
+    console.log('PDF generated successfully as base64, size:', pdfBase64.length);
+    return pdfBase64;
+
+  } catch (error) {
+    console.error('Error generating PDF:', error);
+    console.error('Error details:', {
+      name: error.name,
+      message: error.message,
+      stack: error.stack
+    });
+    throw new Error(`Failed to generate salary slip PDF: ${error.message}`);
+  }
+}
+
 // PDF generator function - Direct jsPDF approach (avoiding html2canvas oklch issues)
 export async function downloadPaySlipPdf({ slip }) {
   try {
@@ -87,10 +348,10 @@ export async function downloadPaySlipPdf({ slip }) {
       });
     };
 
-    // Compact single-page layout
+    // Simple single-page layout matching the email PDF
     let y = 20;
     
-    // Compact Header with company branding
+    // Header with company branding
     doc.setFillColor(25, 46, 94);
     doc.rect(0, 0, pageWidth, 30, 'F');
     
@@ -98,254 +359,149 @@ export async function downloadPaySlipPdf({ slip }) {
     doc.setFillColor(255, 255, 255);
     doc.circle(20, 15, 6, 'F');
     doc.setFillColor(25, 46, 94);
-    doc.setFontSize(6);
-    doc.setFont('helvetica', 'bold');
-    doc.text('T2C', 20, 16.5, { align: 'center' });
+    doc.setFontSize(8);
+    doc.text('ECO', 17.5, 16.5);
     
-    // Company name
+    // Company name and title
     doc.setTextColor(255, 255, 255);
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(18);
-    doc.text('TRASH2CASH', 30, 12);
-    doc.setFontSize(8);
-    doc.text('Waste Management Solutions', 30, 19);
-    doc.setFontSize(7);
-    doc.text('Smart • Sustainable • Profitable', 30, 24);
-    
-    // Document title (right side)
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(14);
-    doc.text('PAYROLL STATEMENT', pageWidth - 15, 12, { align: 'right' });
+    doc.setFontSize(16);
+    doc.text('Trash2Cash', 30, 12);
     doc.setFont('helvetica', 'normal');
-    doc.setFontSize(8);
-    doc.text(`${safeAttendance.month} | ${formatDate(createdAt || new Date())}`, pageWidth - 15, 19, { align: 'right' });
+    doc.setFontSize(11);
+    doc.text('Monthly Salary Slip', 30, 20);
+    
+    // Period and generation date (right side)
+    doc.setFontSize(9);
+    doc.text(`Period: ${safeAttendance.month}`, pageWidth - 15, 12, { align: 'right' });
+    doc.text(`Generated: ${formatDate(new Date())}`, pageWidth - 15, 18, { align: 'right' });
 
     y = 40;
 
-    // Compact Employee Information
-    doc.setFillColor(248, 249, 252);
-    doc.rect(15, y, pageWidth - 30, 25, 'F');
-    doc.setDrawColor(25, 46, 94);
-    doc.setLineWidth(0.5);
-    doc.rect(15, y, pageWidth - 30, 25, 'S');
-    
-    doc.setTextColor(25, 46, 94);
+    // Employee Information Section
+    doc.setTextColor(0, 0, 0);
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(10);
-    doc.text('EMPLOYEE DETAILS', 20, y + 6);
-    
-    // Four columns for employee info
-    doc.setTextColor(51, 65, 85);
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(7);
-    
-    const emp1 = 20, emp2 = 65, emp3 = 110, emp4 = 155;
-    
-    doc.setFont('helvetica', 'bold');
-    doc.text('Name:', emp1, y + 12);
-    doc.text('ID:', emp2, y + 12);
-    doc.text('EPF:', emp3, y + 12);
-    doc.text('Email:', emp4, y + 12);
-    
-    doc.setFont('helvetica', 'normal');
-    doc.text(safeEmployee.name, emp1, y + 17);
-    doc.text(safeEmployee.agentId, emp2, y + 17);
-    doc.text(safeEmployee.epfNo, emp3, y + 17);
-    doc.text(safeEmployee.email, emp4, y + 17);
+    doc.text('Employee Information', 15, y);
+    y += 8;
 
-    y += 35;
-
-    // Compact Attendance
-    doc.setFillColor(250, 252, 255);
-    doc.rect(15, y, pageWidth - 30, 20, 'F');
-    doc.setDrawColor(25, 46, 94);
-    doc.rect(15, y, pageWidth - 30, 20, 'S');
-    
-    doc.setTextColor(25, 46, 94);
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(10);
-    doc.text('ATTENDANCE', 20, y + 6);
-    
-    doc.setTextColor(51, 65, 85);
     doc.setFont('helvetica', 'normal');
-    doc.setFontSize(7);
+    doc.setFontSize(9);
     
-    const att1 = 70, att2 = 120, att3 = 170;
-    doc.setFont('helvetica', 'bold');
-    doc.text('Working Days:', att1, y + 10);
-    doc.text('Overtime Hrs:', att2, y + 10);
-    doc.text('Absent Days:', att3, y + 10);
-    
-    doc.setFont('helvetica', 'normal');
-    doc.setTextColor(16, 185, 129);
-    doc.text(safeAttendance.workingDays.toString(), att1, y + 15);
-    doc.text(safeAttendance.overtimeHours.toString(), att2, y + 15);
-    doc.setTextColor(239, 68, 68);
-    doc.text(safeAttendance.noPayDays.toString(), att3, y + 15);
-
-    y += 30;
-
-    // Compact Salary Breakdown - Two columns
-    doc.setTextColor(25, 46, 94);
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(12);
-    doc.text('COMPENSATION BREAKDOWN', 20, y);
-    doc.setDrawColor(25, 46, 94);
-    doc.setLineWidth(1);
-    doc.line(20, y + 2, pageWidth - 20, y + 2);
-    
+    // Left side employee info
+    doc.text(`Name: ${safeEmployee.name}`, 15, y);
+    doc.text(`Agent ID: ${safeEmployee.agentId}`, pageWidth / 2, y);
+    y += 6;
+    doc.text(`EPF No: ${safeEmployee.epfNo}`, 15, y);
+    doc.text(`Email: ${safeEmployee.email}`, pageWidth / 2, y);
     y += 10;
 
-    // Left Column - Earnings
-    const leftStart = 20, rightStart = pageWidth / 2 + 10;
-    const colWidth = (pageWidth / 2) - 25;
-    
-    // Earnings Section
-    doc.setFillColor(240, 253, 244);
-    doc.rect(leftStart - 2, y, colWidth, 90, 'F');
-    doc.setDrawColor(16, 185, 129);
-    doc.setLineWidth(0.5);
-    doc.rect(leftStart - 2, y, colWidth, 90, 'S');
-    
-    doc.setTextColor(25, 46, 94);
+    // Attendance Summary Section
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(9);
-    doc.text('EARNINGS', leftStart, y + 8);
-    
-    let leftY = y + 15;
-    doc.setTextColor(51, 65, 85);
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(7);
-    
-    // Basic and allowances
-    doc.text('Basic Salary:', leftStart, leftY);
-    doc.text(formatCurrency(safeSalary.basic), leftStart + colWidth - 5, leftY, { align: 'right' });
-    leftY += 6;
-    
-    doc.text('Food Allowance:', leftStart, leftY);
-    doc.text(formatCurrency(safeSalary.allowances.food), leftStart + colWidth - 5, leftY, { align: 'right' });
-    leftY += 6;
-    
-    doc.text('Medical Allowance:', leftStart, leftY);
-    doc.text(formatCurrency(safeSalary.allowances.medical), leftStart + colWidth - 5, leftY, { align: 'right' });
-    leftY += 6;
-    
-    doc.text('COLA:', leftStart, leftY);
-    doc.text(formatCurrency(safeSalary.allowances.cola), leftStart + colWidth - 5, leftY, { align: 'right' });
-    leftY += 6;
-    
-    doc.text('Overtime Pay:', leftStart, leftY);
-    doc.text(formatCurrency(safeSalary.perks.overtime), leftStart + colWidth - 5, leftY, { align: 'right' });
-    leftY += 6;
-    
-    doc.text('Bonus:', leftStart, leftY);
-    doc.text(formatCurrency(safeSalary.perks.bonus), leftStart + colWidth - 5, leftY, { align: 'right' });
-    leftY += 8;
-    
-    // Gross total
-    doc.setDrawColor(16, 185, 129);
-    doc.setLineWidth(0.5);
-    doc.line(leftStart, leftY - 4, leftStart + colWidth - 5, leftY - 4);
-    doc.setFont('helvetica', 'bold');
-    doc.setTextColor(16, 185, 129);
-    doc.text('GROSS SALARY:', leftStart, leftY);
-    doc.text(formatCurrency(safeTotals.grossSalary), leftStart + colWidth - 5, leftY, { align: 'right' });
-
-    // Right Column - Deductions
-    doc.setFillColor(254, 242, 242);
-    doc.rect(rightStart - 2, y, colWidth, 90, 'F');
-    doc.setDrawColor(239, 68, 68);
-    doc.setLineWidth(0.5);
-    doc.rect(rightStart - 2, y, colWidth, 90, 'S');
-    
-    doc.setTextColor(25, 46, 94);
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(9);
-    doc.text('DEDUCTIONS', rightStart, y + 8);
-    
-    let rightY = y + 15;
-    doc.setTextColor(51, 65, 85);
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(7);
-    
-    doc.text('No Pay:', rightStart, rightY);
-    doc.setTextColor(239, 68, 68);
-    doc.text(formatCurrency(safeSalary.deductions.noPay), rightStart + colWidth - 5, rightY, { align: 'right' });
-    rightY += 6;
-    
-    doc.setTextColor(51, 65, 85);
-    doc.text('EPF (8%):', rightStart, rightY);
-    doc.setTextColor(239, 68, 68);
-    doc.text(formatCurrency(safeSalary.deductions.epf), rightStart + colWidth - 5, rightY, { align: 'right' });
-    rightY += 6;
-    
-    doc.setTextColor(51, 65, 85);
-    doc.text('Loans:', rightStart, rightY);
-    doc.setTextColor(239, 68, 68);
-    doc.text(formatCurrency(safeSalary.deductions.loans), rightStart + colWidth - 5, rightY, { align: 'right' });
-    rightY += 8;
-    
-    // Total deductions
-    doc.setDrawColor(239, 68, 68);
-    doc.setLineWidth(0.5);
-    doc.line(rightStart, rightY - 4, rightStart + colWidth - 5, rightY - 4);
-    doc.setFont('helvetica', 'bold');
-    doc.setTextColor(25, 46, 94);
-    doc.text('TOTAL DEDUCTIONS:', rightStart, rightY);
-    doc.setTextColor(239, 68, 68);
-    doc.text(formatCurrency(safeTotals.totalDeductions), rightStart + colWidth - 5, rightY, { align: 'right' });
-
-    y += 100;
-    
-    // Compact Net Salary Highlight
-    doc.setFillColor(25, 46, 94);
-    doc.rect(20, y, pageWidth - 40, 20, 'F');
-    doc.setDrawColor(255, 255, 255);
-    doc.setLineWidth(1);
-    doc.rect(22, y + 2, pageWidth - 44, 16, 'S');
-    
-    doc.setTextColor(255, 255, 255);
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(14);
-    doc.text('NET SALARY', 30, y + 10);
-    doc.setFontSize(18);
-    doc.text(formatCurrency(safeTotals.netSalary), pageWidth - 30, y + 12, { align: 'right' });
-    
-    y += 35;
-
-    // Authorized Signature Section with dotted line
-    doc.setTextColor(51, 65, 85);
-    doc.setFont('helvetica', 'normal');
     doc.setFontSize(10);
-    doc.text('Authorized Signature:', 20, y);
-    
-    // Create dotted line aligned with text
-    const textWidth = doc.getTextWidth('Authorized Signature:');
-    doc.setDrawColor(0, 0, 0);
-    doc.setLineWidth(0.3);
-    doc.setLineDashPattern([2, 1], 0); // 2 points dash, 1 point gap
-    // Line starts 5 points after text ends and extends 80 points for signature space
-    doc.line(20 + textWidth + 5, y, 20 + textWidth + 50, y);
-    doc.setLineDashPattern([], 0); // Reset to solid line for future elements
-    
-    // Compact Footer
-    y = pageHeight - 25;
-    
-    doc.setFillColor(248, 250, 252);
-    doc.rect(0, y, pageWidth, 10, 'F');
-    doc.setDrawColor(25, 46, 94);
-    doc.setLineWidth(0.3);
-    doc.line(0, y, pageWidth, y);
-    
-    doc.setTextColor(51, 65, 85);
+    doc.text('Attendance Summary', 15, y);
+    y += 8;
+
     doc.setFont('helvetica', 'normal');
-    doc.setFontSize(7);
-    doc.text('TRASH2CASH | hr@trash2cash.com | +94 11 234 5678', pageWidth / 2, y + 5, { align: 'center' });
+    doc.setFontSize(9);
+    doc.text(`Working Days: ${safeAttendance.workingDays}`, 15, y);
+    doc.text(`Overtime: ${safeAttendance.overtimeHours}h`, pageWidth / 2 - 20, y);
+    doc.text(`No Pay Days: ${safeAttendance.noPayDays}`, pageWidth / 2 + 40, y);
+
+    y += 15;
+
+    // Salary Breakdown (Simple table format)
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(10);
+    doc.text('Salary Breakdown', 15, y);
+    y += 8;
+
+    // Draw table header
+    doc.setFillColor(240, 240, 240);
+    doc.rect(15, y - 3, pageWidth - 30, 8, 'F');
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(9);
+    doc.text('Description', 18, y + 2);
+    doc.text('Amount (Rs.)', pageWidth - 20, y + 2, { align: 'right' });
+    y += 10;
+
+    // Helper function for table rows
+    const addTableRow = (label, amount, isBold = false, isTotal = false) => {
+      if (isTotal) {
+        doc.setFillColor(250, 250, 250);
+        doc.rect(15, y - 3, pageWidth - 30, 7, 'F');
+      }
+      
+      doc.setFont('helvetica', isBold ? 'bold' : 'normal');
+      doc.setFontSize(9);
+      doc.text(label, 18, y + 1);
+      doc.text(formatCurrency(amount), pageWidth - 20, y + 1, { align: 'right' });
+      y += 6;
+    };
+
+    // Basic salary
+    addTableRow('Basic Salary', safeSalary.basic);
     
-    doc.setTextColor(100, 116, 139);
-    doc.setFontSize(6);
-    doc.text('Computer-generated document. For inquiries contact HR department.', pageWidth / 2, y + 15, { align: 'center' });
-    doc.text(`Document ID: PS-${safeEmployee.agentId}-${new Date().getFullYear()}${String(new Date().getMonth() + 1).padStart(2, '0')}`, pageWidth / 2, y + 20, { align: 'center' });
+    // Allowances
+    if (safeSalary.allowances.food > 0) addTableRow('Food Allowance', safeSalary.allowances.food);
+    if (safeSalary.allowances.medical > 0) addTableRow('Medical Allowance', safeSalary.allowances.medical);
+    if (safeSalary.allowances.cola > 0) addTableRow('Cost of Living Allowance', safeSalary.allowances.cola);
+    
+    // Perks
+    if (safeSalary.perks.overtime > 0) addTableRow('Overtime Payment', safeSalary.perks.overtime);
+    if (safeSalary.perks.bonus > 0) addTableRow('Bonus', safeSalary.perks.bonus);
+    
+    // Subtotal
+    y += 2;
+    addTableRow('Total Allowances', safeTotals.totalAllowances, true, true);
+    addTableRow('Gross Salary', safeTotals.grossSalary, true, true);
+    
+    y += 3;
+    
+    // Deductions
+    if (safeSalary.deductions.noPay > 0) addTableRow('No Pay Deduction', safeSalary.deductions.noPay);
+    if (safeSalary.deductions.epf > 0) addTableRow('EPF (8%)', safeSalary.deductions.epf);
+    if (safeSalary.deductions.etf > 0) addTableRow('ETF (3%)', safeSalary.deductions.etf);
+    if (safeSalary.deductions.loans > 0) addTableRow('Loan Deduction', safeSalary.deductions.loans);
+    
+    y += 2;
+    addTableRow('Total Deductions', safeTotals.totalDeductions, true, true);
+    
+    y += 5;
+    
+    // Net salary (highlighted)
+    doc.setFillColor(220, 245, 220);
+    doc.rect(15, y - 3, pageWidth - 30, 10, 'F');
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(11);
+    doc.text('Net Salary', 18, y + 3);
+    doc.text(formatCurrency(safeTotals.netSalary), pageWidth - 20, y + 3, { align: 'right' });
+    y += 15;
+
+
+    // Footer with dotted line and signature areas
+    y += 10;
+    
+    // Dotted line separator
+    doc.setDrawColor(0, 0, 0);
+    doc.setLineWidth(0.2);
+    doc.setLineDashPattern([1, 1], 0);
+    doc.line(15, y, pageWidth - 15, y);
+    doc.setLineDashPattern([], 0);
+    
+    y += 10;
+    
+    // Signature sections
+    doc.setTextColor(0, 0, 0);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8);
+    doc.text('Employee Signature: ___________________________', 20, y);
+    doc.text('HR Signature: ___________________________', pageWidth - 100, y);
+    
+    y += 10;
+    doc.setFontSize(7);
+    doc.text('This is a system-generated payslip. No signature required.', 20, y);
+    doc.text(`Generated on ${formatDate(new Date())}`, pageWidth - 70, y);
 
     // Generate professional filename with timestamp
     const timestamp = new Date().toISOString().slice(0, 7); // YYYY-MM format

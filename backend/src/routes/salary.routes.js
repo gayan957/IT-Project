@@ -10,6 +10,7 @@ import {
   deleteSalary,
   calculateOvertimeHelper,
   calculateNoPayHelper,
+  sendSalarySlipEmail,
   // New admin functions
   getAllSalariesAdmin,
   getSalaryByIdAdmin,
@@ -41,6 +42,9 @@ router.get('/debug/auth', auth, (req, res) => {
 // Helper calculation routes
 router.post('/calculate-overtime', auth, authorize('pickuppartner'), calculateOvertimeHelper);
 router.post('/calculate-nopay', auth, authorize('pickuppartner'), calculateNoPayHelper);
+
+// Email sending route
+router.post('/:salaryId/send-email', auth, authorize('pickuppartner'), sendSalarySlipEmail);
 
 // Admin salary management routes
 router.get('/admin/all', auth, authorize('admin'), getAllSalariesAdmin);
