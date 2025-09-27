@@ -7,17 +7,20 @@ export class SalaryCalculator {
   static calculateStatutory(salaryData) {
     const { basic, allowances, perks } = salaryData;
     
-    // EPF/ETF base = Basic + Food + Medical + COLA + Bonus (OT typically excluded)
-    const epfBase = 
+    // Calculate gross salary first (Basic + All Allowances + Perks)
+    const grossSalary = 
       Number(basic || 0) +
       Number(allowances.food || 0) +
       Number(allowances.medical || 0) +
       Number(allowances.cola || 0) +
+      Number(perks.overtime || 0) +
       Number(perks.bonus || 0);
 
-    const epfEmployee = this.round2(epfBase * 0.08); // 8% employee deduction
-    const epfEmployer = this.round2(epfBase * 0.12); // 12% employer contribution
-    const etfEmployer = this.round2(epfBase * 0.03); // 3% employer contribution
+    // EPF/ETF calculated from gross salary
+    const epfBase = grossSalary;
+    const epfEmployee = this.round2(grossSalary * 0.08); // 8% employee deduction
+    const epfEmployer = this.round2(grossSalary * 0.12); // 12% employer contribution
+    const etfEmployer = this.round2(grossSalary * 0.03); // 3% employer contribution (ATF)
 
     return { epfBase, epfEmployee, epfEmployer, etfEmployer };
   }
