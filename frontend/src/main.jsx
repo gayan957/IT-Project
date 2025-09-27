@@ -48,6 +48,7 @@ import AdminWarehouseWastePrices from './components/AdminWarehouseWastePrices';
 import FinanceManagementDashboard from './pages/FinanceManagementDashboard';
 import FinanceDashboardOverview from './pages/FinanceDashboardOverview';
 import FinanceSalaryManagement from './pages/FinanceSalaryManagement';
+import RevenueAnalytics from './pages/RevenueAnalytics';
 import SalaryCalculation from './pages/SalaryCalculation';
 import AgentSalaries from './pages/AgentSalaries';
 import AgentSalaryInquiry from './pages/AgentSalaryInquiry';
@@ -211,6 +212,14 @@ const router = createBrowserRouter([
             element: (
               <ProtectedRoute allowedRoles={['admin']}>
                 <AdminWasteOrders />
+              </ProtectedRoute>
+            ),
+          },
+          {
+            path: 'analytics',
+            element: (
+              <ProtectedRoute allowedRoles={['admin']}>
+                <RevenueAnalytics />
               </ProtectedRoute>
             ),
           },

@@ -21,7 +21,6 @@ import wastePriceRoutes from './routes/wastePrice.routes.js';
 import warehouseWastePriceRoutes from './routes/warehouseWastePrice.routes.js';
 import agentScheduleRoutes from './routes/agentSchedule.routes.js';
 import salaryRoutes from './routes/salary.routes.js';
-import orderWasteRoutes from './routes/orderWaste.routes.js';
 // import BlynkPollingService from './services/blynkPolling.js';
 // import { setBlynkPollingService } from './controllers/bin.controller.js';
 
@@ -90,7 +89,6 @@ app.use('/api/waste-prices', wastePriceRoutes);
 app.use('/api/admin/warehouse-waste-prices', warehouseWastePriceRoutes);
 app.use('/api/agent-schedules', agentScheduleRoutes);
 app.use('/api/salary', salaryRoutes);
-app.use('/api/order-wastes', orderWasteRoutes);
 
 // Health check
 app.get('/', (req, res) => {
