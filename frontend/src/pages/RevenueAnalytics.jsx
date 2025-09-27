@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { toast } from 'react-hot-toast';
-import api from '../lib/api';
+import { getAllWasteOrders, getWasteOrderStats } from '../lib/adminWasteOrdersApi';
 
 const RevenueAnalytics = () => {
   const [orderWasteData, setOrderWasteData] = useState([]);
@@ -13,22 +13,64 @@ const RevenueAnalytics = () => {
     avgServiceCharge: 0,
     wasteTypeBreakdown: {}
   });
+  const [overallStats, setOverallStats] = useState({});
 
   useEffect(() => {
     fetchOrderWasteData();
   }, [filter]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  const applyDateFilter = (orders, filterType) => {
+    if (filterType === 'all') return orders;
+
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const currentMonth = now.getMonth();
+
+    return orders.filter(order => {
+      const orderDate = new Date(order.createdAt);
+      const orderYear = orderDate.getFullYear();
+      const orderMonth = orderDate.getMonth();
+
+      switch (filterType) {
+        case 'this-month':
+          return orderYear === currentYear && orderMonth === currentMonth;
+        case 'last-month': {
+          const lastMonth = currentMonth === 0 ? 11 : currentMonth - 1;
+          const lastMonthYear = currentMonth === 0 ? currentYear - 1 : currentYear;
+          return orderYear === lastMonthYear && orderMonth === lastMonth;
+        }
+        case 'this-year':
+          return orderYear === currentYear;
+        default:
+          return true;
+      }
+    });
+  };
+
   const fetchOrderWasteData = async () => {
     try {
       setLoading(true);
-      const response = await api.get('/api/admin/waste-orders', {
-        params: { filter }
-      });
       
-      if (response.data.success) {
-        const orders = response.data.data || [];
+      // Fetch both orders and statistics
+      const [ordersResponse, statsResponse] = await Promise.all([
+        getAllWasteOrders(1, 1000, 'all'),
+        getWasteOrderStats()
+      ]);
+      
+      if (ordersResponse.success) {
+        let orders = ordersResponse.data.orders || [];
+        
+        // Apply client-side filtering based on the selected filter
+        orders = applyDateFilter(orders, filter);
+        
         setOrderWasteData(orders);
         calculateRevenueStats(orders);
+      } else {
+        toast.error(ordersResponse.error || 'Failed to load revenue data');
+      }
+
+      if (statsResponse.success) {
+        setOverallStats(statsResponse.data || {});
       }
     } catch (error) {
       console.error('Error fetching order waste data:', error);
@@ -44,28 +86,58 @@ const RevenueAnalytics = () => {
       totalOrderValue: 0,
       totalOrders: orders.length,
       avgServiceCharge: 0,
-      wasteTypeBreakdown: {}
+      wasteTypeBreakdown: {},
+      statusBreakdown: {
+        pending: 0,
+        approved: 0,
+        completed: 0,
+        cancelled: 0
+      },
+      recyclerBreakdown: {}
     };
 
     orders.forEach(order => {
       const serviceCharge = order.adminTaxAmount || 0;
       const orderValue = order.totalOrderValue || 0;
       const wasteType = order.wasteWarehouseId?.wasteType || order.meta?.wasteType || 'Unknown';
+      const status = order.orderStatus || 'pending';
+      const recyclerName = order.recyclerId?.companyName || order.recyclerId?.name || 'Unknown';
 
       stats.totalServiceCharge += serviceCharge;
       stats.totalOrderValue += orderValue;
 
+      // Waste type breakdown
       if (!stats.wasteTypeBreakdown[wasteType]) {
         stats.wasteTypeBreakdown[wasteType] = {
           count: 0,
           serviceCharge: 0,
-          totalValue: 0
+          totalValue: 0,
+          weight: 0
         };
       }
 
       stats.wasteTypeBreakdown[wasteType].count += 1;
       stats.wasteTypeBreakdown[wasteType].serviceCharge += serviceCharge;
       stats.wasteTypeBreakdown[wasteType].totalValue += orderValue;
+      stats.wasteTypeBreakdown[wasteType].weight += (order.weight || 0);
+
+      // Status breakdown
+      if (stats.statusBreakdown[status] !== undefined) {
+        stats.statusBreakdown[status] += 1;
+      }
+
+      // Recycler breakdown
+      if (!stats.recyclerBreakdown[recyclerName]) {
+        stats.recyclerBreakdown[recyclerName] = {
+          count: 0,
+          serviceCharge: 0,
+          totalValue: 0
+        };
+      }
+
+      stats.recyclerBreakdown[recyclerName].count += 1;
+      stats.recyclerBreakdown[recyclerName].serviceCharge += serviceCharge;
+      stats.recyclerBreakdown[recyclerName].totalValue += orderValue;
     });
 
     stats.avgServiceCharge = stats.totalOrders > 0 ? stats.totalServiceCharge / stats.totalOrders : 0;
@@ -73,7 +145,7 @@ const RevenueAnalytics = () => {
   };
 
   const formatCurrency = (amount) => {
-    return `$${amount.toFixed(2)}`;
+    return `Rs${amount.toFixed(2)}`;
   };
 
   const formatDate = (dateString) => {
@@ -287,6 +359,7 @@ const RevenueAnalytics = () => {
                 <thead>
                   <tr className="border-b border-gray-200">
                     <th className="text-left py-3 px-4 font-medium text-gray-700">Order ID</th>
+                    <th className="text-left py-3 px-4 font-medium text-gray-700">Recycler</th>
                     <th className="text-left py-3 px-4 font-medium text-gray-700">Waste Type</th>
                     <th className="text-left py-3 px-4 font-medium text-gray-700">Weight (kg)</th>
                     <th className="text-left py-3 px-4 font-medium text-gray-700">Service Charge</th>
@@ -297,12 +370,22 @@ const RevenueAnalytics = () => {
                 </thead>
                 <tbody>
                   {orderWasteData.length > 0 ? (
-                    orderWasteData.slice(0, 10).map((order) => (
+                    orderWasteData.slice(0, 15).map((order) => (
                       <tr key={order._id} className="border-b border-gray-100 hover:bg-gray-50">
                         <td className="py-3 px-4">
                           <span className="font-mono text-sm text-gray-600">
                             {order._id?.slice(-6)}
                           </span>
+                        </td>
+                        <td className="py-3 px-4">
+                          <div>
+                            <span className="font-medium text-gray-900">
+                              {order.recyclerId?.companyName || order.recyclerId?.name || 'Unknown'}
+                            </span>
+                            {order.recyclerId?.email && (
+                              <p className="text-xs text-gray-500">{order.recyclerId.email}</p>
+                            )}
+                          </div>
                         </td>
                         <td className="py-3 px-4">
                           <span className="capitalize font-medium">
@@ -334,7 +417,7 @@ const RevenueAnalytics = () => {
                     ))
                   ) : (
                     <tr>
-                      <td colSpan="7" className="text-center py-8 text-gray-500">
+                      <td colSpan="8" className="text-center py-8 text-gray-500">
                         No waste orders found
                       </td>
                     </tr>
@@ -343,10 +426,10 @@ const RevenueAnalytics = () => {
               </table>
             </div>
 
-            {orderWasteData.length > 10 && (
+            {orderWasteData.length > 15 && (
               <div className="mt-4 text-center">
                 <p className="text-sm text-gray-500">
-                  Showing 10 of {orderWasteData.length} orders
+                  Showing 15 of {orderWasteData.length} orders
                 </p>
               </div>
             )}

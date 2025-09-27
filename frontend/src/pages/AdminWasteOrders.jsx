@@ -52,7 +52,7 @@ const AdminWasteOrders = () => {
       `Recycler: ${order.recyclerId?.companyName || order.recyclerId?.name || 'N/A'}\n` +
       `Waste Type: ${order.wasteWarehouseId?.wasteType || 'Unknown'}\n` +
       `Amount: ${order.wasteAmount || order.weight} kg\n` +
-      `Total Value: $${order.totalOrderValue?.toFixed(2) || '0.00'}`;
+      `Total Value: Rs${order.totalOrderValue?.toFixed(2) || '0.00'}`;
 
     if (!window.confirm(confirmMessage)) return;
 
@@ -242,7 +242,7 @@ const AdminWasteOrders = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-purple-700 text-sm font-medium">Total Value</p>
-                <p className="text-3xl font-bold text-purple-800">${stats.totalValue?.toFixed(0) || 0}</p>
+                <p className="text-3xl font-bold text-purple-800">Rs{stats.totalValue?.toFixed(0) || 0}</p>
               </div>
               <div className="w-12 h-12 bg-purple-500 rounded-xl flex items-center justify-center">
                 <span className="text-white text-xl">💰</span>
@@ -311,14 +311,14 @@ const AdminWasteOrders = () => {
                     <div className="flex justify-between items-center">
                       <span className="text-sm text-gray-600 font-medium">Total Value:</span>
                       <span className="text-lg font-bold text-green-600">
-                        ${order.totalOrderValue?.toFixed(2) || '0.00'}
+                        Rs{order.totalOrderValue?.toFixed(2) || '0.00'}
                       </span>
                     </div>
 
                     <div className="flex justify-between items-center">
                       <span className="text-sm text-gray-600 font-medium">Tax Amount:</span>
                       <span className="text-sm font-medium text-orange-600">
-                        ${order.adminTaxAmount?.toFixed(2) || '0.00'}
+                        Rs{order.adminTaxAmount?.toFixed(2) || '0.00'}
                       </span>
                     </div>
                     
