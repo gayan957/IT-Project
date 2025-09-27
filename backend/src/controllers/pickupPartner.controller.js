@@ -494,3 +494,63 @@ export const updateScheduleCollectionStatus = async (req, res) => {
         });
     }
 };
+
+// Get orders for a pickup partner
+export const getPartnerOrders = async (req, res) => {
+    try {
+        const user = req.user;
+        const { page = 1, limit = 20, status } = req.query;
+
+        if (!user || !user.id) {
+            return res.status(401).json({
+                success: false,
+                error: 'Unauthorized - invalid user session'
+            });
+        }
+
+        // Import OrderWaste model
+        const OrderWaste = (await import('../models/OrderWaste.js')).default;
+
+        // Build query to get orders for this pickup partner's waste warehouse
+        let query = { 'meta.pickupPartnerId': user.id };
+        
+        if (status && status !== 'all') {
+            query.orderStatus = status;
+        }
+
+        const skip = (parseInt(page) - 1) * parseInt(limit);
+        
+        const [orders, totalOrders] = await Promise.all([
+            OrderWaste.find(query)
+                .populate('wasteWarehouseId', 'wasteType totalWeight')
+                .populate('recyclerId', 'name email companyName')
+                .populate('approvedBy', 'name email username')
+                .sort({ createdAt: -1 })
+                .skip(skip)
+                .limit(parseInt(limit)),
+            OrderWaste.countDocuments(query)
+        ]);
+
+        const totalPages = Math.ceil(totalOrders / parseInt(limit));
+
+        res.json({
+            success: true,
+            data: {
+                orders: orders,
+                pagination: {
+                    currentPage: parseInt(page),
+                    totalPages,
+                    totalOrders,
+                    hasNext: parseInt(page) < totalPages,
+                    hasPrev: parseInt(page) > 1
+                }
+            }
+        });
+    } catch (error) {
+        console.error('Error fetching partner orders:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Internal server error'
+        });
+    }
+};

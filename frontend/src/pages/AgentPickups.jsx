@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
 import { useAuth } from '../lib/auth';
+import api from '../lib/api';
 
 const AgentPickups = () => {
   const navigate = useNavigate();
@@ -49,35 +50,19 @@ const AgentPickups = () => {
         return;
       }
 
-      const response = await fetch('/api/collections/agent/history', {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
+      const response = await api.get('/api/collections/agent/history');
       
-      if (!response.ok) {
-        if (response.status === 401) {
-          toast.error('Session expired. Please login again.');
-          navigate('/login');
-          return;
-        }
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const data = await response.json();
-      setCollections(data.collections || []);
+      setCollections(response.data.collections || []);
       
     } catch (error) {
       console.error('Error fetching collections:', error);
       setCollections([]); // Set empty array to prevent crashes
       
-      if (error.message.includes('Failed to fetch')) {
-        toast.error('Cannot connect to server. Please check your connection.');
-      } else if (error.message.includes('401') || error.message.includes('Unauthorized')) {
+      if (error.response?.status === 401) {
         toast.error('Session expired. Please login again.');
         navigate('/login');
+      } else if (error.code === 'NETWORK_ERROR' || error.message.includes('Network Error')) {
+        toast.error('Cannot connect to server. Please check your connection.');
       } else {
         toast.error('Failed to load collections. Please try again.');
       }

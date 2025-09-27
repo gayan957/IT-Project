@@ -16,7 +16,19 @@ import {
     getRecyclerById,
     createRecycler,
     updateRecyclerById,
-    deleteRecyclerById
+    deleteRecyclerById,
+    listSchedules,
+    getScheduleById,
+    updateScheduleById,
+    deleteScheduleById,
+    listBins,
+    getBinById,
+    updateBinById,
+    deleteBinById,
+    getAllWasteOrders,
+    getWasteOrderStats,
+    approveWasteOrder,
+    rejectWasteOrder
 } from '../controllers/admin.controller.js';
 
 
@@ -47,9 +59,26 @@ router.post('/recyclers', createRecycler);
 router.put('/recyclers/:recyclerId', updateRecyclerById);
 router.delete('/recyclers/:recyclerId', deleteRecyclerById);
 
+// Schedules
+router.get('/schedules', listSchedules);
+router.get('/schedules/:scheduleId', getScheduleById);
+router.put('/schedules/:scheduleId', updateScheduleById);
+router.delete('/schedules/:scheduleId', deleteScheduleById);
+
+// Bins
+router.get('/bins', listBins);
+router.get('/bins/:binId', getBinById);
+router.put('/bins/:binId', updateBinById);
+router.delete('/bins/:binId', deleteBinById);
+
+// Waste Orders
+router.get('/waste-orders', getAllWasteOrders);
+router.get('/waste-orders/stats', getWasteOrderStats);
+router.put('/waste-orders/:orderId/approve', approveWasteOrder);
+router.put('/waste-orders/:orderId/reject', rejectWasteOrder);
+
 // Todos
 //router.get('/todos', listAllTodos);
 //router.delete('/todos/:todoId', deleteTodoById);
-
 
 export default router;

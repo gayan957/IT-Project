@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
+import api from '../lib/api';
 
 const AgentSchedules = () => {
   const navigate = useNavigate();
@@ -24,35 +25,21 @@ const AgentSchedules = () => {
         return;
       }
 
-      const response = await fetch('/api/agent-schedules/history', {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
+      const response = await api.get('/api/agent-schedules/history');
       
-      if (!response.ok) {
-        if (response.status === 401) {
-          toast.error('Session expired. Please login again.');
-          navigate('/login');
-          return;
-        }
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const data = await response.json();
-      setCollections(data.collections || []);
+      setCollections(response.data.collections || response.data || []);
       
     } catch (error) {
       console.error('Error fetching schedule collections:', error);
       setCollections([]); // Set empty array to prevent crashes
       
-      if (error.message.includes('Failed to fetch')) {
-        toast.error('Cannot connect to server. Please check your connection.');
-      } else if (error.message.includes('401') || error.message.includes('Unauthorized')) {
+      if (error.response?.status === 401) {
         toast.error('Session expired. Please login again.');
         navigate('/login');
+      } else if (error.code === 'NETWORK_ERROR' || error.message.includes('Network Error')) {
+        toast.error('Cannot connect to server. Please check your connection.');
+      } else if (error.response?.status === 404) {
+        toast.error('Schedule endpoint not found. Please contact support.');
       } else {
         toast.error('Failed to load schedule collections. Please try again.');
       }

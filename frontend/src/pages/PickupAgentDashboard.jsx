@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../lib/auth';
-import { Outlet, Link, useLocation } from 'react-router-dom';
+import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 
 export default function PickupAgentDashboard() {
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
   const location = useLocation();
+  const navigate = useNavigate();
   const [stats, setStats] = useState({
     totalPickups: 0,
     todayPickups: 0,
@@ -20,6 +21,15 @@ export default function PickupAgentDashboard() {
     { path: '/pickup-agent/dashboard/salary-inquiry', label: 'Salary Inquiry', icon: '💰' },
     { path: '/pickup-agent/dashboard/profile', label: 'Profile', icon: '👤' }
   ];
+
+  const handleLogout = async () => {
+    try {
+      logout();
+      navigate('/login');
+    } catch (error) {
+      console.error('Error logging out:', error);
+    }
+  };
 
   useEffect(() => {
     // Fetch agent stats here
@@ -40,6 +50,59 @@ export default function PickupAgentDashboard() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-indigo-50">
+      {/* Header */}
+      <header className="bg-white shadow-lg border-b border-gray-200">
+        <div className="px-8 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-4">
+              <div className="w-12 h-12 bg-gradient-to-r from-green-500 to-emerald-600 rounded-xl flex items-center justify-center">
+                <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                </svg>
+              </div>
+              <div>
+                <h1 className="text-2xl font-bold text-gray-900">Pickup Agent Dashboard</h1>
+                <p className="text-gray-600">Manage your pickups and track your performance</p>
+              </div>
+            </div>
+            
+            <div className="flex items-center space-x-6">
+              {/* Notifications */}
+              <button className="relative p-2 text-gray-600 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors">
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-5 5v-5zm-5-5h5l-5 5v-5z" />
+                </svg>
+                <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full"></span>
+              </button>
+              
+              {/* Agent Profile */}
+              <div className="flex items-center space-x-3">
+                <div className="w-10 h-10 bg-gradient-to-r from-green-500 to-emerald-600 rounded-full flex items-center justify-center">
+                  <span className="text-white font-medium text-sm">
+                    {user?.name ? user.name.charAt(0).toUpperCase() : 'A'}
+                  </span>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-gray-900">{user?.name}</p>
+                  <p className="text-xs text-gray-500">Pickup Agent</p>
+                </div>
+              </div>
+              
+              {/* Logout Button */}
+              <button
+                onClick={handleLogout}
+                className="flex items-center space-x-2 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors text-sm font-medium"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                </svg>
+                <span>Logout</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </header>
+
       <div className="flex">
         {/* Sidebar */}
         <nav className="w-64 bg-white shadow-xl min-h-screen border-r border-gray-200">

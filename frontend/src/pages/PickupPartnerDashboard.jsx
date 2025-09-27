@@ -14,6 +14,7 @@ export default function PickupPartnerDashboard() {
     { path: '/pickup-partner/dashboard', label: 'Overview', icon: '📊' },
     { path: '/pickup-partner/dashboard/bin-collection', label: 'Bin Collection', icon: '🗑️' },
     { path: '/pickup-partner/dashboard/schedule-collection', label: 'Schedule Collection', icon: '📅' },
+    { path: '/pickup-partner/dashboard/orders', label: 'Orders', icon: '📋' },
     { path: '/pickup-partner/dashboard/agents', label: 'Pickup Agent Management', icon: '🚛' },
     { path: '/pickup-partner/dashboard/calculate-salary', label: 'Calculate Salary', icon: '🧮' },
     { path: '/pickup-partner/dashboard/agent-salaries', label: 'Agent Salaries', icon: '💰' }

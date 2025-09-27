@@ -1,6 +1,6 @@
 import api from './api.js';
 
-const API_BASE_URL = '/api/salaries';
+const API_BASE_URL = '/api/salary';
 
 export const salaryApi = {
   // Calculate salary without saving

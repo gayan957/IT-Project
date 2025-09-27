@@ -190,4 +190,44 @@ export const updateScheduleCollectionStatus = async (collectionId, status, notes
   }
 };
 
+// Get pickup partner orders
+export const getPartnerOrders = async (page = 1, limit = 20, status = 'all') => {
+  try {
+    const token = getAuthToken();
+    if (!token) {
+      throw new Error('No authentication token found');
+    }
+
+    const queryParams = new URLSearchParams({
+      page: page.toString(),
+      limit: limit.toString()
+    });
+
+    if (status !== 'all') {
+      queryParams.append('status', status);
+    }
+
+    const response = await fetch(`${API_BASE_URL}/api/pickup-partners/orders?${queryParams}`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    if (!response.ok) {
+      if (response.status === 401) {
+        throw new Error('Authentication failed - please login again');
+      }
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error('Error fetching partner orders:', error);
+    throw error;
+  }
+};
+
 export default pickupPartnerApi;

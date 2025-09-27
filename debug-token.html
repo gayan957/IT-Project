@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Token Debug Test</title>
+</head>
+<body>
+    <h1>Token Debug Test</h1>
+    <button onclick="testCurrentToken()">Test Current Token</button>
+    <button onclick="setInvalidToken()">Set Invalid Token</button>
+    <button onclick="clearToken()">Clear Token</button>
+    <button onclick="setValidTestToken()">Set Valid Test Token</button>
+    
+    <div id="results"></div>
+    
+    <script>
+        const API_BASE_URL = 'http://localhost:5000';
+        
+        function displayResult(message) {
+            const div = document.getElementById('results');
+            div.innerHTML += '<p>' + message + '</p>';
+        }
+        
+        function testCurrentToken() {
+            const token = localStorage.getItem('token');
+            displayResult('Current token: ' + (token || 'null'));
+            
+            if (token) {
+                const parts = token.split('.');
+                displayResult('Token parts count: ' + parts.length);
+                displayResult('Is valid JWT format: ' + (parts.length === 3));
+                
+                if (parts.length === 3) {
+                    try {
+                        const payload = JSON.parse(atob(parts[1]));
+                        displayResult('Token payload: ' + JSON.stringify(payload));
+                    } catch (e) {
+                        displayResult('Error decoding payload: ' + e.message);
+                    }
+                }
+            }
+        }
+        
+        function setInvalidToken() {
+            localStorage.setItem('token', 'invalid-token');
+            displayResult('Set invalid token');
+        }
+        
+        function clearToken() {
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
+            localStorage.removeItem('userRole');
+            displayResult('Cleared all tokens and user data');
+        }
+        
+        async function setValidTestToken() {
+            // This would need to be a real token from login
+            displayResult('For valid token, please login through the app');
+        }
+        
+        async function testAPICall() {
+            const token = localStorage.getItem('token');
+            
+            try {
+                const headers = { 'Content-Type': 'application/json' };
+                if (token) {
+                    headers['Authorization'] = `Bearer ${token}`;
+                }
+                
+                const response = await fetch(`${API_BASE_URL}/api/recyclers/statistics`, {
+                    method: 'GET',
+                    headers
+                });
+                
+                const data = await response.json();
+                displayResult(`API Response - Status: ${response.status}, Data: ${JSON.stringify(data)}`);
+            } catch (error) {
+                displayResult('API Error: ' + error.message);
+            }
+        }
+    </script>
+</body>
+</html>

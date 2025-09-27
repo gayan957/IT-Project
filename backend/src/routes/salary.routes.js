@@ -9,7 +9,12 @@ import {
   getAgentSalaries,
   deleteSalary,
   calculateOvertimeHelper,
-  calculateNoPayHelper
+  calculateNoPayHelper,
+  // New admin functions
+  getAllSalariesAdmin,
+  getSalaryByIdAdmin,
+  updateSalaryAdmin,
+  deleteSalaryAdmin
 } from '../controllers/salary.controller.js';
 
 const router = Router();
@@ -36,5 +41,11 @@ router.get('/debug/auth', auth, (req, res) => {
 // Helper calculation routes
 router.post('/calculate-overtime', auth, authorize('pickuppartner'), calculateOvertimeHelper);
 router.post('/calculate-nopay', auth, authorize('pickuppartner'), calculateNoPayHelper);
+
+// Admin salary management routes
+router.get('/admin/all', auth, authorize('admin'), getAllSalariesAdmin);
+router.get('/admin/:salaryId', auth, authorize('admin'), getSalaryByIdAdmin);
+router.put('/admin/:salaryId', auth, authorize('admin'), updateSalaryAdmin);
+router.delete('/admin/:salaryId', auth, authorize('admin'), deleteSalaryAdmin);
 
 export default router;
