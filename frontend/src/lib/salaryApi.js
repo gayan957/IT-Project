@@ -88,6 +88,19 @@ export const salaryApi = {
     }
   },
 
+  // Send salary slip via email
+  sendSalarySlipEmail: async (salaryId, pdfBase64) => {
+    try {
+      const response = await api.post(`${API_BASE_URL}/${salaryId}/send-email`, {
+        pdfData: pdfBase64
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Error sending salary slip email:', error);
+      throw error.response?.data || error;
+    }
+  },
+
   // Get agent's own salary records (for agent dashboard)
   getAgentSalaries: async (filters = {}) => {
     try {
