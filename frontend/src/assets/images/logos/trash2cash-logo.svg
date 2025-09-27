@@ -1,0 +1,22 @@
+<svg width="100" height="100" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <g id="recycling-logo">
+    <!-- Recycling Arrow 1 (top right) -->
+    <path d="M65 15C70 20 70 25 65 30L55 25L60 20C62 18 63 17 65 15Z" fill="#72BF44" stroke="#72BF44" strokeWidth="2"/>
+    <path d="M65 15C70 10 75 10 80 15C85 20 85 25 80 30L70 25C75 20 75 15 70 10L65 15Z" fill="#72BF44"/>
+    
+    <!-- Recycling Arrow 2 (bottom) -->
+    <path d="M35 85C30 80 30 75 35 70L45 75L40 80C38 82 37 83 35 85Z" fill="#72BF44" stroke="#72BF44" strokeWidth="2"/>
+    <path d="M35 85C30 90 25 90 20 85C15 80 15 75 20 70L30 75C25 80 25 85 30 90L35 85Z" fill="#72BF44"/>
+    
+    <!-- Recycling Arrow 3 (left) -->
+    <path d="M15 35C20 30 25 30 30 35L25 45L20 40C18 38 17 37 15 35Z" fill="#72BF44" stroke="#72BF44" strokeWidth="2"/>
+    <path d="M15 35C10 30 10 25 15 20C20 15 25 15 30 20L25 30C20 25 15 25 10 30L15 35Z" fill="#72BF44"/>
+    
+    <!-- Center circle with dollar sign -->
+    <circle cx="50" cy="50" r="20" fill="white" stroke="#72BF44" strokeWidth="3"/>
+    
+    <!-- Dollar sign -->
+    <path d="M47 35 L47 65 M53 35 L53 65 M40 42 C40 38 44 35 50 35 C56 35 60 38 60 42 C60 45 57 47 50 47 C43 47 40 50 40 53 C40 57 44 60 50 60 C56 60 60 57 60 53" 
+          stroke="#72BF44" strokeWidth="3" fill="none" strokeLinecap="round"/>
+  </g>
+</svg>

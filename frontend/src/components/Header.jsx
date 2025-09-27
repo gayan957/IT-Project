@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import { useAuth } from '../lib/auth';
 import { useState, useEffect, useRef } from 'react';
+import logoPng from '../assets/images/logos/trash2cash_logo.png';
 
 export default function Header() {
   const { user, logout } = useAuth();
@@ -32,20 +33,12 @@ export default function Header() {
             to="/" 
             className="flex items-center space-x-3 hover:opacity-90 transition-opacity"
           >
-            <div className="bg-white rounded-full p-2">
-              <svg 
-                className="h-8 w-8 text-emerald-600" 
-                fill="none" 
-                stroke="currentColor" 
-                viewBox="0 0 24 24"
-              >
-                <path 
-                  strokeLinecap="round" 
-                  strokeLinejoin="round" 
-                  strokeWidth={2} 
-                  d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" 
-                />
-              </svg>
+            <div className="bg-white rounded-full p-3 hover:shadow-lg transition-shadow">
+              <img 
+                src={logoPng}
+                alt="Trash2Cash Recycling Logo"
+                className="h-12 w-12"
+              />
             </div>
             <div>
               <h1 className="text-2xl font-bold text-white">Trash2Cash</h1>

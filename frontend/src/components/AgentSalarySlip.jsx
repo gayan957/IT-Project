@@ -1,5 +1,6 @@
 import { forwardRef } from 'react';
 import jsPDF from 'jspdf';
+import logoPng from '../assets/images/logos/trash2cash_logo.png';
 
 // PDF generator function for email sending - returns base64
 export async function generatePaySlipPdfBase64({ slip }) {
@@ -57,7 +58,6 @@ export async function generatePaySlipPdfBase64({ slip }) {
       deductions: {
         noPay: salary.deductions?.noPay || 0,
         epf: salary.deductions?.epf || 0,
-        etf: salary.deductions?.etf || 0,
         loans: salary.deductions?.loans || 0
       }
     };
@@ -92,21 +92,35 @@ export async function generatePaySlipPdfBase64({ slip }) {
     doc.setFillColor(25, 46, 94);
     doc.rect(0, 0, pageWidth, 30, 'F');
     
-    // Company logo area
-    doc.setFillColor(255, 255, 255);
-    doc.circle(20, 15, 6, 'F');
-    doc.setFillColor(25, 46, 94);
-    doc.setFontSize(8);
-    doc.text('ECO', 17.5, 16.5);
+    // Company logo area with white background for better contrast
+    try {
+      // Add white circular background for logo visibility
+      doc.setFillColor(255, 255, 255);
+      doc.circle(20, 15, 8, 'F');
+      
+      // Add the Trash2Cash logo
+      doc.addImage(logoPng, 'PNG', 14, 9, 12, 12);
+    } catch (error) {
+      // Fallback to ECO circle if logo fails to load
+      console.warn('Logo failed to load, using fallback:', error);
+      doc.setFillColor(255, 255, 255);
+      doc.circle(20, 15, 6, 'F');
+      doc.setFillColor(25, 46, 94);
+      doc.setFontSize(8);
+      doc.text('ECO', 17.5, 16.5);
+    }
     
-    // Company name and payslip title
+    // Company name and payslip title - aligned with logo
     doc.setTextColor(255, 255, 255);
     doc.setFontSize(16);
     doc.setFont('helvetica', 'bold');
-    doc.text('Trash2Cash', 35, 18);
+    doc.text('Trash2Cash', 30, 16); // Aligned with logo center
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'normal');
+    doc.text('No 23/A, Kandy Road, Malabe', 30, 20); // Company address
     doc.setFontSize(11);
     doc.setFont('helvetica', 'normal');
-    doc.text('Monthly Salary Slip', 35, 25);
+    doc.text('Monthly Salary Slip', 30, 25); // Adjusted spacing
     
     // Period and date
     doc.setFontSize(9);
@@ -198,7 +212,6 @@ export async function generatePaySlipPdfBase64({ slip }) {
     // Deductions
     if (safeSalary.deductions.noPay > 0) addTableRow('No Pay Deduction', safeSalary.deductions.noPay);
     if (safeSalary.deductions.epf > 0) addTableRow('EPF (8%)', safeSalary.deductions.epf);
-    if (safeSalary.deductions.etf > 0) addTableRow('ETF (3%)', safeSalary.deductions.etf);
     if (safeSalary.deductions.loans > 0) addTableRow('Loan Deduction', safeSalary.deductions.loans);
     
     y += 2;
@@ -318,7 +331,6 @@ export async function downloadPaySlipPdf({ slip }) {
       deductions: {
         noPay: salary.deductions?.noPay || 0,
         epf: salary.deductions?.epf || 0,
-        etf: salary.deductions?.etf || 0,
         loans: salary.deductions?.loans || 0
       }
     };
@@ -355,21 +367,34 @@ export async function downloadPaySlipPdf({ slip }) {
     doc.setFillColor(25, 46, 94);
     doc.rect(0, 0, pageWidth, 30, 'F');
     
-    // Company logo area
-    doc.setFillColor(255, 255, 255);
-    doc.circle(20, 15, 6, 'F');
-    doc.setFillColor(25, 46, 94);
-    doc.setFontSize(8);
-    doc.text('ECO', 17.5, 16.5);
+    // Company logo area with white background for better contrast
+    try {
+      // Add white circular background for logo visibility
+      doc.setFillColor(255, 255, 255);
+      doc.circle(20, 15, 8, 'F');
+      
+      // Add the Trash2Cash logo
+      doc.addImage(logoPng, 'PNG', 14, 9, 12, 12);
+    } catch (error) {
+      // Fallback to ECO circle if logo fails to load
+      console.warn('Logo failed to load, using fallback:', error);
+      doc.setFillColor(255, 255, 255);
+      doc.circle(20, 15, 6, 'F');
+      doc.setFillColor(25, 46, 94);
+      doc.setFontSize(8);
+      doc.text('ECO', 17.5, 16.5);
+    }
     
-    // Company name and title
+    // Company name and title - aligned with logo
     doc.setTextColor(255, 255, 255);
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(16);
-    doc.text('Trash2Cash', 30, 12);
+    doc.text('Trash2Cash', 30, 16); // Aligned with logo center
     doc.setFont('helvetica', 'normal');
+    doc.setFontSize(9);
+    doc.text('No 23/A, Kandy Road, Malabe', 30, 20); // Company address
     doc.setFontSize(11);
-    doc.text('Monthly Salary Slip', 30, 20);
+    doc.text('Monthly Salary Slip', 30, 25); // Adjusted spacing
     
     // Period and generation date (right side)
     doc.setFontSize(9);
@@ -461,7 +486,6 @@ export async function downloadPaySlipPdf({ slip }) {
     // Deductions
     if (safeSalary.deductions.noPay > 0) addTableRow('No Pay Deduction', safeSalary.deductions.noPay);
     if (safeSalary.deductions.epf > 0) addTableRow('EPF (8%)', safeSalary.deductions.epf);
-    if (safeSalary.deductions.etf > 0) addTableRow('ETF (3%)', safeSalary.deductions.etf);
     if (safeSalary.deductions.loans > 0) addTableRow('Loan Deduction', safeSalary.deductions.loans);
     
     y += 2;
@@ -586,7 +610,6 @@ const AgentSalarySlip = forwardRef(({ salaryData }, ref) => {
     deductions: {
       noPay: salary.deductions?.noPay || 0,
       epf: salary.deductions?.epf || 0,
-      etf: salary.deductions?.etf || 0,
       loans: salary.deductions?.loans || 0
     }
   };
@@ -608,10 +631,20 @@ const AgentSalarySlip = forwardRef(({ salaryData }, ref) => {
       {/* Header */}
       <div className="border-b-2 border-gray-200 pb-6 mb-8">
         <div className="flex justify-between items-start">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">TRASH2CASH</h1>
-            <p className="text-gray-600">Waste Management Solutions</p>
-            <p className="text-sm text-gray-500 mt-1">Colombo, Sri Lanka</p>
+          <div className="flex items-center space-x-4">
+            <div className="bg-white rounded-full p-2 border-2 border-gray-200">
+              <img 
+                src={logoPng}
+                alt="Trash2Cash Logo"
+                className="h-16 w-16"
+              />
+            </div>
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900 mb-2">TRASH2CASH</h1>
+              <p className="text-gray-600">Waste Management Solutions</p>
+              <p className="text-sm text-gray-500">No 23/A, Kandy Road, Malabe</p>
+              <p className="text-sm text-gray-500">Colombo, Sri Lanka</p>
+            </div>
           </div>
           <div className="text-right">
             <h2 className="text-2xl font-semibold text-gray-800 mb-1">SALARY SLIP</h2>
@@ -753,10 +786,6 @@ const AgentSalarySlip = forwardRef(({ salaryData }, ref) => {
               <span className="font-semibold text-red-600">-{formatCurrency(safeSalary.deductions.epf)}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-gray-600">ETF:</span>
-              <span className="font-semibold text-red-600">-{formatCurrency(safeSalary.deductions.etf)}</span>
-            </div>
-            <div className="flex justify-between">
               <span className="text-gray-600">Loans:</span>
               <span className="font-semibold text-red-600">-{formatCurrency(safeSalary.deductions.loans)}</span>
             </div>
@@ -794,14 +823,10 @@ const AgentSalarySlip = forwardRef(({ salaryData }, ref) => {
         <h3 className="text-lg font-semibold text-gray-800 mb-4">
           Employer Contributions (Information Only)
         </h3>
-        <div className="grid grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 gap-6">
           <div className="flex justify-between">
             <span className="text-gray-600">EPF Employer (12%):</span>
             <span className="font-medium">{formatCurrency(safeMeta.epfEmployer)}</span>
-          </div>
-          <div className="flex justify-between">
-            <span className="text-gray-600">ETF (3%):</span>
-            <span className="font-medium">{formatCurrency(safeSalary.basic * 0.03)}</span>
           </div>
         </div>
       </div>
