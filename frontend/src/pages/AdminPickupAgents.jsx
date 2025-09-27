@@ -7,6 +7,7 @@ export default function AdminPickupAgents() {
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [editingAgent, setEditingAgent] = useState(null);
   const [partners, setPartners] = useState([]);
+  const [searchTerm, setSearchTerm] = useState('');
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -23,6 +24,23 @@ export default function AdminPickupAgents() {
     fetchAgents();
     fetchPartners();
   }, []);
+
+  // Filter agents based on search term
+  const filteredAgents = agents.filter(agent => {
+    if (!searchTerm) return true;
+    
+    const searchLower = searchTerm.toLowerCase();
+    return (
+      agent.name?.toLowerCase().includes(searchLower) ||
+      agent.email?.toLowerCase().includes(searchLower) ||
+      agent.agentId?.toLowerCase().includes(searchLower) ||
+      agent.phoneNumber?.includes(searchTerm) ||
+      agent.vehicleNumber?.toLowerCase().includes(searchLower) ||
+      agent.assignedArea?.toLowerCase().includes(searchLower) ||
+      agent.partnerId?.companyName?.toLowerCase().includes(searchLower) ||
+      agent.partnerId?.name?.toLowerCase().includes(searchLower)
+    );
+  });
 
   const fetchAgents = async () => {
     try {
@@ -152,6 +170,62 @@ export default function AdminPickupAgents() {
         >
           Add New Agent
         </button>
+      </div>
+
+      {/* Search Section */}
+      <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-6">
+        <div className="flex flex-col sm:flex-row gap-4 items-center">
+          <div className="flex-1 w-full">
+            <label htmlFor="search" className="block text-sm font-medium text-gray-700 mb-2">
+              Search Agents
+            </label>
+            <div className="relative">
+              <input
+                id="search"
+                type="text"
+                placeholder="Search by name, email, agent ID, partner, phone, vehicle, or area..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all duration-200"
+              />
+              <svg
+                className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+            </div>
+          </div>
+          
+          {/* Clear Search Button */}
+          {searchTerm && (
+            <div className="flex items-end">
+              <button
+                onClick={() => setSearchTerm('')}
+                className="px-4 py-3 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-all duration-200 flex items-center gap-2"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+                Clear
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* Search Results Summary */}
+        <div className="mt-4 text-sm text-gray-600">
+          {searchTerm ? (
+            <p>
+              Showing {filteredAgents.length} of {agents.length} agents
+              {searchTerm && ` matching "${searchTerm}"`}
+            </p>
+          ) : (
+            <p>Showing all {agents.length} agents</p>
+          )}
+        </div>
       </div>
 
       {/* Create/Edit Form */}
@@ -304,6 +378,16 @@ export default function AdminPickupAgents() {
               <div className="text-gray-400 text-5xl mb-4">🚚</div>
               <p className="text-gray-500">No agents found.</p>
             </div>
+          ) : filteredAgents.length === 0 && searchTerm ? (
+            <div className="text-center py-8">
+              <svg className="w-16 h-16 mx-auto mb-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+              <p className="text-lg font-medium text-gray-600 mb-2">No matching agents found</p>
+              <p className="text-gray-500">
+                No results found for "{searchTerm}". Try adjusting your search terms.
+              </p>
+            </div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full table-auto">
@@ -321,7 +405,7 @@ export default function AdminPickupAgents() {
                   </tr>
                 </thead>
                 <tbody>
-                  {agents.map((agent) => (
+                  {filteredAgents.map((agent) => (
                     <tr key={agent._id} className="border-b border-gray-100 hover:bg-gray-50">
                       <td className="py-3 px-4 text-sm text-gray-900">{agent.agentId}</td>
                       <td className="py-3 px-4 text-sm text-gray-900">{agent.name}</td>

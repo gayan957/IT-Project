@@ -288,7 +288,7 @@ export default function SalaryCalculation() {
                         type="number"
                         value={formData.attendance.workingDays}
                         onChange={(e) => updateFormData('attendance.workingDays', Number(e.target.value))}
-                        placeholder="22"
+                        placeholder="0"
                         min="0"
                         max="31"
                         className="bg-white border-slate-300 focus:border-emerald-500 focus:ring-emerald-500"
@@ -314,7 +314,7 @@ export default function SalaryCalculation() {
                             updateFormData('salary.perks.overtime', overtimePay);
                           }
                         }}
-                        placeholder="0"
+                        placeholder="22"
                         min="0"
                         className="bg-white border-slate-300 focus:border-emerald-500 focus:ring-emerald-500"
                       />
