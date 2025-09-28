@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom/client';
 import { createBrowserRouter, RouterProvider, Navigate } from 'react-router-dom';
 import App from './App';
 import Home from './pages/Home';
+import Contact from './pages/Contact';
 import HomeService from './pages/HomeService';
 import Login from './pages/Login';
 import Register from './pages/Register';
@@ -65,6 +66,7 @@ const router = createBrowserRouter([
     element: <App />,
     children: [
       { index: true, element: <Home /> },
+      { path: 'contact', element: <Contact /> },
       { path: 'services', element: <HomeService /> },
       { path: 'login', element: <Login /> },
       { path: 'register', element: <Register /> },
