@@ -77,6 +77,10 @@ const binSchema = new Schema(
       type: Boolean,
       default: true
     },
+    lastNotificationSent: {
+      type: Date,
+      default: null
+    },
     pickupHistory: [{
       date: { type: Date, default: Date.now },
       fillLevel: { type: Number, min: 0, max: 100 },
