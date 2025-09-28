@@ -566,34 +566,34 @@ export default function FinanceSalaryManagement() {
 
                   {/* Live Preview - Real-time calculations */}
                   {editPreviewCalculation && (
-                    <div className="bg-gradient-to-r from-indigo-50 to-purple-50 rounded-xl p-6 border border-indigo-200">
-                      <div className="flex items-center gap-3 mb-4">
-                        <div className="p-2 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-lg">
-                          <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <div className="bg-gradient-to-r from-indigo-50 to-purple-50 rounded-xl p-4 border border-indigo-200">
+                      <div className="flex items-center gap-2 mb-3">
+                        <div className="p-1.5 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-lg">
+                          <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
                           </svg>
                         </div>
-                        <h4 className="font-semibold text-indigo-900">Live Preview - Calculations Update Automatically</h4>
+                        <h4 className="text-sm font-semibold text-indigo-900">Live Preview - Calculations Update Automatically</h4>
                       </div>
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                        <div className="text-center p-3 bg-white/60 rounded-lg border border-white">
-                          <p className="text-sm text-indigo-600 font-medium">Basic Salary</p>
-                          <p className="text-lg font-bold text-indigo-900">{editPreviewCalculation.formattedAmounts.basic}</p>
+                      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                        <div className="text-center p-2.5 bg-white/60 rounded-lg border border-white">
+                          <p className="text-xs text-indigo-600 font-medium mb-1">Basic Salary</p>
+                          <p className="text-sm font-bold text-indigo-900">{editPreviewCalculation.formattedAmounts.basic}</p>
                         </div>
-                        <div className="text-center p-3 bg-white/60 rounded-lg border border-white">
-                          <p className="text-sm text-green-600 font-medium">Total Allowances</p>
-                          <p className="text-lg font-bold text-green-900">{editPreviewCalculation.formattedAmounts.totalAllowances}</p>
+                        <div className="text-center p-2.5 bg-white/60 rounded-lg border border-white">
+                          <p className="text-xs text-green-600 font-medium mb-1">Total Allowances</p>
+                          <p className="text-sm font-bold text-green-900">{editPreviewCalculation.formattedAmounts.totalAllowances}</p>
                         </div>
-                        <div className="text-center p-3 bg-white/60 rounded-lg border border-white">
-                          <p className="text-sm text-red-600 font-medium">Total Deductions</p>
-                          <p className="text-lg font-bold text-red-900">{editPreviewCalculation.formattedAmounts.totalDeductions}</p>
+                        <div className="text-center p-2.5 bg-white/60 rounded-lg border border-white">
+                          <p className="text-xs text-red-600 font-medium mb-1">Total Deductions</p>
+                          <p className="text-sm font-bold text-red-900">{editPreviewCalculation.formattedAmounts.totalDeductions}</p>
                         </div>
-                        <div className="text-center p-3 bg-gradient-to-r from-blue-100 to-indigo-100 rounded-lg border-2 border-blue-300">
-                          <p className="text-sm text-blue-600 font-medium">Net Salary</p>
-                          <p className="text-xl font-bold text-blue-900">{editPreviewCalculation.formattedAmounts.netSalary}</p>
+                        <div className="text-center p-2.5 bg-gradient-to-r from-blue-100 to-indigo-100 rounded-lg border-2 border-blue-300">
+                          <p className="text-xs text-blue-600 font-medium mb-1">Net Salary</p>
+                          <p className="text-sm font-bold text-blue-900">{editPreviewCalculation.formattedAmounts.netSalary}</p>
                         </div>
                       </div>
-                      <div className="mt-4 text-xs text-indigo-600 bg-white/40 rounded-lg p-3">
+                      <div className="mt-3 text-xs text-indigo-600 bg-white/40 rounded-lg p-2.5">
                         💡 <strong>Auto-calculated:</strong> EPF Employee: {SalaryCalculator.formatCurrency(editPreviewCalculation.statutory.epfEmployee)} | 
                         EPF Employer: {SalaryCalculator.formatCurrency(editPreviewCalculation.statutory.epfEmployer)} | 
                         ETF Employer: {SalaryCalculator.formatCurrency(editPreviewCalculation.statutory.etfEmployer)}

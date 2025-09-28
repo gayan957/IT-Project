@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import jsPDF from 'jspdf';
+import logoPng from '../assets/images/logos/trash2cash_logo.png';
 
 export default function PDFReportModal({ isOpen, onClose, analyticsData }) {
   const [selectedContent, setSelectedContent] = useState({
@@ -52,26 +53,37 @@ export default function PDFReportModal({ isOpen, onClose, analyticsData }) {
       doc.setFillColor(16, 185, 129);
       doc.rect(0, 0, pageWidth, 40, 'F');
 
-      // Logo: white circle with trash bin design
-      doc.setFillColor(255, 255, 255);
-      doc.circle(20, 20, 9, 'F');
-      
-      // Draw trash bin icon
-      doc.setFillColor(16, 185, 129);
-      // Trash bin lid (top)
-      doc.rect(15, 16, 10, 1.5, 'F');
-      // Lid handle
-      doc.rect(18, 14.5, 4, 1.5, 'F');
-      // Trash bin body
-      doc.rect(16, 17.5, 8, 6, 'F');
-      
-      // Add trash bin details with white lines
-      doc.setDrawColor(255, 255, 255);
-      doc.setLineWidth(0.3);
-      // Vertical lines inside bin
-      doc.line(17.5, 19, 17.5, 22.5);
-      doc.line(20, 19, 20, 22.5);
-      doc.line(22.5, 19, 22.5, 22.5);
+      // Company logo area with white background for better contrast
+      try {
+        // Add white circular background for logo visibility
+        doc.setFillColor(255, 255, 255);
+        doc.circle(20, 20, 9, 'F');
+        
+        // Add the Trash2Cash logo
+        doc.addImage(logoPng, 'PNG', 14, 14, 12, 12);
+      } catch (error) {
+        // Fallback to custom trash bin icon if logo fails to load
+        console.warn('Logo failed to load, using fallback:', error);
+        doc.setFillColor(255, 255, 255);
+        doc.circle(20, 20, 9, 'F');
+        
+        // Draw trash bin icon
+        doc.setFillColor(16, 185, 129);
+        // Trash bin lid (top)
+        doc.rect(15, 16, 10, 1.5, 'F');
+        // Lid handle
+        doc.rect(18, 14.5, 4, 1.5, 'F');
+        // Trash bin body
+        doc.rect(16, 17.5, 8, 6, 'F');
+        
+        // Add trash bin details with white lines
+        doc.setDrawColor(255, 255, 255);
+        doc.setLineWidth(0.3);
+        // Vertical lines inside bin
+        doc.line(17.5, 19, 17.5, 22.5);
+        doc.line(20, 19, 20, 22.5);
+        doc.line(22.5, 19, 22.5, 22.5);
+      }
 
       // Company name + tagline
       doc.setTextColor(255, 255, 255);

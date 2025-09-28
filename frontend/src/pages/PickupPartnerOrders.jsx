@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { toast } from 'react-hot-toast';
 import { getPartnerOrders } from '../lib/pickupPartnerApi';
+import jsPDF from 'jspdf';
+import logoPng from '../assets/images/logos/trash2cash_logo.png';
 
 const PickupPartnerOrders = () => {
   const [orders, setOrders] = useState([]);
@@ -8,6 +10,7 @@ const PickupPartnerOrders = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [statusFilter, setStatusFilter] = useState('all');
+  const [searchTerm, setSearchTerm] = useState('');
 
   useEffect(() => {
     const loadOrdersData = async () => {
@@ -104,6 +107,276 @@ const PickupPartnerOrders = () => {
     }
   };
 
+  // PDF Generation Function for Partner Orders
+  const generateOrdersReport = () => {
+    try {
+      const doc = new jsPDF('p', 'mm', 'a4');
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const pageHeight = doc.internal.pageSize.getHeight();
+      
+      // Helper function to ensure page space
+      const ensurePageSpace = (y, needed = 20) => {
+        if (y + needed > pageHeight - 20) {
+          doc.addPage();
+          return 20; // reset Y with a top margin on the new page
+        }
+        return y;
+      };
+
+      // Filter orders based on current filter
+      const filteredOrders = statusFilter === 'all' ? orders : orders.filter(order => order.orderStatus === statusFilter);
+
+      // Header with company branding
+      doc.setFillColor(16, 185, 129); // Green header
+      doc.rect(0, 0, pageWidth, 35, 'F');
+      
+      // Company logo area with white background for better contrast
+      try {
+        // Add white circular background for logo visibility
+        doc.setFillColor(255, 255, 255);
+        doc.circle(20, 17.5, 8, 'F');
+        
+        // Add the Trash2Cash logo
+        doc.addImage(logoPng, 'PNG', 14, 11.5, 12, 12);
+      } catch (error) {
+        // Fallback to text if logo fails to load
+        console.warn('Logo failed to load, using fallback:', error);
+        doc.setFillColor(255, 255, 255);
+        doc.circle(20, 17.5, 6, 'F');
+        doc.setFillColor(16, 185, 129);
+        doc.setFontSize(8);
+        doc.text('T2C', 17.5, 19);
+      }
+      
+      // Company name and title
+      doc.setTextColor(255, 255, 255);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(18);
+      doc.text('Trash2Cash', 35, 15);
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(10);
+      doc.text('Partner Orders Report', 35, 22);
+      doc.text('No 23/A, Kandy Road, Malabe', 35, 28);
+      
+      // Date and report info
+      doc.setFontSize(9);
+      doc.text(`Generated: ${new Date().toLocaleDateString()}`, pageWidth - 15, 12, { align: 'right' });
+      doc.text(`Partner Report`, pageWidth - 15, 18, { align: 'right' });
+      doc.text(`Recycler Orders`, pageWidth - 15, 24, { align: 'right' });
+
+      let y = 50;
+
+      // Summary Statistics
+      doc.setTextColor(0, 0, 0);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(14);
+      doc.text('Orders Summary', 15, y);
+      y += 10;
+
+      // Summary box
+      doc.setFillColor(248, 250, 252);
+      doc.rect(15, y - 5, pageWidth - 30, 25, 'F');
+      doc.setDrawColor(200, 200, 200);
+      doc.rect(15, y - 5, pageWidth - 30, 25);
+
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(10);
+      
+      const totalOrders = filteredOrders.length;
+      const totalValue = filteredOrders.reduce((sum, order) => sum + (order.wasteAmount || 0), 0);
+      const totalWeight = filteredOrders.reduce((sum, order) => sum + (order.weight || 0), 0);
+      
+      doc.text(`Total Orders: ${totalOrders}`, 20, y + 5);
+      doc.text(`Total Weight: ${totalWeight.toFixed(1)} kg`, 20, y + 12);
+      doc.text(`Total Value: Rs. ${totalValue.toFixed(2)}`, 20, y + 19);
+      
+      // Filter information
+      const filterText = statusFilter === 'all' ? 'All Orders' : statusFilter.charAt(0).toUpperCase() + statusFilter.slice(1);
+      doc.text(`Filter: ${filterText}`, pageWidth - 20, y + 5, { align: 'right' });
+      doc.text(`Report Date: ${new Date().toLocaleDateString()}`, pageWidth - 20, y + 12, { align: 'right' });
+
+      y += 35;
+
+      // Orders Table
+      y = ensurePageSpace(y, 30);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(12);
+      doc.text('Order Details', 15, y);
+      y += 10;
+
+      if (filteredOrders.length === 0) {
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(10);
+        doc.text('No orders found for the selected filter.', 15, y);
+        y += 15;
+      } else {
+        // Table header
+        y = ensurePageSpace(y, 20);
+        const tableWidth = pageWidth - 30;
+        const colPositions = [15, 40, 70, 95, 125, 155]; // Column positions
+        
+        doc.setFillColor(16, 185, 129);
+        doc.rect(15, y - 5, tableWidth, 12, 'F');
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(255, 255, 255);
+        doc.setFontSize(8);
+        doc.text('Order ID', colPositions[0], y + 2);
+        doc.text('Waste Type', colPositions[1], y + 2);
+        doc.text('Weight (kg)', colPositions[2], y + 2);
+        doc.text('Value (Rs.)', colPositions[3], y + 2);
+        doc.text('Status', colPositions[4], y + 2);
+        doc.text('Recycler', colPositions[5], y + 2);
+        
+        y += 15;
+
+        // Table rows
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(0, 0, 0);
+        doc.setFontSize(7);
+
+        filteredOrders.forEach((order, index) => {
+          y = ensurePageSpace(y, 12);
+
+          // Alternate row background
+          if (index % 2 === 0) {
+            doc.setFillColor(248, 250, 252);
+            doc.rect(15, y - 3, tableWidth, 10, 'F');
+          }
+
+          // Row separator line
+          doc.setDrawColor(220, 220, 220);
+          doc.setLineWidth(0.3);
+          doc.line(15, y + 7, 15 + tableWidth, y + 7);
+
+          // Cell data
+          const orderId = order._id ? order._id.slice(-6) : `#${index + 1}`;
+          const wasteType = order.wasteWarehouseId?.wasteType || 'Unknown';
+          const weight = (order.weight || 0).toFixed(1);
+          const value = (order.wasteAmount || 0).toFixed(2);
+          const status = order.orderStatus || 'N/A';
+          const recycler = order.recyclerId?.companyName || order.recyclerId?.name || 'N/A';
+          
+          // Truncate long text
+          const truncatedWasteType = wasteType.length > 8 ? wasteType.substring(0, 8) + '...' : wasteType;
+          const truncatedRecycler = recycler.length > 12 ? recycler.substring(0, 12) + '...' : recycler;
+          const truncatedStatus = status.length > 8 ? status.substring(0, 8) + '...' : status;
+
+          doc.text(orderId, colPositions[0], y + 2);
+          doc.text(truncatedWasteType, colPositions[1], y + 2);
+          doc.text(weight, colPositions[2], y + 2);
+          doc.text(value, colPositions[3], y + 2);
+          doc.text(truncatedStatus, colPositions[4], y + 2);
+          doc.text(truncatedRecycler, colPositions[5], y + 2);
+
+          // Column separators
+          for (let i = 1; i < colPositions.length; i++) {
+            const x = colPositions[i] - 2;
+            doc.line(x, y - 3, x, y + 7);
+          }
+          
+          y += 10;
+        });
+
+        // Table summary
+        y += 5;
+        y = ensurePageSpace(y, 15);
+        
+        doc.setFillColor(240, 253, 244);
+        doc.rect(15, y - 3, tableWidth, 12, 'F');
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(8);
+        doc.text('TOTALS:', colPositions[0], y + 3);
+        doc.text(`${totalOrders} orders`, colPositions[1], y + 3);
+        doc.text(`${totalWeight.toFixed(1)} kg`, colPositions[2], y + 3);
+        doc.text(`Rs. ${totalValue.toFixed(2)}`, colPositions[3], y + 3);
+        doc.text('', colPositions[4], y + 3);
+        doc.text('', colPositions[5], y + 3);
+        
+        y += 15;
+      }
+
+      // Additional Statistics
+      if (filteredOrders.length > 0) {
+        y = ensurePageSpace(y, 25);
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(12);
+        doc.text('Statistics & Analysis', 15, y);
+        y += 10;
+
+        // Calculate statistics
+        const wasteTypes = filteredOrders.reduce((acc, order) => {
+          const type = order.wasteWarehouseId?.wasteType || 'Unknown';
+          acc[type] = (acc[type] || 0) + 1;
+          return acc;
+        }, {});
+
+        const statusCounts = filteredOrders.reduce((acc, order) => {
+          const status = order.orderStatus || 'Unknown';
+          acc[status] = (acc[status] || 0) + 1;
+          return acc;
+        }, {});
+
+        const avgWeight = totalWeight / totalOrders;
+        const avgValue = totalValue / totalOrders;
+        const mostCommonWaste = Object.keys(wasteTypes).reduce((a, b) => 
+          wasteTypes[a] > wasteTypes[b] ? a : b, 'None'
+        );
+
+        // Calculate unique recyclers
+        const uniqueRecyclers = new Set(filteredOrders.map(order => order.recyclerId?._id).filter(Boolean)).size;
+
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(9);
+        doc.text(`• Average weight per order: ${avgWeight.toFixed(2)} kg`, 20, y);
+        y += 6;
+        doc.text(`• Average value per order: Rs. ${avgValue.toFixed(2)}`, 20, y);
+        y += 6;
+        doc.text(`• Most ordered waste type: ${mostCommonWaste}`, 20, y);
+        y += 6;
+        doc.text(`• Unique recyclers: ${uniqueRecyclers}`, 20, y);
+        y += 6;
+        doc.text(`• Order completion rate: ${((statusCounts.completed || 0) / totalOrders * 100).toFixed(1)}%`, 20, y);
+        y += 10;
+      }
+
+      // Footer
+      const footerY = pageHeight - 15;
+      doc.setDrawColor(16, 185, 129);
+      doc.setLineWidth(1);
+      doc.line(15, footerY - 5, pageWidth - 15, footerY - 5);
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(8);
+      doc.setTextColor(100, 100, 100);
+      doc.text('Trash2Cash Partner Management System | Generated automatically', 15, footerY);
+      doc.text(`Page 1 | ${new Date().toLocaleDateString()}`, pageWidth - 15, footerY, { align: 'right' });
+
+      // Generate filename
+      const dateStr = new Date().toISOString().split('T')[0];
+      const filterStr = statusFilter === 'all' ? 'All' : statusFilter.charAt(0).toUpperCase() + statusFilter.slice(1);
+      const filename = `Partner_Orders_Report_${filterStr}_${dateStr}.pdf`;
+
+      // Save the PDF
+      doc.save(filename);
+      toast.success('Orders report generated successfully!');
+      
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      toast.error('Failed to generate PDF report. Please try again.');
+    }
+  };
+
+  // Filter orders based on search term and status
+  const filteredOrders = orders.filter(order => {
+    const matchesStatus = statusFilter === 'all' || order.orderStatus === statusFilter;
+    const matchesSearch = searchTerm === '' || 
+      (order.wasteWarehouseId?.wasteType?.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (order.orderStatus?.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (order.recyclerId?.companyName?.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (order.recyclerId?.name?.toLowerCase().includes(searchTerm.toLowerCase()));
+    
+    return matchesStatus && matchesSearch;
+  });
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -133,27 +406,99 @@ const PickupPartnerOrders = () => {
           </div>
         </div>
 
-        {/* Filter */}
-        <div className="flex items-center space-x-4">
-          <label className="text-sm font-medium text-gray-700">Filter by Status:</label>
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-          >
-            <option value="all">All Orders</option>
-            <option value="pending">Pending</option>
-            <option value="approved">Approved</option>
-            <option value="completed">Completed</option>
-            <option value="cancelled">Cancelled</option>
-          </select>
+        {/* Search and Filter Controls */}
+        <div className="space-y-4">
+          <div className="flex flex-col sm:flex-row gap-4 sm:items-end">
+            <div className="flex-1">
+              <label className="text-sm font-medium text-gray-700 mb-2 block">Search Orders:</label>
+              <div className="relative">
+                <input
+                  type="text"
+                  placeholder="Search by waste type, status, or recycler..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full px-4 py-2 pl-10 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                />
+                <svg
+                  className="absolute left-3 top-2.5 h-5 w-5 text-gray-400"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                  />
+                </svg>
+              </div>
+            </div>
+            
+            <div className="sm:w-48">
+              <label className="text-sm font-medium text-gray-700 mb-2 block">Filter by Status:</label>
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+              >
+                <option value="all">All Orders</option>
+                <option value="pending">Pending</option>
+                <option value="approved">Approved</option>
+                <option value="completed">Completed</option>
+                <option value="cancelled">Cancelled</option>
+              </select>
+            </div>
+            
+            {/* Clear Filters Button */}
+            {(searchTerm || statusFilter !== 'all') && (
+              <button
+                onClick={() => {
+                  setSearchTerm('');
+                  setStatusFilter('all');
+                }}
+                className="px-4 py-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors flex items-center space-x-2"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+                <span>Clear</span>
+              </button>
+            )}
+          </div>
+          
+          {/* Search Results Summary and Export Button */}
+          <div className="flex items-center justify-between">
+            <div>
+              {(searchTerm || statusFilter !== 'all') && (
+                <div className="text-sm text-gray-600 bg-gray-50 px-4 py-2 rounded-lg">
+                  <span>
+                    Showing {filteredOrders.length} of {orders.length} orders
+                    {searchTerm && ` matching "${searchTerm}"`}
+                    {statusFilter !== 'all' && ` with status "${statusFilter}"`}
+                  </span>
+                </div>
+              )}
+            </div>
+          
+            <button
+              onClick={generateOrdersReport}
+              className="flex items-center space-x-2 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" 
+                      d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+              <span>Generate Report</span>
+            </button>
+          </div>
         </div>
       </div>
 
       {/* Orders Grid */}
-      {orders && orders.length > 0 ? (
+      {filteredOrders && filteredOrders.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {orders.map((order) => {
+          {filteredOrders.map((order) => {
             const statusInfo = getStatusColor(order.orderStatus);
             const wasteInfo = getWasteTypeInfo(order.wasteWarehouseId?.wasteType);
             const orderDate = order.createdAt ? formatDate(order.createdAt) : 'N/A';
@@ -185,8 +530,15 @@ const PickupPartnerOrders = () => {
                   {/* Order details */}
                   <div className="space-y-3">
                     <div className="flex justify-between items-center">
-                      <span className="text-sm text-gray-600 font-medium">Waste Amount:</span>
-                      <span className="text-lg font-bold text-gray-900">{order.wasteAmount || order.weight} kg</span>
+                      <span className="text-sm text-gray-600 font-medium">Waste Weight:</span>
+                      <span className="text-lg font-bold text-gray-900">{order.weight || order.wasteAmount || 'N/A'} kg</span>
+                    </div>
+                    
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-gray-600 font-medium">Order Value:</span>
+                      <span className="text-lg font-bold text-emerald-600">
+                        {order.wasteAmount ? `Rs. ${order.wasteAmount}` : 'N/A'}
+                      </span>
                     </div>
                     
                     <div className="flex justify-between items-center">
@@ -247,7 +599,10 @@ const PickupPartnerOrders = () => {
           </div>
           <p className="text-gray-500 font-medium text-lg">No orders found</p>
           <p className="text-gray-400 text-sm mt-1">
-            {statusFilter === 'all' ? 'Orders will appear here when recyclers place them' : `No ${statusFilter} orders found`}
+            {searchTerm || statusFilter !== 'all' 
+              ? 'No orders match your search criteria. Try adjusting your filters.' 
+              : 'Orders will appear here when recyclers place them'
+            }
           </p>
         </div>
       )}

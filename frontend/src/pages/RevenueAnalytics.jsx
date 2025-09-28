@@ -6,6 +6,7 @@ const RevenueAnalytics = () => {
   const [orderWasteData, setOrderWasteData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('all'); // all, this-month, last-month, this-year
+  const [searchTerm, setSearchTerm] = useState('');
   const [revenueStats, setRevenueStats] = useState({
     totalServiceCharge: 0,
     totalOrderValue: 0,
@@ -46,6 +47,32 @@ const RevenueAnalytics = () => {
       }
     });
   };
+
+  // Filter orders based on search term
+  const filteredOrderWasteData = orderWasteData.filter(order => {
+    if (!searchTerm) return true;
+    
+    const searchLower = searchTerm.toLowerCase();
+    
+    // Search in recycler name, email, company name
+    const recyclerMatch = 
+      order.recyclerId?.name?.toLowerCase().includes(searchLower) ||
+      order.recyclerId?.email?.toLowerCase().includes(searchLower) ||
+      order.recyclerId?.companyName?.toLowerCase().includes(searchLower);
+    
+    // Search in waste type
+    const wasteTypeMatch = 
+      order.wasteWarehouseId?.wasteType?.toLowerCase().includes(searchLower) ||
+      order.meta?.wasteType?.toLowerCase().includes(searchLower);
+    
+    // Search in order ID (last 6 characters)
+    const orderIdMatch = order._id?.slice(-6).toLowerCase().includes(searchLower);
+    
+    // Search in status
+    const statusMatch = order.orderStatus?.toLowerCase().includes(searchLower);
+    
+    return recyclerMatch || wasteTypeMatch || orderIdMatch || statusMatch;
+  });
 
   const fetchOrderWasteData = async () => {
     try {
@@ -201,23 +228,91 @@ const RevenueAnalytics = () => {
       </div>
 
       {/* Filter Controls */}
-      <div className="mb-6 flex items-center space-x-4">
-        <select
-          value={filter}
-          onChange={(e) => setFilter(e.target.value)}
-          className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
-        >
-          <option value="all">All Time</option>
-          <option value="this-month">This Month</option>
-          <option value="last-month">Last Month</option>
-          <option value="this-year">This Year</option>
-        </select>
-        <button
-          onClick={fetchOrderWasteData}
-          className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors"
-        >
-          Refresh Data
-        </button>
+      <div className="mb-6 bg-white rounded-lg shadow-lg p-6">
+        <div className="flex flex-col lg:flex-row gap-4 items-start lg:items-center justify-between">
+          <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center flex-1">
+            {/* Search Input */}
+            <div className="flex-1 min-w-0">
+              <label htmlFor="search" className="block text-sm font-medium text-gray-700 mb-2">
+                Search Orders
+              </label>
+              <div className="relative">
+                <input
+                  id="search"
+                  type="text"
+                  placeholder="Search by recycler name, waste type, order ID, or status..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all duration-200"
+                />
+                <svg
+                  className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+              </div>
+            </div>
+
+            {/* Date Filter */}
+            <div className="w-full sm:w-auto">
+              <label htmlFor="dateFilter" className="block text-sm font-medium text-gray-700 mb-2">
+                Time Period
+              </label>
+              <select
+                id="dateFilter"
+                value={filter}
+                onChange={(e) => setFilter(e.target.value)}
+                className="w-full sm:w-auto px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+              >
+                <option value="all">All Time</option>
+                <option value="this-month">This Month</option>
+                <option value="last-month">Last Month</option>
+                <option value="this-year">This Year</option>
+              </select>
+            </div>
+          </div>
+
+          {/* Action Buttons */}
+          <div className="flex flex-col sm:flex-row gap-3">
+            {/* Clear Search Button */}
+            {searchTerm && (
+              <button
+                onClick={() => setSearchTerm('')}
+                className="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors flex items-center gap-2"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+                Clear Search
+              </button>
+            )}
+            
+            {/* Refresh Button */}
+            <button
+              onClick={fetchOrderWasteData}
+              className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors flex items-center gap-2"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+              Refresh Data
+            </button>
+          </div>
+        </div>
+
+        {/* Search Results Summary */}
+        <div className="mt-4 text-sm text-gray-600">
+          {searchTerm ? (
+            <p>
+              Showing {filteredOrderWasteData.length} of {orderWasteData.length} orders matching "{searchTerm}"
+            </p>
+          ) : (
+            <p>Showing all {orderWasteData.length} orders</p>
+          )}
+        </div>
       </div>
 
       {/* Revenue Stats Cards */}
@@ -369,8 +464,8 @@ const RevenueAnalytics = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {orderWasteData.length > 0 ? (
-                    orderWasteData.slice(0, 15).map((order) => (
+                  {filteredOrderWasteData.length > 0 ? (
+                    filteredOrderWasteData.slice(0, 15).map((order) => (
                       <tr key={order._id} className="border-b border-gray-100 hover:bg-gray-50">
                         <td className="py-3 px-4">
                           <span className="font-mono text-sm text-gray-600">
@@ -418,7 +513,7 @@ const RevenueAnalytics = () => {
                   ) : (
                     <tr>
                       <td colSpan="8" className="text-center py-8 text-gray-500">
-                        No waste orders found
+                        {searchTerm ? `No waste orders found matching "${searchTerm}"` : 'No waste orders found'}
                       </td>
                     </tr>
                   )}
