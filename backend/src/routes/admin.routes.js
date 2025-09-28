@@ -28,7 +28,8 @@ import {
     getAllWasteOrders,
     getWasteOrderStats,
     approveWasteOrder,
-    rejectWasteOrder
+    rejectWasteOrder,
+    getCombinedPricingData
 } from '../controllers/admin.controller.js';
 import { sendBinFullNotificationEmail } from '../controllers/bin.controller.js';
 
@@ -78,6 +79,9 @@ router.get('/waste-orders', getAllWasteOrders);
 router.get('/waste-orders/stats', getWasteOrderStats);
 router.put('/waste-orders/:orderId/approve', approveWasteOrder);
 router.put('/waste-orders/:orderId/reject', rejectWasteOrder);
+
+// Combined Pricing Data for AI Forecasting
+router.get('/pricing-data', getCombinedPricingData);
 
 // Todos
 //router.get('/todos', listAllTodos);

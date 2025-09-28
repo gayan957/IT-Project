@@ -3,6 +3,8 @@ import PickUpPartner from '../models/PickUpPartner.js';
 import Recycler from '../models/Recycler.js';
 import UserSchedule from '../models/UserSchedule.js';
 import Bin from '../models/Bin.js';
+import WastePrice from '../models/WastePrice.js';
+import WarehouseWastePrice from '../models/WarehouseWastePrice.js';
 import bcrypt from 'bcryptjs';
 //import Todo from '../models/Todo.js';
 
@@ -543,3 +545,62 @@ export async function rejectWasteOrder(req, res, next) {
         next(err);
     }
 }
+
+// Get combined pricing data for AI forecasting
+export const getCombinedPricingData = async (req, res) => {
+    try {
+        // Fetch both WastePrice and WarehouseWastePrice data
+        const [wastePrices, warehousePrices] = await Promise.all([
+            WastePrice.getActivePrices(),
+            WarehouseWastePrice.getActivePrices()
+        ]);
+
+        // Create a combined pricing structure
+        const combinedPrices = {};
+        
+        // First add warehouse prices (which have both pricePerKg and adminTaxPerKg)
+        warehousePrices.forEach(price => {
+            combinedPrices[price.wasteType] = {
+                wasteType: price.wasteType,
+                pricePerKg: price.pricePerKg,
+                adminTaxPerKg: price.adminTaxPerKg,
+                totalPrice: price.pricePerKg + price.adminTaxPerKg,
+                lastUpdated: price.updatedAt,
+                source: 'warehouse'
+            };
+        });
+
+        // Add waste prices that might not be in warehouse prices
+        wastePrices.forEach(price => {
+            if (!combinedPrices[price.wasteType]) {
+                combinedPrices[price.wasteType] = {
+                    wasteType: price.wasteType,
+                    pricePerKg: price.pricePerKg,
+                    adminTaxPerKg: 0, // Default to 0 if not in warehouse prices
+                    totalPrice: price.pricePerKg,
+                    lastUpdated: price.updatedAt,
+                    source: 'waste'
+                };
+            }
+        });
+
+        // Convert to array and include e-waste in valid types
+        const validWasteTypes = ['plastic', 'paper', 'glass', 'metal', 'organic', 'e-waste', 'mixed'];
+        const filteredPrices = Object.values(combinedPrices).filter(
+            price => validWasteTypes.includes(price.wasteType)
+        );
+
+        res.json({
+            success: true,
+            data: filteredPrices,
+            count: filteredPrices.length
+        });
+    } catch (error) {
+        console.error('Error fetching combined pricing data:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to fetch pricing data',
+            error: error.message
+        });
+    }
+};

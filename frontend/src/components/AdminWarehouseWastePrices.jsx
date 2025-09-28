@@ -45,19 +45,6 @@ const warehouseWastePriceApi = {
     return response.json();
   },
 
-  initializeDefaults: async () => {
-    const token = localStorage.getItem('token');
-    const response = await fetch(`${API_BASE_URL}/admin/warehouse-waste-prices/initialize`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
-    });
-    if (!response.ok) throw new Error('Failed to initialize default prices');
-    return response.json();
-  },
-
   deletePrice: async (id) => {
     const token = localStorage.getItem('token');
     const response = await fetch(`${API_BASE_URL}/admin/warehouse-waste-prices/${id}`, {
@@ -119,22 +106,6 @@ const AdminWarehouseWastePrices = () => {
     }
   };
 
-  const handleInitializeDefaults = async () => {
-    try {
-      setUpdating('initialize');
-      await warehouseWastePriceApi.initializeDefaults();
-      await fetchWastePrices();
-      toast.success('Default warehouse waste prices initialized successfully!');
-      setError(null);
-    } catch (error) {
-      console.error('Error initializing defaults:', error);
-      setError('Failed to initialize default prices. Please try again.');
-      toast.error('Failed to initialize default prices');
-    } finally {
-      setUpdating(null);
-    }
-  };
-
   const handleEditPrice = (price) => {
     setEditingPrice({
       [price._id]: {
@@ -163,7 +134,7 @@ const AdminWarehouseWastePrices = () => {
       }
 
       if (isNaN(adminTaxPerKg) || adminTaxPerKg < 0) {
-        toast.error('Please enter a valid admin tax per kg');
+        toast.error('Please enter a valid service charge per kg');
         return;
       }
 
@@ -203,7 +174,7 @@ const AdminWarehouseWastePrices = () => {
       }
 
       if (isNaN(adminTaxPerKg) || adminTaxPerKg < 0) {
-        toast.error('Please enter a valid admin tax per kg');
+        toast.error('Please enter a valid service charge per kg');
         return;
       }
 
@@ -293,21 +264,6 @@ const AdminWarehouseWastePrices = () => {
                 <span>Add Price</span>
               </button>
             )}
-            
-            <button
-              onClick={handleInitializeDefaults}
-              disabled={updating === 'initialize'}
-              className="flex items-center space-x-2 px-4 py-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-lg hover:from-blue-600 hover:to-blue-700 transition-colors font-medium shadow-md disabled:opacity-50"
-            >
-              {updating === 'initialize' ? (
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-              ) : (
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                </svg>
-              )}
-              <span>Initialize Defaults</span>
-            </button>
           </div>
         </div>
       </div>
@@ -373,7 +329,7 @@ const AdminWarehouseWastePrices = () => {
               </div>
               
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Admin Tax per kg (Rs.)</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Service Charge per kg (Rs.)</label>
                 <input
                   type="number"
                   step="0.01"
@@ -431,21 +387,7 @@ const AdminWarehouseWastePrices = () => {
             </svg>
           </div>
           <h3 className="text-xl font-semibold text-gray-900 mb-2">No Warehouse Waste Prices Found</h3>
-          <p className="text-gray-600 mb-6">Get started by initializing default prices or adding a new price.</p>
-          <button
-            onClick={handleInitializeDefaults}
-            disabled={updating === 'initialize'}
-            className="inline-flex items-center space-x-2 px-6 py-3 bg-gradient-to-r from-emerald-500 to-teal-600 text-white rounded-lg hover:from-emerald-600 hover:to-teal-700 transition-colors font-medium shadow-md disabled:opacity-50"
-          >
-            {updating === 'initialize' ? (
-              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-            ) : (
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-              </svg>
-            )}
-            <span>Initialize Default Prices</span>
-          </button>
+          <p className="text-gray-600 mb-6">Get started by adding a new price for different waste types.</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -542,7 +484,7 @@ const AdminWarehouseWastePrices = () => {
                         />
                       </div>
                       <div>
-                        <label className="block text-xs font-medium text-gray-700 mb-1">Admin Tax per kg (Rs.)</label>
+                        <label className="block text-xs font-medium text-gray-700 mb-1">Service Charge per kg (Rs.)</label>
                         <input
                           type="number"
                           step="0.01"
@@ -573,7 +515,7 @@ const AdminWarehouseWastePrices = () => {
                         <span className="text-sm font-bold text-gray-900">{formatPrice(price.pricePerKg)}</span>
                       </div>
                       <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                        <span className="text-sm text-gray-600 font-medium">Admin Tax:</span>
+                        <span className="text-sm text-gray-600 font-medium">Service Charge:</span>
                         <span className="text-sm font-bold text-orange-600">{formatPrice(price.adminTaxPerKg)}</span>
                       </div>
                       <div className="flex items-center justify-between p-3 bg-emerald-50 border border-emerald-200 rounded-lg">

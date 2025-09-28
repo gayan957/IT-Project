@@ -13,6 +13,8 @@ import {
   Legend,
   ArcElement,
 } from 'chart.js';
+import api from '../lib/api';
+import { toast } from 'react-hot-toast';
 
 // Register ChartJS components
 ChartJS.register(
@@ -57,49 +59,128 @@ export default function FinanceDashboardOverview() {
   });
 
   const [loading, setLoading] = useState(true);
+  const [currentTime, setCurrentTime] = useState(new Date());
 
   useEffect(() => {
     fetchFinanceData();
+    
+    // Set up auto-refresh every 30 seconds
+    const dataInterval = setInterval(() => {
+      fetchFinanceData();
+    }, 30000);
+
+    // Update current time every second
+    const timeInterval = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 1000);
+
+    // Cleanup intervals on unmount
+    return () => {
+      clearInterval(dataInterval);
+      clearInterval(timeInterval);
+    };
   }, []);
 
   const fetchFinanceData = async () => {
     try {
       setLoading(true);
       
-      // Mock data - replace with actual API calls
-      const mockRevenueData = {
-        labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep'],
-        revenue: [85000, 92000, 78000, 125000, 110000, 98000, 115000, 135000, 125000],
-        expenses: [35000, 42000, 38000, 45000, 40000, 38000, 42000, 48000, 45000]
-      };
+      // Fetch real data from waste orders API
+      const [statsResponse, ordersResponse] = await Promise.all([
+        api.get('/api/admin/waste-orders/stats'),
+        api.get('/api/admin/waste-orders?limit=100') // Get more orders for better analytics
+      ]);
 
-      const mockOrderData = {
-        labels: ['Week 1', 'Week 2', 'Week 3', 'Week 4'],
-        orders: [45, 52, 48, 61]
-      };
+      const stats = statsResponse.data;
+      const orders = ordersResponse.data.orders || [];
 
-      // Set finance stats
+      // Calculate total revenue from completed orders
+      const totalRevenue = orders
+        .filter(order => order.orderStatus === 'completed')
+        .reduce((sum, order) => sum + (order.totalOrderValue || 0), 0);
+
+      // Calculate monthly revenue (current month)
+      const currentMonth = new Date().getMonth();
+      const currentYear = new Date().getFullYear();
+      const monthlyRevenue = orders
+        .filter(order => {
+          const orderDate = new Date(order.createdAt);
+          return order.orderStatus === 'completed' &&
+                 orderDate.getMonth() === currentMonth &&
+                 orderDate.getFullYear() === currentYear;
+        })
+        .reduce((sum, order) => sum + (order.totalOrderValue || 0), 0);
+
+      // Calculate expenses (estimate as 30% of revenue for operational costs)
+      const totalExpenses = totalRevenue * 0.3;
+      const netProfit = totalRevenue - totalExpenses;
+
+      // Set finance stats with real data
       setFinanceStats({
-        totalRevenue: 125000,
-        monthlyRevenue: 28500,
-        totalExpenses: 45000,
-        netProfit: 80000,
-        pendingPayments: 12,
-        completedTransactions: 156,
-        totalOrders: 248,
-        pendingOrders: 23,
-        approvedOrders: 201,
-        rejectedOrders: 24
+        totalRevenue: totalRevenue,
+        monthlyRevenue: monthlyRevenue,
+        totalExpenses: totalExpenses,
+        netProfit: netProfit,
+        pendingPayments: stats.pending || 0,
+        completedTransactions: stats.completed || 0,
+        totalOrders: stats.pending + stats.approved + stats.completed + stats.cancelled || 0,
+        pendingOrders: stats.pending || 0,
+        approvedOrders: stats.approved || 0,
+        rejectedOrders: stats.cancelled || 0
       });
 
-      // Set chart data
+      // Generate chart data based on real orders
+      const last6Months = Array.from({ length: 6 }, (_, i) => {
+        const date = new Date();
+        date.setMonth(date.getMonth() - i);
+        return {
+          month: date.toLocaleDateString('en-US', { month: 'short' }),
+          monthNum: date.getMonth(),
+          year: date.getFullYear()
+        };
+      }).reverse();
+
+      const monthlyData = last6Months.map(month => {
+        const monthOrders = orders.filter(order => {
+          const orderDate = new Date(order.createdAt);
+          return orderDate.getMonth() === month.monthNum &&
+                 orderDate.getFullYear() === month.year &&
+                 order.orderStatus === 'completed';
+        });
+        
+        const revenue = monthOrders.reduce((sum, order) => sum + (order.totalOrderValue || 0), 0);
+        const expenses = revenue * 0.3; // Estimate expenses as 30% of revenue
+        
+        return {
+          month: month.month,
+          revenue,
+          expenses
+        };
+      });
+
+      // Generate weekly order data for current month
+      const weeklyData = Array.from({ length: 4 }, (_, i) => {
+        const startOfWeek = new Date();
+        startOfWeek.setDate(startOfWeek.getDate() - (startOfWeek.getDay() + 7 * i));
+        const endOfWeek = new Date(startOfWeek);
+        endOfWeek.setDate(startOfWeek.getDate() + 6);
+        
+        const weekOrders = orders.filter(order => {
+          const orderDate = new Date(order.createdAt);
+          return orderDate >= startOfWeek && orderDate <= endOfWeek;
+        });
+        
+        return weekOrders.length;
+      }).reverse();
+
+      // Set chart data with real data
       setChartData({
         revenueChart: {
-          labels: mockRevenueData.labels,
+          labels: monthlyData.map(d => d.month),
           datasets: [
             {
               label: 'Revenue',
-              data: mockRevenueData.revenue,
+              data: monthlyData.map(d => d.revenue),
               borderColor: 'rgb(34, 197, 94)',
               backgroundColor: 'rgba(34, 197, 94, 0.1)',
               tension: 0.4,
@@ -107,7 +188,7 @@ export default function FinanceDashboardOverview() {
             },
             {
               label: 'Expenses',
-              data: mockRevenueData.expenses,
+              data: monthlyData.map(d => d.expenses),
               borderColor: 'rgb(239, 68, 68)',
               backgroundColor: 'rgba(239, 68, 68, 0.1)',
               tension: 0.4,
@@ -116,11 +197,11 @@ export default function FinanceDashboardOverview() {
           ]
         },
         orderChart: {
-          labels: mockOrderData.labels,
+          labels: ['Week 1', 'Week 2', 'Week 3', 'Week 4'],
           datasets: [
             {
               label: 'Orders',
-              data: mockOrderData.orders,
+              data: weeklyData,
               backgroundColor: [
                 'rgba(59, 130, 246, 0.8)',
                 'rgba(16, 185, 129, 0.8)',
@@ -141,7 +222,7 @@ export default function FinanceDashboardOverview() {
           labels: ['Approved', 'Pending', 'Rejected'],
           datasets: [
             {
-              data: [201, 23, 24],
+              data: [stats.approved || 0, stats.pending || 0, stats.cancelled || 0],
               backgroundColor: [
                 'rgba(34, 197, 94, 0.8)',
                 'rgba(245, 158, 11, 0.8)',
@@ -160,6 +241,20 @@ export default function FinanceDashboardOverview() {
 
     } catch (error) {
       console.error('Error fetching finance data:', error);
+      toast.error('Failed to load financial data');
+      // Set default values on error
+      setFinanceStats({
+        totalRevenue: 0,
+        monthlyRevenue: 0,
+        totalExpenses: 0,
+        netProfit: 0,
+        pendingPayments: 0,
+        completedTransactions: 0,
+        totalOrders: 0,
+        pendingOrders: 0,
+        approvedOrders: 0,
+        rejectedOrders: 0
+      });
     } finally {
       setLoading(false);
     }
@@ -221,10 +316,22 @@ export default function FinanceDashboardOverview() {
               </div>
             </div>
             <div className="text-right">
-              <div className="bg-emerald-50 px-4 py-2 rounded-xl border border-emerald-200">
-                <p className="text-sm text-emerald-600 font-semibold">Live Updates</p>
+              <button
+                onClick={fetchFinanceData}
+                disabled={loading}
+                className="bg-emerald-50 hover:bg-emerald-100 px-4 py-2 rounded-xl border border-emerald-200 transition-colors flex items-center space-x-2"
+              >
+                <svg className={`w-4 h-4 text-emerald-600 ${loading ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+                <span className="text-sm text-emerald-600 font-semibold">
+                  {loading ? 'Refreshing...' : 'Refresh'}
+                </span>
+              </button>
+              <div className="bg-emerald-50 px-4 py-2 rounded-xl border border-emerald-200 mt-2">
+                <p className="text-sm text-emerald-600 font-semibold">Real-time Data</p>
                 <p className="text-lg font-bold text-emerald-800">
-                  {new Date().toLocaleTimeString()}
+                  {currentTime.toLocaleTimeString()}
                 </p>
               </div>
             </div>
@@ -261,7 +368,10 @@ export default function FinanceDashboardOverview() {
                   </div>
                 </div>
                 <p className="text-white/90 text-sm font-semibold uppercase tracking-wider mb-2">Total Revenue</p>
-                <p className="text-3xl font-bold text-white mb-1">₹{financeStats.totalRevenue.toLocaleString()}</p>
+                <p className="text-3xl font-bold text-white mb-1">
+                  LKR {financeStats.totalRevenue.toLocaleString('en-LK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </p>
+                <p className="text-white/70 text-xs">From completed orders</p>
               </div>
             </div>
 
@@ -282,6 +392,7 @@ export default function FinanceDashboardOverview() {
                 </div>
                 <p className="text-white/90 text-sm font-semibold uppercase tracking-wider mb-2">Total Orders</p>
                 <p className="text-3xl font-bold text-white mb-1">{financeStats.totalOrders.toLocaleString()}</p>
+                <p className="text-white/70 text-xs">All waste orders</p>
               </div>
             </div>
 
@@ -296,11 +407,14 @@ export default function FinanceDashboardOverview() {
                     </svg>
                   </div>
                   <div className="flex items-center text-white/80 text-sm">
-                    64% margin
+                    {financeStats.netProfit > 0 ? '+' : ''}{((financeStats.netProfit / (financeStats.totalRevenue || 1)) * 100).toFixed(1)}% margin
                   </div>
                 </div>
                 <p className="text-white/90 text-sm font-semibold uppercase tracking-wider mb-2">Net Profit</p>
-                <p className="text-3xl font-bold text-white mb-1">₹{financeStats.netProfit.toLocaleString()}</p>
+                <p className="text-3xl font-bold text-white mb-1">
+                  LKR {financeStats.netProfit.toLocaleString('en-LK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </p>
+                <p className="text-white/70 text-xs">After operational costs</p>
               </div>
             </div>
 
@@ -320,6 +434,7 @@ export default function FinanceDashboardOverview() {
                 </div>
                 <p className="text-white/90 text-sm font-semibold uppercase tracking-wider mb-2">Pending Orders</p>
                 <p className="text-3xl font-bold text-white mb-1">{financeStats.pendingOrders}</p>
+                <p className="text-white/70 text-xs">Awaiting approval</p>
               </div>
             </div>
           </div>
