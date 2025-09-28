@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { GoogleMap, useJsApiLoader, Marker, InfoWindow, DirectionsRenderer } from '@react-google-maps/api';
-import { useNavigate, Link, useLocation } from 'react-router-dom';
-import { useAuth } from '../lib/auth';
+import { useNavigate } from 'react-router-dom';
 import collectionApi from '../lib/collectionApi';
 import { scheduleApi } from '../lib/scheduleApi';
 
@@ -97,28 +96,9 @@ const PickupAgentMap = () => {
   const [isCalculatingRoute, setIsCalculatingRoute] = useState(false);
   
   const navigate = useNavigate();
-  const location = useLocation();
-  const { user, logout } = useAuth();
   const directionsServiceRef = useRef(null);
   const clickTimerRef = useRef(null);
   const scheduleClickTimerRef = useRef(null);
-
-  // Dashboard navigation items
-  const navigationItems = [
-    { path: '/pickup-agent/dashboard', label: 'Overview', icon: '📊' },
-    { path: '/pickup-agent/dashboard/map', label: 'Collection Map', icon: '🗺️' },
-    { path: '/pickup-agent/dashboard/pickups', label: 'Pickups', icon: '📦' },
-    { path: '/pickup-agent/dashboard/schedule', label: 'Schedule', icon: '📅' },
-    { path: '/pickup-agent/dashboard/earnings', label: 'Earnings', icon: '💰' },
-    { path: '/pickup-agent/dashboard/profile', label: 'Profile', icon: '👤' }
-  ];
-
-  const isActiveLink = (path) => {
-    if (path === '/pickup-agent/dashboard') {
-      return location.pathname === '/pickup-agent/dashboard';
-    }
-    return location.pathname.startsWith(path);
-  };
 
   // Check API key immediately
   const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
@@ -632,131 +612,150 @@ const PickupAgentMap = () => {
   }
 
   return (
-    <div className="h-screen flex flex-col bg-gray-100">
-      {/* Sub Header with Stats */}
-      <div className="bg-white border-b border-gray-200 px-6 py-3">
-        <div className="flex items-center justify-between">
-          <div className="text-sm text-gray-600">
-            {locationError ? locationError : 'Your current location is being tracked'}
-          </div>
-          
-          {/* Statistics */}
-          <div className="flex space-x-6">
-            <div className="text-center">
-              <div className="text-lg font-bold text-red-600">{bins.length}</div>
-              <div className="text-xs text-gray-500">High-Fill Bins</div>
-            </div>
-            <div className="text-center">
-              <div className="text-lg font-bold text-blue-600">{schedules.length}</div>
-              <div className="text-xs text-gray-500">Scheduled Pickups</div>
-            </div>
-            {routeInfo && (
-              <div className="text-center">
-                <div className="text-sm font-bold text-green-600">{routeInfo.distance}</div>
-                <div className="text-xs text-gray-500">{routeInfo.duration}</div>
-              </div>
-            )}
-            <div className="text-center bg-yellow-50 px-3 py-1 rounded">
-              <div className="text-xs text-yellow-700 font-medium">💡 Tip</div>
-              <div className="text-xs text-yellow-600">Double-click bins to collect</div>
-            </div>
-          </div>
-        </div>
-
-        {/* Controls */}
-        <div className="flex items-center justify-between mt-4">
-          <div className="flex space-x-4">
-            <button
-              onClick={() => fetchMapData(true)}
-              disabled={loading}
-              className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
-            >
-              <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-              </svg>
-              Refresh Data
-            </button>
-            
-            <button
-              onClick={getCurrentLocation}
-              className="flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
-            >
-              <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-              </svg>
-              Update Location
-            </button>
-
-            {directionsResponse && (
+    <div className="h-screen bg-gray-900 relative overflow-hidden">
+      {/* Modern Top Bar */}
+      <div className="absolute top-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-lg border-b border-gray-200/50">
+        <div className="px-6 py-4">
+          <div className="flex items-center justify-between">
+            {/* Left Side - Location Status */}
+            <div className="flex items-center space-x-3">
               <button
-                onClick={clearRoute}
-                className="flex items-center px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
+                onClick={() => navigate(-1)}
+                className="p-2 hover:bg-gray-100 rounded-full transition-colors"
               >
-                <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                <svg className="w-5 h-5 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
                 </svg>
-                Clear Route
               </button>
-            )}
-          </div>
+              <div>
+                <h1 className="text-lg font-semibold text-gray-900">Collection Map</h1>
+                <p className="text-sm text-gray-500">
+                  {locationError ? locationError : 'Live location tracking active'}
+                </p>
+              </div>
+            </div>
 
-          <div className="flex flex-wrap gap-3">
-            <button
-              onClick={() => navigate('/agent-pickups')}
-              className="flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
-            >
-              <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-              </svg>
-              My Pickups
-            </button>
-          </div>
-
-          {/* Legend */}
-          <div className="flex items-center space-x-4 text-sm">
-            <div className="flex items-center">
-              <div className="w-4 h-4 bg-red-500 rounded mr-2"></div>
-              <span>90%+ Full</span>
-            </div>
-            <div className="flex items-center">
-              <div className="w-4 h-4 bg-orange-500 rounded mr-2"></div>
-              <span>80-89% Full</span>
-            </div>
-            <div className="flex items-center">
-              <div className="w-4 h-4 bg-yellow-500 rounded mr-2"></div>
-              <span>75-79% Full</span>
-            </div>
-            <div className="flex items-center">
-              <div className="w-4 h-4 bg-blue-500 rounded mr-2"></div>
-              <span>Scheduled</span>
-            </div>
-            <div className="flex items-center">
-              <div className="w-4 h-4 bg-green-500 rounded-full mr-2"></div>
-              <span>Your Location</span>
+            {/* Right Side - Quick Stats */}
+            <div className="flex items-center space-x-6">
+              <div className="flex items-center space-x-4 text-sm">
+                <div className="flex items-center space-x-2">
+                  <div className="w-3 h-3 bg-red-500 rounded-full"></div>
+                  <span className="text-gray-700 font-medium">{bins.filter(b => b.fillLevel >= 90).length}</span>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
+                  <span className="text-gray-700 font-medium">{schedules.length}</span>
+                </div>
+                {routeInfo && (
+                  <div className="bg-green-50 px-3 py-1 rounded-full">
+                    <span className="text-green-700 font-medium text-sm">{routeInfo.duration}</span>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Error Banner */}
+      {/* Floating Control Panel - Left Side */}
+      <div className="absolute left-6 top-24 z-40 space-y-3">
+        <button
+          onClick={getCurrentLocation}
+          className="w-12 h-12 bg-white shadow-lg rounded-full flex items-center justify-center hover:shadow-xl transition-all duration-200 hover:scale-105"
+          title="Center on my location"
+        >
+          <svg className="w-5 h-5 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+          </svg>
+        </button>
+        
+        <button
+          onClick={() => fetchMapData(true)}
+          disabled={loading}
+          className="w-12 h-12 bg-white shadow-lg rounded-full flex items-center justify-center hover:shadow-xl transition-all duration-200 hover:scale-105 disabled:opacity-50"
+          title="Refresh data"
+        >
+          <svg className="w-5 h-5 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+          </svg>
+        </button>
+
+        {directionsResponse && (
+          <button
+            onClick={clearRoute}
+            className="w-12 h-12 bg-red-500 text-white shadow-lg rounded-full flex items-center justify-center hover:shadow-xl transition-all duration-200 hover:scale-105"
+            title="Clear route"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        )}
+      </div>
+
+      {/* Floating Menu Button - Right Side */}
+      <div className="absolute right-6 top-24 z-40">
+        <button
+          onClick={() => navigate('/agent-pickups')}
+          className="bg-blue-500 text-white px-4 py-3 rounded-full shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105 flex items-center space-x-2"
+        >
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+          </svg>
+          <span className="text-sm font-medium">My Pickups</span>
+        </button>
+      </div>
+
+      {/* Bottom Status Card */}
+      <div className="absolute bottom-6 left-6 right-6 z-40">
+        <div className="bg-white/95 backdrop-blur-lg rounded-2xl shadow-xl border border-gray-200/50 p-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-4">
+              <div className="flex items-center space-x-2">
+                <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                <span className="text-sm font-medium text-gray-700">Online</span>
+              </div>
+              <div className="text-sm text-gray-500">|</div>
+              <div className="text-sm text-gray-600">
+                {bins.filter(b => b.fillLevel >= 90).length} urgent bins nearby
+              </div>
+            </div>
+            
+            <div className="flex items-center space-x-3">
+              <div className="flex items-center space-x-4 text-xs">
+                <div className="flex items-center space-x-1">
+                  <div className="w-2 h-2 bg-red-500 rounded-full"></div>
+                  <span>Critical</span>
+                </div>
+                <div className="flex items-center space-x-1">
+                  <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
+                  <span>High</span>
+                </div>
+                <div className="flex items-center space-x-1">
+                  <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                  <span>Scheduled</span>
+                </div>
+                <div className="flex items-center space-x-1">
+                  <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                  <span>You</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Error Toast */}
       {error && (
-        <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4">
-          <div className="flex">
-            <div className="flex-shrink-0">
-              <svg className="h-5 w-5 text-yellow-400" viewBox="0 0 20 20" fill="currentColor">
-                <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-              </svg>
-            </div>
-            <div className="ml-3">
-              <p className="text-sm text-yellow-700">{error}</p>
-            </div>
+        <div className="absolute top-20 left-1/2 transform -translate-x-1/2 z-50">
+          <div className="bg-red-500 text-white px-4 py-2 rounded-lg shadow-lg">
+            <p className="text-sm">{error}</p>
           </div>
         </div>
       )}
 
       {/* Map Container */}
-      <div className="flex-1 relative">
+      <div className="absolute inset-0 z-10">
         {!isLoaded ? (
           <div className="flex items-center justify-center h-full">
             <div className="text-center">
@@ -812,107 +811,158 @@ const PickupAgentMap = () => {
               />
             ))}
 
-            {/* Bin Info Window */}
+            {/* Modern Bin Info Window */}
             {selectedBin && (
               <InfoWindow
                 position={selectedBin.location}
                 onCloseClick={() => setSelectedBin(null)}
+                options={{
+                  pixelOffset: { width: 0, height: -10 },
+                  disableAutoPan: false,
+                  maxWidth: 300
+                }}
               >
-                <div className="p-4 max-w-sm">
-                  <h3 className="font-bold text-lg text-gray-900 mb-2">{selectedBin.address}</h3>
-                  
-                  <div className="space-y-2 mb-4">
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Fill Level:</span>
-                      <span className={`font-bold ${
-                        selectedBin.fillLevel >= 90 ? 'text-red-600' : 
-                        selectedBin.fillLevel >= 80 ? 'text-orange-600' : 'text-yellow-600'
+                <div className="bg-white rounded-2xl shadow-2xl overflow-hidden border-0 p-0 m-0">
+                  <div className="p-5">
+                    {/* Header */}
+                    <div className="flex items-start justify-between mb-4">
+                      <div>
+                        <h3 className="font-bold text-lg text-gray-900 leading-tight">{selectedBin.address}</h3>
+                        <p className="text-sm text-gray-500 mt-1">Waste Collection Point</p>
+                      </div>
+                      <div className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                        selectedBin.fillLevel >= 90 ? 'bg-red-100 text-red-700' : 
+                        selectedBin.fillLevel >= 80 ? 'bg-orange-100 text-orange-700' : 'bg-yellow-100 text-yellow-700'
                       }`}>
-                        {selectedBin.fillLevel}%
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Waste Type:</span>
-                      <span className="font-medium capitalize">{selectedBin.wasteType}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Last Updated:</span>
-                      <span className="text-sm text-gray-500">
-                        {new Date(selectedBin.lastUpdated).toLocaleTimeString()}
-                      </span>
-                    </div>
-                  </div>
-
-                  {routeInfo && (
-                    <div className="bg-blue-50 p-3 rounded-lg mb-4">
-                      <h4 className="font-medium text-blue-900 mb-2">Route Information</h4>
-                      <div className="text-sm space-y-1">
-                        <div>Distance: <span className="font-medium">{routeInfo.distance}</span></div>
-                        <div>Duration: <span className="font-medium">{routeInfo.duration}</span></div>
-                        <div>Steps: <span className="font-medium">{routeInfo.steps}</span></div>
+                        {selectedBin.fillLevel}% Full
                       </div>
                     </div>
-                  )}
+                    
+                    {/* Details Grid */}
+                    <div className="grid grid-cols-2 gap-3 mb-4">
+                      <div className="bg-gray-50 rounded-lg p-3">
+                        <p className="text-xs text-gray-500 mb-1">Waste Type</p>
+                        <p className="font-semibold text-gray-900 capitalize">{selectedBin.wasteType}</p>
+                      </div>
+                      <div className="bg-gray-50 rounded-lg p-3">
+                        <p className="text-xs text-gray-500 mb-1">Last Update</p>
+                        <p className="font-semibold text-gray-900">
+                          {new Date(selectedBin.lastUpdated).toLocaleTimeString([], {
+                            hour: '2-digit',
+                            minute: '2-digit'
+                          })}
+                        </p>
+                      </div>
+                    </div>
 
-                  <button
-                    onClick={() => handleCollectClick(selectedBin)}
-                    className="w-full bg-green-600 text-white py-2 px-4 rounded-lg hover:bg-green-700 transition-colors font-medium"
-                  >
-                    Collect Waste
-                  </button>
+                    {/* Route Info */}
+                    {routeInfo && (
+                      <div className="bg-blue-50 rounded-xl p-4 mb-4 border border-blue-100">
+                        <div className="flex items-center space-x-2 mb-2">
+                          <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-1.447-.894L15 4m0 13V4m-6 3l6-3" />
+                          </svg>
+                          <h4 className="font-semibold text-blue-900">Route Details</h4>
+                        </div>
+                        <div className="grid grid-cols-3 gap-2 text-sm">
+                          <div>
+                            <p className="text-blue-600">{routeInfo.distance}</p>
+                            <p className="text-xs text-blue-500">Distance</p>
+                          </div>
+                          <div>
+                            <p className="text-blue-600">{routeInfo.duration}</p>
+                            <p className="text-xs text-blue-500">Duration</p>
+                          </div>
+                          <div>
+                            <p className="text-blue-600">{routeInfo.steps}</p>
+                            <p className="text-xs text-blue-500">Steps</p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Action Button */}
+                    <button
+                      onClick={() => handleCollectClick(selectedBin)}
+                      className="w-full bg-gradient-to-r from-green-500 to-emerald-500 text-white py-3 px-4 rounded-xl hover:from-green-600 hover:to-emerald-600 transition-all duration-200 font-semibold shadow-lg hover:shadow-xl transform hover:scale-[1.02]"
+                    >
+                      Start Collection
+                    </button>
+                  </div>
                 </div>
               </InfoWindow>
             )}
 
-            {/* Schedule Info Window */}
+            {/* Modern Schedule Info Window */}
             {selectedSchedule && (
               <InfoWindow
                 position={selectedSchedule.location}
                 onCloseClick={() => setSelectedSchedule(null)}
+                options={{
+                  pixelOffset: { width: 0, height: -10 },
+                  disableAutoPan: false,
+                  maxWidth: 300
+                }}
               >
-                <div className="p-4 max-w-sm">
-                  <h3 className="font-bold text-lg text-gray-900 mb-2">{selectedSchedule.address}</h3>
-                  
-                  <div className="space-y-2 mb-4">
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Scheduled Time:</span>
-                      <span className="font-medium">
-                        {new Date(selectedSchedule.scheduledTime).toLocaleTimeString([], {
-                          hour: '2-digit',
-                          minute: '2-digit'
-                        })}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Status:</span>
-                      <span className={`font-medium capitalize ${
-                        selectedSchedule.status === 'confirmed' ? 'text-green-600' : 'text-yellow-600'
+                <div className="bg-white rounded-2xl shadow-2xl overflow-hidden border-0 p-0 m-0">
+                  <div className="p-5">
+                    {/* Header */}
+                    <div className="flex items-start justify-between mb-4">
+                      <div>
+                        <h3 className="font-bold text-lg text-gray-900 leading-tight">{selectedSchedule.address}</h3>
+                        <p className="text-sm text-gray-500 mt-1">Scheduled Pickup</p>
+                      </div>
+                      <div className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                        selectedSchedule.status === 'confirmed' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'
                       }`}>
                         {selectedSchedule.status}
-                      </span>
+                      </div>
                     </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Priority:</span>
-                      <span className={`font-medium capitalize ${
-                        selectedSchedule.priority === 'high' ? 'text-red-600' : 
-                        selectedSchedule.priority === 'medium' ? 'text-yellow-600' : 'text-green-600'
-                      }`}>
-                        {selectedSchedule.priority}
-                      </span>
+                    
+                    {/* Schedule Details Grid */}
+                    <div className="grid grid-cols-2 gap-3 mb-4">
+                      <div className="bg-gray-50 rounded-lg p-3">
+                        <p className="text-xs text-gray-500 mb-1">Time</p>
+                        <p className="font-semibold text-gray-900">
+                          {new Date(selectedSchedule.scheduledTime).toLocaleTimeString([], {
+                            hour: '2-digit',
+                            minute: '2-digit'
+                          })}
+                        </p>
+                      </div>
+                      <div className="bg-gray-50 rounded-lg p-3">
+                        <p className="text-xs text-gray-500 mb-1">Priority</p>
+                        <div className="flex items-center space-x-1">
+                          <div className={`w-2 h-2 rounded-full ${
+                            selectedSchedule.priority === 'high' ? 'bg-red-500' : 
+                            selectedSchedule.priority === 'medium' ? 'bg-yellow-500' : 'bg-green-500'
+                          }`}></div>
+                          <p className="font-semibold text-gray-900 capitalize">{selectedSchedule.priority}</p>
+                        </div>
+                      </div>
                     </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Est. Duration:</span>
-                      <span className="font-medium">{selectedSchedule.estimatedDuration}</span>
-                    </div>
-                  </div>
 
-                  <button
-                    onClick={() => calculateRoute(selectedSchedule.location)}
-                    disabled={isCalculatingRoute}
-                    className="w-full bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors font-medium disabled:opacity-50"
-                  >
-                    {isCalculatingRoute ? 'Calculating Route...' : 'Show Route'}
-                  </button>
+                    <div className="bg-gray-50 rounded-lg p-3 mb-4">
+                      <p className="text-xs text-gray-500 mb-1">Estimated Duration</p>
+                      <p className="font-semibold text-gray-900">{selectedSchedule.estimatedDuration}</p>
+                    </div>
+
+                    {/* Action Button */}
+                    <button
+                      onClick={() => calculateRoute(selectedSchedule.location)}
+                      disabled={isCalculatingRoute}
+                      className="w-full bg-gradient-to-r from-blue-500 to-cyan-500 text-white py-3 px-4 rounded-xl hover:from-blue-600 hover:to-cyan-600 transition-all duration-200 font-semibold shadow-lg hover:shadow-xl transform hover:scale-[1.02] disabled:opacity-50 disabled:transform-none"
+                    >
+                      {isCalculatingRoute ? (
+                        <div className="flex items-center justify-center space-x-2">
+                          <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                          <span>Calculating...</span>
+                        </div>
+                      ) : (
+                        'Navigate Here'
+                      )}
+                    </button>
+                  </div>
                 </div>
               </InfoWindow>
             )}
@@ -986,24 +1036,43 @@ const PickupAgentMap = () => {
           </div>
         )}
 
-        {/* Floating Action Panel */}
+        {/* Modern Route Info Card */}
         {(isCalculatingRoute || routeInfo) && (
-          <div className="absolute bottom-6 left-6 bg-white rounded-lg shadow-lg p-4 max-w-sm">
-            {isCalculatingRoute ? (
-              <div className="flex items-center space-x-3">
-                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
-                <span className="text-gray-700">Calculating optimal route...</span>
-              </div>
-            ) : routeInfo ? (
-              <div>
-                <h3 className="font-bold text-gray-900 mb-2">Route Details</h3>
-                <div className="space-y-1 text-sm">
-                  <div>🚗 Distance: <span className="font-medium">{routeInfo.distance}</span></div>
-                  <div>⏱️ Duration: <span className="font-medium">{routeInfo.duration}</span></div>
-                  <div>📍 Navigation steps: <span className="font-medium">{routeInfo.steps}</span></div>
+          <div className="absolute top-24 left-1/2 transform -translate-x-1/2 z-50">
+            <div className="bg-white/95 backdrop-blur-lg rounded-2xl shadow-xl border border-gray-200/50 p-4 min-w-[280px]">
+              {isCalculatingRoute ? (
+                <div className="flex items-center space-x-3">
+                  <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+                  <div>
+                    <p className="font-semibold text-gray-900">Calculating Route</p>
+                    <p className="text-sm text-gray-500">Finding optimal path...</p>
+                  </div>
                 </div>
-              </div>
-            ) : null}
+              ) : routeInfo ? (
+                <div>
+                  <div className="flex items-center space-x-2 mb-3">
+                    <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-1.447-.894L15 4m0 13V4m-6 3l6-3" />
+                    </svg>
+                    <h3 className="font-bold text-gray-900">Active Route</h3>
+                  </div>
+                  <div className="grid grid-cols-3 gap-3">
+                    <div className="text-center">
+                      <p className="text-lg font-bold text-blue-600">{routeInfo.distance}</p>
+                      <p className="text-xs text-gray-500">Distance</p>
+                    </div>
+                    <div className="text-center">
+                      <p className="text-lg font-bold text-green-600">{routeInfo.duration}</p>
+                      <p className="text-xs text-gray-500">ETA</p>
+                    </div>
+                    <div className="text-center">
+                      <p className="text-lg font-bold text-gray-600">{routeInfo.steps}</p>
+                      <p className="text-xs text-gray-500">Steps</p>
+                    </div>
+                  </div>
+                </div>
+              ) : null}
+            </div>
           </div>
         )}
       </div>

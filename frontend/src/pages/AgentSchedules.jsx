@@ -2,6 +2,8 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
 import api from '../lib/api';
+import jsPDF from 'jspdf';
+import logoPng from '../assets/images/logos/trash2cash_logo.png';
 
 const AgentSchedules = () => {
   const navigate = useNavigate();
@@ -94,6 +96,258 @@ const AgentSchedules = () => {
     });
   };
 
+  // PDF Generation Function for Schedule Collections
+  const generateScheduleCollectionsPDF = () => {
+    try {
+      const doc = new jsPDF('p', 'mm', 'a4');
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const pageHeight = doc.internal.pageSize.getHeight();
+      
+      // Helper function to ensure page space
+      const ensurePageSpace = (y, needed = 20) => {
+        if (y + needed > pageHeight - 20) {
+          doc.addPage();
+          return 20; // reset Y with a top margin on the new page
+        }
+        return y;
+      };
+
+      // Header with company branding
+      doc.setFillColor(16, 185, 129); // Green header
+      doc.rect(0, 0, pageWidth, 35, 'F');
+      
+      // Company logo area with white background for better contrast
+      try {
+        // Add white circular background for logo visibility
+        doc.setFillColor(255, 255, 255);
+        doc.circle(20, 17.5, 8, 'F');
+        
+        // Add the Trash2Cash logo
+        doc.addImage(logoPng, 'PNG', 14, 11.5, 12, 12);
+      } catch (error) {
+        // Fallback to text if logo fails to load
+        console.warn('Logo failed to load, using fallback:', error);
+        doc.setFillColor(255, 255, 255);
+        doc.circle(20, 17.5, 6, 'F');
+        doc.setFillColor(16, 185, 129);
+        doc.setFontSize(8);
+        doc.text('T2C', 17.5, 19);
+      }
+      
+      // Company name and title
+      doc.setTextColor(255, 255, 255);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(18);
+      doc.text('Trash2Cash', 35, 15);
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(10);
+      doc.text('Schedule Collections Report', 35, 22);
+      doc.text('No 23/A, Kandy Road, Malabe', 35, 28);
+      
+      // Date and agent info
+      doc.setFontSize(9);
+      doc.text(`Generated: ${new Date().toLocaleDateString()}`, pageWidth - 15, 12, { align: 'right' });
+      doc.text(`Agent Report`, pageWidth - 15, 18, { align: 'right' });
+      doc.text(`Schedule Collections`, pageWidth - 15, 24, { align: 'right' });
+
+      let y = 50;
+
+      // Summary Statistics
+      doc.setTextColor(0, 0, 0);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(14);
+      doc.text('Schedule Collection Summary', 15, y);
+      y += 10;
+
+      // Summary box
+      doc.setFillColor(248, 250, 252);
+      doc.rect(15, y - 5, pageWidth - 30, 25, 'F');
+      doc.setDrawColor(200, 200, 200);
+      doc.rect(15, y - 5, pageWidth - 30, 25);
+
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(10);
+      
+      const totalCollections = filteredCollections.length;
+      const totalEarnings = filteredCollections.reduce((sum, c) => sum + (c.totalPrice || 0), 0);
+      const totalWeight = filteredCollections.reduce((sum, c) => sum + (c.wasteWeight || 0), 0);
+      
+      doc.text(`Total Schedule Collections: ${totalCollections}`, 20, y + 5);
+      doc.text(`Total Weight: ${totalWeight.toFixed(1)} kg`, 20, y + 12);
+      doc.text(`Total Earnings: Rs. ${totalEarnings.toFixed(2)}`, 20, y + 19);
+      
+      // Filter information
+      const filterText = filter === 'all' ? 'All Time' : 
+                        filter === 'today' ? 'Today' :
+                        filter === 'week' ? 'Last 7 Days' : 'Last 30 Days';
+      doc.text(`Period: ${filterText}`, pageWidth - 20, y + 5, { align: 'right' });
+      doc.text(`Report Date: ${new Date().toLocaleDateString()}`, pageWidth - 20, y + 12, { align: 'right' });
+
+      y += 35;
+
+      // Schedule Collections Table
+      y = ensurePageSpace(y, 30);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(12);
+      doc.text('Schedule Collection Details', 15, y);
+      y += 10;
+
+      if (filteredCollections.length === 0) {
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(10);
+        doc.text('No schedule collections found for the selected period.', 15, y);
+        y += 15;
+      } else {
+        // Table header
+        y = ensurePageSpace(y, 20);
+        const tableWidth = pageWidth - 30;
+        const colPositions = [15, 40, 70, 100, 125, 155]; // Column positions
+        
+        doc.setFillColor(16, 185, 129);
+        doc.rect(15, y - 5, tableWidth, 12, 'F');
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(255, 255, 255);
+        doc.setFontSize(8);
+        doc.text('Date', colPositions[0], y + 2);
+        doc.text('Collection ID', colPositions[1], y + 2);
+        doc.text('Waste Type', colPositions[2], y + 2);
+        doc.text('Weight (kg)', colPositions[3], y + 2);
+        doc.text('Payment (Rs.)', colPositions[4], y + 2);
+        doc.text('Customer', colPositions[5], y + 2);
+        
+        y += 15;
+
+        // Table rows
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(0, 0, 0);
+        doc.setFontSize(7);
+
+        filteredCollections.forEach((collection, index) => {
+          y = ensurePageSpace(y, 12);
+
+          // Alternate row background
+          if (index % 2 === 0) {
+            doc.setFillColor(248, 250, 252);
+            doc.rect(15, y - 3, tableWidth, 10, 'F');
+          }
+
+          // Row separator line
+          doc.setDrawColor(220, 220, 220);
+          doc.setLineWidth(0.3);
+          doc.line(15, y + 7, 15 + tableWidth, y + 7);
+
+          // Cell data
+          const collectionDate = new Date(collection.collectionDate).toLocaleDateString('en-US', {
+            month: 'short',
+            day: 'numeric'
+          });
+          const collectionId = collection._id ? collection._id.slice(-6) : `#${index + 1}`;
+          const wasteType = collection.wasteType || 'Mixed';
+          const weight = (collection.wasteWeight || 0).toFixed(1);
+          const payment = (collection.totalPrice || 0).toFixed(2);
+          const customer = collection.userId?.name || 'Unknown';
+          
+          // Truncate long text
+          const truncatedCustomer = customer.length > 10 ? customer.substring(0, 10) + '...' : customer;
+          const truncatedWasteType = wasteType.length > 8 ? wasteType.substring(0, 8) + '...' : wasteType;
+
+          doc.text(collectionDate, colPositions[0], y + 2);
+          doc.text(collectionId, colPositions[1], y + 2);
+          doc.text(truncatedWasteType, colPositions[2], y + 2);
+          doc.text(weight, colPositions[3], y + 2);
+          doc.text(payment, colPositions[4], y + 2);
+          doc.text(truncatedCustomer, colPositions[5], y + 2);
+
+          // Column separators
+          for (let i = 1; i < colPositions.length; i++) {
+            const x = colPositions[i] - 2;
+            doc.line(x, y - 3, x, y + 7);
+          }
+          
+          y += 10;
+        });
+
+        // Table summary
+        y += 5;
+        y = ensurePageSpace(y, 15);
+        
+        doc.setFillColor(240, 253, 244);
+        doc.rect(15, y - 3, tableWidth, 12, 'F');
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(8);
+        doc.text('TOTALS:', colPositions[0], y + 3);
+        doc.text(`${totalCollections} items`, colPositions[1], y + 3);
+        doc.text('', colPositions[2], y + 3);
+        doc.text(`${totalWeight.toFixed(1)} kg`, colPositions[3], y + 3);
+        doc.text(`Rs. ${totalEarnings.toFixed(2)}`, colPositions[4], y + 3);
+        doc.text('', colPositions[5], y + 3);
+        
+        y += 15;
+      }
+
+      // Additional Statistics
+      if (filteredCollections.length > 0) {
+        y = ensurePageSpace(y, 25);
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(12);
+        doc.text('Statistics & Analysis', 15, y);
+        y += 10;
+
+        // Calculate statistics
+        const wasteTypes = filteredCollections.reduce((acc, c) => {
+          const type = c.wasteType || 'Unknown';
+          acc[type] = (acc[type] || 0) + 1;
+          return acc;
+        }, {});
+
+        const avgWeight = totalWeight / totalCollections;
+        const avgEarnings = totalEarnings / totalCollections;
+        const mostCommonWaste = Object.keys(wasteTypes).reduce((a, b) => 
+          wasteTypes[a] > wasteTypes[b] ? a : b, 'None'
+        );
+
+        // Calculate unique customers
+        const uniqueCustomers = new Set(filteredCollections.map(c => c.userId?._id).filter(Boolean)).size;
+
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(9);
+        doc.text(`• Average weight per schedule collection: ${avgWeight.toFixed(2)} kg`, 20, y);
+        y += 6;
+        doc.text(`• Average earnings per collection: Rs. ${avgEarnings.toFixed(2)}`, 20, y);
+        y += 6;
+        doc.text(`• Most collected waste type: ${mostCommonWaste}`, 20, y);
+        y += 6;
+        doc.text(`• Unique customers served: ${uniqueCustomers}`, 20, y);
+        y += 6;
+        doc.text(`• Collection efficiency: ${((totalWeight / totalCollections) * 8).toFixed(1)}%`, 20, y);
+        y += 10;
+      }
+
+      // Footer
+      const footerY = pageHeight - 15;
+      doc.setDrawColor(16, 185, 129);
+      doc.setLineWidth(1);
+      doc.line(15, footerY - 5, pageWidth - 15, footerY - 5);
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(8);
+      doc.setTextColor(100, 100, 100);
+      doc.text('Trash2Cash Schedule Management System | Generated automatically', 15, footerY);
+      doc.text(`Page 1 | ${new Date().toLocaleDateString()}`, pageWidth - 15, footerY, { align: 'right' });
+
+      // Generate filename
+      const dateStr = new Date().toISOString().split('T')[0];
+      const filename = `Schedule_Collections_Report_${dateStr}.pdf`;
+
+      // Save the PDF
+      doc.save(filename);
+      toast.success('Schedule collections PDF report generated successfully!');
+      
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      toast.error('Failed to generate PDF report. Please try again.');
+    }
+  };
+
   // Calculate today's stats
   const calculateTodaysStats = useMemo(() => {
     const today = new Date();
@@ -181,12 +435,34 @@ const AgentSchedules = () => {
               </button>
               <h1 className="text-2xl font-bold text-gray-900">My Schedule Collections</h1>
             </div>
-            <button
-              onClick={fetchScheduleCollections}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-            >
-              Refresh
-            </button>
+            <div className="flex gap-3">
+              <select
+                value={filter}
+                onChange={(e) => setFilter(e.target.value)}
+                className="px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              >
+                <option value="all">All Time</option>
+                <option value="today">Today</option>
+                <option value="week">Last 7 Days</option>
+                <option value="month">Last 30 Days</option>
+              </select>
+              <button
+                onClick={generateScheduleCollectionsPDF}
+                className="flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" 
+                        d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                Generate PDF
+              </button>
+              <button
+                onClick={fetchScheduleCollections}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                Refresh
+              </button>
+            </div>
           </div>
         </div>
       </div>

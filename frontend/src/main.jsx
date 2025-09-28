@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom/client';
 import { createBrowserRouter, RouterProvider, Navigate } from 'react-router-dom';
 import App from './App';
 import Home from './pages/Home';
+import HomeService from './pages/HomeService';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
@@ -64,6 +65,7 @@ const router = createBrowserRouter([
     element: <App />,
     children: [
       { index: true, element: <Home /> },
+      { path: 'services', element: <HomeService /> },
       { path: 'login', element: <Login /> },
       { path: 'register', element: <Register /> },
       { path: 'unauthorized', element: <Unauthorized /> },
