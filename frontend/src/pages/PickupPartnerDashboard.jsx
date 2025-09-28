@@ -221,12 +221,6 @@ export default function PickupPartnerDashboard() {
                                 </span>
                                 <span className="text-gray-500 text-sm font-medium">kg</span>
                               </div>
-                              <div className="mt-3 w-full bg-gray-200 rounded-full h-2">
-                                <div 
-                                  className={`bg-gradient-to-r ${wasteInfo.color} h-2 rounded-full transition-all duration-500`}
-                                  style={{ width: `${Math.min(percentage, 100)}%` }}
-                                ></div>
-                              </div>
                             </div>
                           </div>
                         </div>
