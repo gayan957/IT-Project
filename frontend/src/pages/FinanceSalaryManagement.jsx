@@ -1,7 +1,10 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
+import jsPDF from 'jspdf';
+import { toast } from 'react-hot-toast';
 import api from '../lib/api';
 import { SalaryCalculator } from '../lib/salaryCalculator';
+import trash2cashLogo from '../assets/images/trash2cash_logo.png';
 
 export default function FinanceSalaryManagement() {
   const [salaries, setSalaries] = useState([]);
@@ -227,6 +230,324 @@ export default function FinanceSalaryManagement() {
     }
   };
 
+  // PDF Generation Function
+  const generateSalaryReportPDF = async () => {
+    try {
+      const doc = new jsPDF('p', 'mm', 'a4');
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const pageHeight = doc.internal.pageSize.getHeight();
+
+      // Helper function to convert image to base64
+      const getImageAsBase64 = (imageSrc) => {
+        return new Promise((resolve, reject) => {
+          const img = new Image();
+          img.crossOrigin = 'anonymous';
+          img.onload = () => {
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            canvas.width = img.width;
+            canvas.height = img.height;
+            ctx.drawImage(img, 0, 0);
+            resolve(canvas.toDataURL('image/png'));
+          };
+          img.onerror = reject;
+          img.src = imageSrc;
+        });
+      };
+      
+      // Helper function to ensure page space (modified for single page)
+      const ensurePageSpace = (y) => {
+        // Always return the current y position to keep everything on one page
+        return y;
+      };
+
+      // Header with company branding
+      doc.setFillColor(16, 185, 129); // Green header
+      doc.rect(0, 0, pageWidth, 35, 'F');
+      
+      // Company logo area with actual logo image
+      try {
+        // Create a white background rectangle for the logo
+        doc.setFillColor(255, 255, 255);
+        doc.rect(15, 8, 15, 15, 'F');
+        doc.setDrawColor(200, 200, 200);
+        doc.rect(15, 8, 15, 15);
+        
+        // Load and add the logo image
+        const logoBase64 = await getImageAsBase64(trash2cashLogo);
+        doc.addImage(logoBase64, 'PNG', 16.5, 9.5, 12, 12);
+      } catch (error) {
+        console.log('Logo rendering error:', error.message);
+        // Fallback to text logo if image fails
+        doc.setFillColor(255, 255, 255);
+        doc.rect(15, 8, 15, 15, 'F');
+        doc.setDrawColor(200, 200, 200);
+        doc.rect(15, 8, 15, 15);
+        doc.setTextColor(16, 185, 129);
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(10);
+        doc.text('T2C', 22.5, 18, { align: 'center' });
+      }
+      
+      // Title - Company Name
+      doc.setTextColor(255, 255, 255);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(18);
+      doc.text('Trash2Cash', 35, 15);
+      
+      // Address - Company Location
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(10);
+      doc.text('No 23/A, Kandy Road, Malabe', 35, 22);
+      
+      // Report - Document Title
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(12);
+      doc.text('Employee Salary Summary Report', 35, 28);
+      
+      // Date and report info
+      doc.setFontSize(9);
+      const filterText = selectedMonth || 'All Months';
+      doc.text(`Generated: ${new Date().toLocaleDateString()}`, pageWidth - 15, 12, { align: 'right' });
+      doc.text(`Period: ${filterText}`, pageWidth - 15, 18, { align: 'right' });
+      doc.text(`Total Records: ${filteredSalaries.length}`, pageWidth - 15, 24, { align: 'right' });
+
+      let y = 40;
+
+      // Calculate summary statistics
+      const totalEmployees = filteredSalaries.length;
+      const totalNetSalary = filteredSalaries.reduce((sum, salary) => sum + (salary.totals?.netSalary || 0), 0);
+      const totalBasicSalary = filteredSalaries.reduce((sum, salary) => sum + (salary.salary?.basic || 0), 0);
+      const totalAllowances = filteredSalaries.reduce((sum, salary) => sum + (salary.totals?.totalAllowances || 0), 0);
+      const totalDeductions = filteredSalaries.reduce((sum, salary) => sum + (salary.totals?.totalDeductions || 0), 0);
+      const avgNetSalary = totalEmployees > 0 ? totalNetSalary / totalEmployees : 0;
+
+      // Summary Statistics Section (Compact)
+      doc.setTextColor(0, 0, 0);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(11);
+      doc.text('Salary Summary Statistics', 15, y);
+      y += 6;
+
+      // Summary box (Reduced height)
+      doc.setFillColor(248, 250, 252);
+      doc.rect(15, y - 2, pageWidth - 30, 25, 'F');
+      doc.setDrawColor(200, 200, 200);
+      doc.rect(15, y - 2, pageWidth - 30, 25);
+
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(8);
+      
+      // Left side stats
+      doc.text(`Total Employees: ${totalEmployees}`, 20, y + 3);
+      doc.text(`Total Basic: ${SalaryCalculator.formatCurrency(totalBasicSalary)}`, 20, y + 8);
+      doc.text(`Total Allowances: ${SalaryCalculator.formatCurrency(totalAllowances)}`, 20, y + 13);
+      doc.text(`Total Deductions: ${SalaryCalculator.formatCurrency(totalDeductions)}`, 20, y + 18);
+      
+      // Right side stats
+      doc.text(`Total Net: ${SalaryCalculator.formatCurrency(totalNetSalary)}`, pageWidth - 20, y + 3, { align: 'right' });
+      doc.text(`Average Net: ${SalaryCalculator.formatCurrency(avgNetSalary)}`, pageWidth - 20, y + 8, { align: 'right' });
+      doc.text(`Period: ${selectedMonth || 'All Months'}`, pageWidth - 20, y + 13, { align: 'right' });
+
+      y += 30;
+
+      // Employee Salary Details Table (Compact)
+      y = ensurePageSpace(y);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(10);
+      doc.text('Employee Salary Details', 15, y);
+      y += 6;
+
+      if (filteredSalaries.length === 0) {
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(10);
+        doc.text('No salary records found for the selected criteria.', 15, y);
+        y += 15;
+      } else {
+        // Table header (Compact)
+        y = ensurePageSpace(y);
+        const tableWidth = pageWidth - 30;
+        const colPositions = [15, 45, 65, 85, 105, 125, 160]; // Adjusted column positions
+        
+        doc.setFillColor(16, 185, 129);
+        doc.rect(15, y - 2, tableWidth, 8, 'F');
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(255, 255, 255);
+        doc.setFontSize(7);
+        doc.text('Employee', colPositions[0], y + 2);
+        doc.text('ID', colPositions[1], y + 2);
+        doc.text('Month', colPositions[2], y + 2);
+        doc.text('Basic', colPositions[3], y + 2);
+        doc.text('Allow.', colPositions[4], y + 2);
+        doc.text('Deduct.', colPositions[5], y + 2);
+        doc.text('Net Salary', colPositions[6], y + 2);
+        
+        y += 10;
+
+        // Table rows (Compact - limit to first 10 records)
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(0, 0, 0);
+        doc.setFontSize(6);
+
+        const limitedSalaries = filteredSalaries.slice(0, 10); // Show only first 10 records
+        
+        limitedSalaries.forEach((salary, index) => {
+          y = ensurePageSpace(y);
+
+          // Alternate row background
+          if (index % 2 === 0) {
+            doc.setFillColor(248, 250, 252);
+            doc.rect(15, y - 1, tableWidth, 6, 'F');
+          }
+
+          // Row separator line
+          doc.setDrawColor(220, 220, 220);
+          doc.setLineWidth(0.2);
+          doc.line(15, y + 4, 15 + tableWidth, y + 4);
+
+          // Cell data
+          const employeeName = salary.employee?.name || 'Unknown';
+          const agentId = salary.employee?.agentId || 'N/A';
+          const month = salary.attendance?.month || 'Unknown';
+          const basicSalary = SalaryCalculator.formatCurrency(salary.salary?.basic || 0);
+          const totalAllowances = SalaryCalculator.formatCurrency(salary.totals?.totalAllowances || 0);
+          const totalDeductions = SalaryCalculator.formatCurrency(salary.totals?.totalDeductions || 0);
+          const netSalary = SalaryCalculator.formatCurrency(salary.totals?.netSalary || 0);
+          
+          // Truncate long text more aggressively
+          const truncatedName = employeeName.length > 8 ? employeeName.substring(0, 8) + '..' : employeeName;
+          const truncatedMonth = month.length > 6 ? month.substring(0, 6) + '..' : month;
+          const shortAgentId = agentId.length > 6 ? agentId.substring(0, 6) + '..' : agentId;
+
+          doc.text(truncatedName, colPositions[0], y + 2);
+          doc.text(shortAgentId, colPositions[1], y + 2);
+          doc.text(truncatedMonth, colPositions[2], y + 2);
+          doc.text(basicSalary, colPositions[3], y + 2);
+          doc.text(totalAllowances, colPositions[4], y + 2);
+          doc.text(totalDeductions, colPositions[5], y + 2);
+          doc.text(netSalary, colPositions[6], y + 2);
+
+          // Column separators
+          for (let i = 1; i < colPositions.length; i++) {
+            const x = colPositions[i] - 2;
+            doc.line(x, y - 1, x, y + 4);
+          }
+          
+          y += 6;
+        });
+
+        if (filteredSalaries.length > 10) {
+          doc.setFontSize(7);
+          doc.text(`... and ${filteredSalaries.length - 10} more records`, 15, y + 2);
+          y += 8;
+        }
+
+        y += 5;
+      }
+
+      // Monthly Breakdown (Compact)
+      if (filteredSalaries.length > 0) {
+        y = ensurePageSpace(y);
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(9);
+        doc.text('Monthly Breakdown', 15, y);
+        y += 5;
+
+        // Group by month
+        const monthlyBreakdown = {};
+        filteredSalaries.forEach(salary => {
+          const month = salary.attendance?.month || 'Unknown';
+          if (!monthlyBreakdown[month]) {
+            monthlyBreakdown[month] = {
+              count: 0,
+              totalNet: 0,
+              totalBasic: 0
+            };
+          }
+          monthlyBreakdown[month].count += 1;
+          monthlyBreakdown[month].totalNet += (salary.totals?.netSalary || 0);
+          monthlyBreakdown[month].totalBasic += (salary.salary?.basic || 0);
+        });
+
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(7);
+        
+        const monthEntries = Object.entries(monthlyBreakdown).slice(0, 3); // Show only first 3 months
+        monthEntries.forEach(([month, data]) => {
+          y = ensurePageSpace(y);
+          doc.text(`• ${month}: ${data.count} emp, Net: ${SalaryCalculator.formatCurrency(data.totalNet)}`, 20, y);
+          y += 4;
+        });
+
+        if (Object.keys(monthlyBreakdown).length > 3) {
+          doc.text(`... and ${Object.keys(monthlyBreakdown).length - 3} more months`, 20, y);
+          y += 4;
+        }
+
+        y += 5;
+      }
+
+      // Authorized Signature Section (Compact)
+      y = ensurePageSpace(y);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(0, 0, 0);
+      doc.setFontSize(8);
+      doc.text('Authorized By:', 15, y);
+      y += 5;
+
+      // Signature line and details (Compact)
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(7);
+      
+      // Left side - Prepared by
+      doc.text('Prepared By: HR Department', 15, y);
+      doc.text(`Date: ${new Date().toLocaleDateString()}`, 15, y + 4);
+      
+      // Signature line for prepared by
+      doc.setLineWidth(0.3);
+      doc.setDrawColor(0, 0, 0);
+      doc.line(15, y + 10, 70, y + 10); // Signature line
+      doc.setFontSize(6);
+      doc.text('Signature', 15, y + 13);
+
+      // Right side - Approved by
+      doc.setFontSize(7);
+      doc.text('Approved By: Finance Manager', pageWidth - 80, y);
+      doc.text(`Date: ____________`, pageWidth - 80, y + 4);
+      
+      // Signature line for approved by
+      doc.line(pageWidth - 70, y + 10, pageWidth - 15, y + 10); // Signature line
+      doc.setFontSize(6);
+      doc.text('Signature', pageWidth - 70, y + 13);
+
+      y += 20;
+
+      // Footer
+      const footerY = pageHeight - 15;
+      doc.setDrawColor(16, 185, 129);
+      doc.setLineWidth(1);
+      doc.line(15, footerY - 5, pageWidth - 15, footerY - 5);
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(8);
+      doc.setTextColor(100, 100, 100);
+      doc.text('Trash2Cash Employee Salary Summary | Generated automatically', 15, footerY);
+      doc.text(`Page 1 | ${new Date().toLocaleDateString()}`, pageWidth - 15, footerY, { align: 'right' });
+
+      // Generate filename
+      const dateStr = new Date().toISOString().split('T')[0];
+      const monthSuffix = selectedMonth ? `_${selectedMonth}` : '_AllMonths';
+      const filename = `Employee_Salary_Summary${monthSuffix}_${dateStr}.pdf`;
+
+      // Save the PDF
+      doc.save(filename);
+      toast.success('Employee salary report generated successfully!');
+      
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      toast.error('Failed to generate salary report. Please try again.');
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -290,23 +611,35 @@ export default function FinanceSalaryManagement() {
             </select>
           </div>
 
-          {/* Clear Filters Button */}
-          {(searchTerm || selectedMonth) && (
-            <div className="flex items-end">
+          {/* Action Buttons */}
+          <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-end">
+            {/* Clear Filters Button */}
+            {(searchTerm || selectedMonth) && (
               <button
                 onClick={() => {
                   setSearchTerm('');
                   setSelectedMonth('');
                 }}
-                className="px-4 py-3 bg-gray-500 text-white rounded-xl hover:bg-gray-600 transition-all duration-200 flex items-center gap-2"
+                className="px-4 py-3 bg-gray-500 text-white rounded-xl hover:bg-gray-600 transition-all duration-200 flex items-center justify-center gap-2 whitespace-nowrap"
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                 </svg>
-                Clear
+                Clear Filters
               </button>
-            </div>
-          )}
+            )}
+            
+            {/* Generate Report Button */}
+            <button
+              onClick={() => generateSalaryReportPDF()}
+              className="px-4 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-all duration-200 flex items-center justify-center gap-2 whitespace-nowrap"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+              Generate Report
+            </button>
+          </div>
         </div>
 
         {/* Search Results Summary */}

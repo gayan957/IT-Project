@@ -138,7 +138,7 @@ export const sendSalarySlipEmail = async ({
         </head>
         <body>
           <div class="header">
-            <h1>🌱 ${senderName}</h1>
+            <h1>${senderName}</h1>
             <p>Monthly Salary Slip</p>
           </div>
           
