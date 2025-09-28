@@ -30,6 +30,7 @@ import {
     approveWasteOrder,
     rejectWasteOrder
 } from '../controllers/admin.controller.js';
+import { sendBinFullNotificationEmail } from '../controllers/bin.controller.js';
 
 
 const router = Router();
@@ -70,6 +71,7 @@ router.get('/bins', listBins);
 router.get('/bins/:binId', getBinById);
 router.put('/bins/:binId', updateBinById);
 router.delete('/bins/:binId', deleteBinById);
+router.post('/bins/:id/notify', sendBinFullNotificationEmail);
 
 // Waste Orders
 router.get('/waste-orders', getAllWasteOrders);

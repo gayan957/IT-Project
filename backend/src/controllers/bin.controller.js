@@ -1,5 +1,6 @@
 // controllers/bin.controller.js
 import Bin from "../models/Bin.js";
+import { sendBinFullNotification } from "../services/emailService.js";
 
 /**
  * Get all bins owned by the logged-in user
@@ -156,6 +157,95 @@ export const getPollingStatus = (req, res) => {
 
   } catch (error) {
     console.error('❌ Get polling status error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+      error: error.message
+    });
+  }
+};
+
+/**
+ * Send bin full notification email to bin owner
+ * POST /api/admin/bins/:id/notify
+ */
+export const sendBinFullNotificationEmail = async (req, res) => {
+  try {
+    const binId = req.params.id;
+    
+    // Find the bin and populate owner details
+    const bin = await Bin.findById(binId).populate('owner', 'firstName lastName email');
+    
+    if (!bin) {
+      return res.status(404).json({
+        success: false,
+        message: 'Bin not found'
+      });
+    }
+
+    if (!bin.owner) {
+      return res.status(400).json({
+        success: false,
+        message: 'Bin owner not found'
+      });
+    }
+
+    if (!bin.owner.email) {
+      return res.status(400).json({
+        success: false,
+        message: 'Bin owner email not available'
+      });
+    }
+
+    // Check if bin fill level is actually 90% or more
+    if (bin.fillLevel < 90) {
+      return res.status(400).json({
+        success: false,
+        message: 'Bin fill level is below 90%. Notification not required.'
+      });
+    }
+
+    // Prepare email data
+    const emailData = {
+      recipientEmail: bin.owner.email,
+      recipientName: `${bin.owner.firstName} ${bin.owner.lastName}`,
+      binLabel: bin.label || `Bin ${bin._id.toString().slice(-6)}`,
+      binId: bin._id.toString(),
+      fillLevel: bin.fillLevel,
+      address: bin.address || 'Location not specified',
+      wasteType: bin.wasteType || 'mixed'
+    };
+
+    console.log('📧 Sending bin full notification:', emailData);
+
+    // Send the email
+    const emailResult = await sendBinFullNotification(emailData);
+
+    if (!emailResult.success) {
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to send notification email',
+        error: emailResult.message
+      });
+    }
+
+    // Update bin with notification sent timestamp
+    bin.lastNotificationSent = new Date();
+    await bin.save();
+
+    res.json({
+      success: true,
+      message: 'Bin full notification sent successfully',
+      data: {
+        binId: bin._id,
+        recipientEmail: bin.owner.email,
+        messageId: emailResult.messageId,
+        sentAt: new Date().toISOString()
+      }
+    });
+
+  } catch (error) {
+    console.error('❌ Send bin notification error:', error);
     res.status(500).json({
       success: false,
       message: 'Internal server error',

@@ -1,5 +1,31 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { Line, Bar, Doughnut } from 'react-chartjs-2';
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  BarElement,
+  Title,
+  Tooltip,
+  Legend,
+  ArcElement,
+} from 'chart.js';
+
+// Register ChartJS components
+ChartJS.register(
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  BarElement,
+  Title,
+  Tooltip,
+  Legend,
+  ArcElement
+);
 
 export default function FinanceDashboardOverview() {
   const [financeStats, setFinanceStats] = useState({
@@ -8,221 +34,414 @@ export default function FinanceDashboardOverview() {
     totalExpenses: 0,
     netProfit: 0,
     pendingPayments: 0,
-    completedTransactions: 0
+    completedTransactions: 0,
+    totalOrders: 0,
+    pendingOrders: 0,
+    approvedOrders: 0,
+    rejectedOrders: 0
   });
 
+  const [chartData, setChartData] = useState({
+    revenueChart: {
+      labels: [],
+      datasets: []
+    },
+    orderChart: {
+      labels: [],
+      datasets: []
+    },
+    orderStatusChart: {
+      labels: [],
+      datasets: []
+    }
+  });
+
+  const [loading, setLoading] = useState(true);
+
   useEffect(() => {
-    // Fetch finance stats here
-    // This is a placeholder - you'd implement actual API calls
-    setFinanceStats({
-      totalRevenue: 125000,
-      monthlyRevenue: 28500,
-      totalExpenses: 45000,
-      netProfit: 80000,
-      pendingPayments: 12,
-      completedTransactions: 156
-    });
+    fetchFinanceData();
   }, []);
 
+  const fetchFinanceData = async () => {
+    try {
+      setLoading(true);
+      
+      // Mock data - replace with actual API calls
+      const mockRevenueData = {
+        labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep'],
+        revenue: [85000, 92000, 78000, 125000, 110000, 98000, 115000, 135000, 125000],
+        expenses: [35000, 42000, 38000, 45000, 40000, 38000, 42000, 48000, 45000]
+      };
+
+      const mockOrderData = {
+        labels: ['Week 1', 'Week 2', 'Week 3', 'Week 4'],
+        orders: [45, 52, 48, 61]
+      };
+
+      // Set finance stats
+      setFinanceStats({
+        totalRevenue: 125000,
+        monthlyRevenue: 28500,
+        totalExpenses: 45000,
+        netProfit: 80000,
+        pendingPayments: 12,
+        completedTransactions: 156,
+        totalOrders: 248,
+        pendingOrders: 23,
+        approvedOrders: 201,
+        rejectedOrders: 24
+      });
+
+      // Set chart data
+      setChartData({
+        revenueChart: {
+          labels: mockRevenueData.labels,
+          datasets: [
+            {
+              label: 'Revenue',
+              data: mockRevenueData.revenue,
+              borderColor: 'rgb(34, 197, 94)',
+              backgroundColor: 'rgba(34, 197, 94, 0.1)',
+              tension: 0.4,
+              fill: true
+            },
+            {
+              label: 'Expenses',
+              data: mockRevenueData.expenses,
+              borderColor: 'rgb(239, 68, 68)',
+              backgroundColor: 'rgba(239, 68, 68, 0.1)',
+              tension: 0.4,
+              fill: true
+            }
+          ]
+        },
+        orderChart: {
+          labels: mockOrderData.labels,
+          datasets: [
+            {
+              label: 'Orders',
+              data: mockOrderData.orders,
+              backgroundColor: [
+                'rgba(59, 130, 246, 0.8)',
+                'rgba(16, 185, 129, 0.8)',
+                'rgba(245, 158, 11, 0.8)',
+                'rgba(139, 69, 19, 0.8)'
+              ],
+              borderColor: [
+                'rgb(59, 130, 246)',
+                'rgb(16, 185, 129)',
+                'rgb(245, 158, 11)',
+                'rgb(139, 69, 19)'
+              ],
+              borderWidth: 2
+            }
+          ]
+        },
+        orderStatusChart: {
+          labels: ['Approved', 'Pending', 'Rejected'],
+          datasets: [
+            {
+              data: [201, 23, 24],
+              backgroundColor: [
+                'rgba(34, 197, 94, 0.8)',
+                'rgba(245, 158, 11, 0.8)',
+                'rgba(239, 68, 68, 0.8)'
+              ],
+              borderColor: [
+                'rgb(34, 197, 94)',
+                'rgb(245, 158, 11)',
+                'rgb(239, 68, 68)'
+              ],
+              borderWidth: 2
+            }
+          ]
+        }
+      });
+
+    } catch (error) {
+      console.error('Error fetching finance data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const chartOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: {
+        position: 'top',
+      },
+    },
+    scales: {
+      y: {
+        beginAtZero: true,
+        grid: {
+          color: 'rgba(0, 0, 0, 0.1)',
+        },
+      },
+      x: {
+        grid: {
+          color: 'rgba(0, 0, 0, 0.1)',
+        },
+      },
+    },
+  };
+
+  const doughnutOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: {
+        position: 'bottom',
+      },
+    },
+  };
+
   return (
-    <div>
-      {/* Header with current tab info */}
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
+      {/* Modern Header */}
       <div className="relative mb-8">
-        <div className="absolute inset-0 bg-gradient-to-r from-green-500/10 to-emerald-500/10 rounded-3xl"></div>
-        <div className="relative bg-white/80 backdrop-blur-sm rounded-3xl p-6 border border-white/20 shadow-xl">
+        <div className="absolute inset-0 bg-gradient-to-r from-emerald-600/10 via-teal-500/10 to-green-600/10 rounded-3xl"></div>
+        <div className="relative bg-white/90 backdrop-blur-md rounded-3xl p-8 border border-white/30 shadow-2xl">
           <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-bold bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent">
-                Finance Management Dashboard
-              </h1>
-              <p className="text-gray-600 text-lg mt-1">
-                Comprehensive financial management and analytics for Trash2Cash
-              </p>
+            <div className="flex items-center space-x-4">
+              <div className="w-16 h-16 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-2xl flex items-center justify-center shadow-xl">
+                <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                </svg>
+              </div>
+              <div>
+                <h1 className="text-4xl font-bold bg-gradient-to-r from-emerald-600 via-teal-600 to-green-600 bg-clip-text text-transparent">
+                  Finance Hub
+                </h1>
+                <p className="text-gray-600 text-lg font-medium mt-1">
+                  Advanced Financial Analytics & Order Management
+                </p>
+              </div>
             </div>
             <div className="text-right">
-              <p className="text-sm text-gray-500">Current Time</p>
-              <p className="text-lg font-semibold text-gray-900">
-                {new Date().toLocaleTimeString()}
-              </p>
+              <div className="bg-emerald-50 px-4 py-2 rounded-xl border border-emerald-200">
+                <p className="text-sm text-emerald-600 font-semibold">Live Updates</p>
+                <p className="text-lg font-bold text-emerald-800">
+                  {new Date().toLocaleTimeString()}
+                </p>
+              </div>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Finance Stats */}
-      <div className="space-y-8">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          <div className="group relative bg-white/80 backdrop-blur-sm rounded-3xl p-6 shadow-xl border border-white/20 hover:shadow-2xl transition-all duration-500 hover:scale-105">
-            <div className="absolute inset-0 bg-gradient-to-br from-green-500/10 to-green-600/10 rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
-            <div className="relative flex items-center justify-between">
-              <div>
-                <p className="text-sm font-semibold text-gray-600 uppercase tracking-wider mb-2">Total Revenue</p>
-                <p className="text-3xl font-bold text-gray-900 mb-1">₹{financeStats.totalRevenue.toLocaleString()}</p>
-                <div className="flex items-center text-sm text-green-600 font-medium">
-                  <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
-                  </svg>
-                  +15% from last month
-                </div>
-              </div>
-              <div className="w-14 h-14 bg-gradient-to-br from-green-500 to-green-600 rounded-2xl flex items-center justify-center shadow-lg">
-                <svg className="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-              </div>
-            </div>
-          </div>
-
-          <div className="group relative bg-white/80 backdrop-blur-sm rounded-3xl p-6 shadow-xl border border-white/20 hover:shadow-2xl transition-all duration-500 hover:scale-105">
-            <div className="absolute inset-0 bg-gradient-to-br from-blue-500/10 to-blue-600/10 rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
-            <div className="relative flex items-center justify-between">
-              <div>
-                <p className="text-sm font-semibold text-gray-600 uppercase tracking-wider mb-2">Monthly Revenue</p>
-                <p className="text-3xl font-bold text-gray-900 mb-1">₹{financeStats.monthlyRevenue.toLocaleString()}</p>
-                <div className="flex items-center text-sm text-blue-600 font-medium">
-                  <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                  </svg>
-                  Current month
-                </div>
-              </div>
-              <div className="w-14 h-14 bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl flex items-center justify-center shadow-lg">
-                <svg className="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                </svg>
-              </div>
-            </div>
-          </div>
-
-          <div className="group relative bg-white/80 backdrop-blur-sm rounded-3xl p-6 shadow-xl border border-white/20 hover:shadow-2xl transition-all duration-500 hover:scale-105">
-            <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/10 to-emerald-600/10 rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
-            <div className="relative flex items-center justify-between">
-              <div>
-                <p className="text-sm font-semibold text-gray-600 uppercase tracking-wider mb-2">Net Profit</p>
-                <p className="text-3xl font-bold text-emerald-600 mb-1">₹{financeStats.netProfit.toLocaleString()}</p>
-                <div className="flex items-center text-sm text-emerald-600 font-medium">
-                  <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
-                  </svg>
-                  64% profit margin
-                </div>
-              </div>
-              <div className="w-14 h-14 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-2xl flex items-center justify-center shadow-lg">
-                <svg className="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
-                </svg>
-              </div>
-            </div>
-          </div>
-
-          <div className="group relative bg-white/80 backdrop-blur-sm rounded-3xl p-6 shadow-xl border border-white/20 hover:shadow-2xl transition-all duration-500 hover:scale-105">
-            <div className="absolute inset-0 bg-gradient-to-br from-orange-500/10 to-orange-600/10 rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
-            <div className="relative flex items-center justify-between">
-              <div>
-                <p className="text-sm font-semibold text-gray-600 uppercase tracking-wider mb-2">Total Expenses</p>
-                <p className="text-3xl font-bold text-orange-600 mb-1">₹{financeStats.totalExpenses.toLocaleString()}</p>
-                <div className="flex items-center text-sm text-orange-600 font-medium">
-                  <div className="w-2 h-2 bg-orange-500 rounded-full mr-2"></div>
-                  Operational costs
-                </div>
-              </div>
-              <div className="w-14 h-14 bg-gradient-to-br from-orange-500 to-orange-600 rounded-2xl flex items-center justify-center shadow-lg">
-                <svg className="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
-                </svg>
-              </div>
-            </div>
-          </div>
-
-          <div className="group relative bg-white/80 backdrop-blur-sm rounded-3xl p-6 shadow-xl border border-white/20 hover:shadow-2xl transition-all duration-500 hover:scale-105">
-            <div className="absolute inset-0 bg-gradient-to-br from-purple-500/10 to-purple-600/10 rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
-            <div className="relative flex items-center justify-between">
-              <div>
-                <p className="text-sm font-semibold text-gray-600 uppercase tracking-wider mb-2">Pending Payments</p>
-                <p className="text-3xl font-bold text-purple-600 mb-1">{financeStats.pendingPayments}</p>
-                <div className="flex items-center text-sm text-purple-600 font-medium">
-                  <div className="w-2 h-2 bg-purple-500 rounded-full mr-2 animate-pulse"></div>
-                  Awaiting processing
-                </div>
-              </div>
-              <div className="w-14 h-14 bg-gradient-to-br from-purple-500 to-purple-600 rounded-2xl flex items-center justify-center shadow-lg">
-                <svg className="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-              </div>
-            </div>
-          </div>
-
-          <div className="group relative bg-white/80 backdrop-blur-sm rounded-3xl p-6 shadow-xl border border-white/20 hover:shadow-2xl transition-all duration-500 hover:scale-105">
-            <div className="absolute inset-0 bg-gradient-to-br from-teal-500/10 to-teal-600/10 rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
-            <div className="relative flex items-center justify-between">
-              <div>
-                <p className="text-sm font-semibold text-gray-600 uppercase tracking-wider mb-2">Completed Transactions</p>
-                <p className="text-3xl font-bold text-teal-600 mb-1">{financeStats.completedTransactions}</p>
-                <div className="flex items-center text-sm text-teal-600 font-medium">
-                  <div className="w-2 h-2 bg-teal-500 rounded-full mr-2"></div>
-                  This month
-                </div>
-              </div>
-              <div className="w-14 h-14 bg-gradient-to-br from-teal-500 to-teal-600 rounded-2xl flex items-center justify-center shadow-lg">
-                <svg className="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-              </div>
-            </div>
+      {loading ? (
+        <div className="flex items-center justify-center py-20">
+          <div className="flex items-center space-x-3">
+            <div className="w-8 h-8 border-4 border-emerald-600 border-t-transparent rounded-full animate-spin"></div>
+            <span className="text-emerald-600 font-semibold text-lg">Loading financial data...</span>
           </div>
         </div>
-
-        {/* Quick Actions */}
-        <div className="relative">
-          <div className="absolute inset-0 bg-gradient-to-r from-green-500/5 to-emerald-500/5 rounded-3xl"></div>
-          <div className="relative bg-white/80 backdrop-blur-sm rounded-3xl p-8 border border-white/20 shadow-xl">
-            <div className="text-center mb-8">
-              <h2 className="text-2xl font-bold text-gray-900 mb-2">Quick Actions</h2>
-              <p className="text-gray-600">Fast access to common financial tasks</p>
+      ) : (
+        <div className="space-y-8">
+          {/* Enhanced Stats Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {/* Total Revenue Card */}
+            <div className="group relative bg-gradient-to-br from-emerald-500 to-teal-600 rounded-3xl p-6 shadow-2xl hover:shadow-3xl transition-all duration-500 hover:scale-105 overflow-hidden">
+              <div className="absolute inset-0 bg-gradient-to-br from-white/10 to-white/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+              <div className="relative">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center">
+                    <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  </div>
+                  <div className="flex items-center text-white/80 text-sm">
+                    <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+                    </svg>
+                    +15%
+                  </div>
+                </div>
+                <p className="text-white/90 text-sm font-semibold uppercase tracking-wider mb-2">Total Revenue</p>
+                <p className="text-3xl font-bold text-white mb-1">₹{financeStats.totalRevenue.toLocaleString()}</p>
+              </div>
             </div>
+
+            {/* Total Orders Card */}
+            <div className="group relative bg-gradient-to-br from-blue-500 to-indigo-600 rounded-3xl p-6 shadow-2xl hover:shadow-3xl transition-all duration-500 hover:scale-105 overflow-hidden">
+              <div className="absolute inset-0 bg-gradient-to-br from-white/10 to-white/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+              <div className="relative">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center">
+                    <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+                    </svg>
+                  </div>
+                  <div className="flex items-center text-white/80 text-sm">
+                    <div className="w-2 h-2 bg-white/60 rounded-full mr-2"></div>
+                    This month
+                  </div>
+                </div>
+                <p className="text-white/90 text-sm font-semibold uppercase tracking-wider mb-2">Total Orders</p>
+                <p className="text-3xl font-bold text-white mb-1">{financeStats.totalOrders.toLocaleString()}</p>
+              </div>
+            </div>
+
+            {/* Net Profit Card */}
+            <div className="group relative bg-gradient-to-br from-purple-500 to-pink-600 rounded-3xl p-6 shadow-2xl hover:shadow-3xl transition-all duration-500 hover:scale-105 overflow-hidden">
+              <div className="absolute inset-0 bg-gradient-to-br from-white/10 to-white/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+              <div className="relative">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center">
+                    <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                    </svg>
+                  </div>
+                  <div className="flex items-center text-white/80 text-sm">
+                    64% margin
+                  </div>
+                </div>
+                <p className="text-white/90 text-sm font-semibold uppercase tracking-wider mb-2">Net Profit</p>
+                <p className="text-3xl font-bold text-white mb-1">₹{financeStats.netProfit.toLocaleString()}</p>
+              </div>
+            </div>
+
+            {/* Pending Orders Card */}
+            <div className="group relative bg-gradient-to-br from-orange-500 to-red-600 rounded-3xl p-6 shadow-2xl hover:shadow-3xl transition-all duration-500 hover:scale-105 overflow-hidden">
+              <div className="absolute inset-0 bg-gradient-to-br from-white/10 to-white/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+              <div className="relative">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center">
+                    <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  </div>
+                  <div className="flex items-center text-white/80 text-sm">
+                    Needs attention
+                  </div>
+                </div>
+                <p className="text-white/90 text-sm font-semibold uppercase tracking-wider mb-2">Pending Orders</p>
+                <p className="text-3xl font-bold text-white mb-1">{financeStats.pendingOrders}</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Charts Section */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            {/* Revenue & Expenses Chart */}
+            <div className="lg:col-span-2 bg-white/90 backdrop-blur-md rounded-3xl p-8 shadow-2xl border border-white/30">
+              <div className="flex items-center justify-between mb-6">
+                <div>
+                  <h3 className="text-2xl font-bold text-gray-900">Revenue vs Expenses</h3>
+                  <p className="text-gray-600">Monthly financial overview</p>
+                </div>
+                <div className="flex items-center space-x-2 bg-gray-100 rounded-xl px-3 py-2">
+                  <div className="w-3 h-3 bg-emerald-500 rounded-full"></div>
+                  <span className="text-sm font-medium">Live Data</span>
+                </div>
+              </div>
+              <div className="h-80">
+                <Line data={chartData.revenueChart} options={chartOptions} />
+              </div>
+            </div>
+
+            {/* Order Status Breakdown */}
+            <div className="bg-white/90 backdrop-blur-md rounded-3xl p-8 shadow-2xl border border-white/30">
+              <div className="flex items-center justify-between mb-6">
+                <div>
+                  <h3 className="text-xl font-bold text-gray-900">Order Status</h3>
+                  <p className="text-gray-600">Current distribution</p>
+                </div>
+              </div>
+              <div className="h-80">
+                <Doughnut data={chartData.orderStatusChart} options={doughnutOptions} />
+              </div>
+            </div>
+          </div>
+
+          {/* Weekly Orders Chart */}
+          <div className="bg-white/90 backdrop-blur-md rounded-3xl p-8 shadow-2xl border border-white/30">
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h3 className="text-2xl font-bold text-gray-900">Weekly Order Volume</h3>
+                <p className="text-gray-600">Orders processed this month</p>
+              </div>
+              <div className="bg-gradient-to-r from-blue-100 to-indigo-100 px-4 py-2 rounded-xl">
+                <span className="text-blue-800 font-semibold text-sm">Current Month</span>
+              </div>
+            </div>
+            <div className="h-80">
+              <Bar data={chartData.orderChart} options={chartOptions} />
+            </div>
+          </div>
+
+          {/* Modern Quick Actions */}
+          <div className="bg-gradient-to-br from-white/90 to-gray-50/90 backdrop-blur-md rounded-3xl p-8 shadow-2xl border border-white/30">
+            <div className="text-center mb-8">
+              <h2 className="text-3xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent mb-3">
+                Quick Actions
+              </h2>
+              <p className="text-gray-600 text-lg">Fast access to essential financial operations</p>
+            </div>
+            
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
               <Link
                 to="/admin/dashboard/waste-prices"
-                className="group flex flex-col items-center p-6 bg-gradient-to-br from-green-50 to-emerald-50 rounded-2xl border border-green-200 hover:border-green-300 transition-all duration-300 hover:scale-105 hover:shadow-lg"
+                className="group relative overflow-hidden bg-gradient-to-br from-emerald-500 to-green-600 rounded-2xl p-6 shadow-xl hover:shadow-2xl transition-all duration-500 hover:scale-105"
               >
-                <div className="w-16 h-16 bg-gradient-to-br from-green-500 to-emerald-600 rounded-2xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-300">
-                  <span className="text-2xl">💰</span>
+                <div className="absolute inset-0 bg-gradient-to-br from-white/10 to-white/0 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+                <div className="relative text-center text-white">
+                  <div className="w-16 h-16 mx-auto mb-4 bg-white/20 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
+                    <span className="text-3xl">💰</span>
+                  </div>
+                  <h3 className="font-bold text-lg mb-2">Update Prices</h3>
+                  <p className="text-sm text-white/80">Manage waste collection pricing</p>
                 </div>
-                <h3 className="font-semibold text-gray-900 mb-2">Update Prices</h3>
-                <p className="text-sm text-gray-600 text-center">Manage waste collection pricing</p>
               </Link>
               
               <Link
                 to="/admin/finance/salaries"
-                className="group flex flex-col items-center p-6 bg-gradient-to-br from-purple-50 to-violet-50 rounded-2xl border border-purple-200 hover:border-purple-300 transition-all duration-300 hover:scale-105 hover:shadow-lg"
+                className="group relative overflow-hidden bg-gradient-to-br from-purple-500 to-indigo-600 rounded-2xl p-6 shadow-xl hover:shadow-2xl transition-all duration-500 hover:scale-105"
               >
-                <div className="w-16 h-16 bg-gradient-to-br from-purple-500 to-violet-600 rounded-2xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-300">
-                  <span className="text-2xl">💼</span>
+                <div className="absolute inset-0 bg-gradient-to-br from-white/10 to-white/0 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+                <div className="relative text-center text-white">
+                  <div className="w-16 h-16 mx-auto mb-4 bg-white/20 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
+                    <span className="text-3xl">💼</span>
+                  </div>
+                  <h3 className="font-bold text-lg mb-2">Manage Salaries</h3>
+                  <p className="text-sm text-white/80">Employee payroll management</p>
                 </div>
-                <h3 className="font-semibold text-gray-900 mb-2">Manage Salaries</h3>
-                <p className="text-sm text-gray-600 text-center">Employee payroll management</p>
               </Link>
 
-              <div className="group flex flex-col items-center p-6 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-2xl border border-blue-200 cursor-not-allowed opacity-60">
-                <div className="w-16 h-16 bg-gradient-to-br from-blue-400 to-indigo-500 rounded-2xl flex items-center justify-center mb-4">
-                  <span className="text-2xl">📊</span>
+              <Link
+                to="/admin/finance/waste-orders"
+                className="group relative overflow-hidden bg-gradient-to-br from-blue-500 to-cyan-600 rounded-2xl p-6 shadow-xl hover:shadow-2xl transition-all duration-500 hover:scale-105"
+              >
+                <div className="absolute inset-0 bg-gradient-to-br from-white/10 to-white/0 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+                <div className="relative text-center text-white">
+                  <div className="w-16 h-16 mx-auto mb-4 bg-white/20 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
+                    <span className="text-3xl">📦</span>
+                  </div>
+                  <h3 className="font-bold text-lg mb-2">Waste Orders</h3>
+                  <p className="text-sm text-white/80">Track and manage orders</p>
                 </div>
-                <h3 className="font-semibold text-gray-600 mb-2">Generate Report</h3>
-                <p className="text-sm text-gray-500 text-center">Coming Soon</p>
-              </div>
+              </Link>
 
-              <div className="group flex flex-col items-center p-6 bg-gradient-to-br from-orange-50 to-red-50 rounded-2xl border border-orange-200 cursor-not-allowed opacity-60">
-                <div className="w-16 h-16 bg-gradient-to-br from-orange-400 to-red-500 rounded-2xl flex items-center justify-center mb-4">
-                  <span className="text-2xl">📈</span>
+              <Link
+                to="/admin/finance/analytics"
+                className="group relative overflow-hidden bg-gradient-to-br from-orange-500 to-red-600 rounded-2xl p-6 shadow-xl hover:shadow-2xl transition-all duration-500 hover:scale-105"
+              >
+                <div className="absolute inset-0 bg-gradient-to-br from-white/10 to-white/0 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+                <div className="relative text-center text-white">
+                  <div className="w-16 h-16 mx-auto mb-4 bg-white/20 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
+                    <span className="text-3xl">📊</span>
+                  </div>
+                  <h3 className="font-bold text-lg mb-2">Analytics</h3>
+                  <p className="text-sm text-white/80">Deep financial insights</p>
                 </div>
-                <h3 className="font-semibold text-gray-600 mb-2">View Analytics</h3>
-                <p className="text-sm text-gray-500 text-center">Coming Soon</p>
-              </div>
+              </Link>
             </div>
           </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }

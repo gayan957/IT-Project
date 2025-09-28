@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import api from '../lib/api';
+import { toast } from 'react-hot-toast';
 
 export default function AdminBins() {
   const [bins, setBins] = useState([]);
@@ -9,6 +10,7 @@ export default function AdminBins() {
   const [statusFilter, setStatusFilter] = useState('All');
   const [wasteTypeFilter, setWasteTypeFilter] = useState('All');
   const [fillLevelFilter, setFillLevelFilter] = useState('All');
+  const [sendingEmail, setSendingEmail] = useState({});
 
   useEffect(() => {
     fetchBins();
@@ -51,6 +53,31 @@ export default function AdminBins() {
     } catch (err) {
       setError('Failed to update bin status');
       console.error('Error updating bin status:', err);
+    }
+  };
+
+  const sendBinFullNotification = async (binId) => {
+    try {
+      setSendingEmail(prev => ({ ...prev, [binId]: true }));
+      
+      const response = await api.post(`/api/admin/bins/${binId}/notify`);
+      
+      if (response.data.success) {
+        toast.success('Bin full notification sent successfully!');
+        
+        // Update the bin with notification timestamp
+        setBins(bins.map(bin => 
+          bin._id === binId ? { ...bin, lastNotificationSent: new Date().toISOString() } : bin
+        ));
+      } else {
+        toast.error(response.data.message || 'Failed to send notification');
+      }
+    } catch (err) {
+      console.error('Error sending bin notification:', err);
+      const errorMessage = err.response?.data?.message || 'Failed to send bin full notification';
+      toast.error(errorMessage);
+    } finally {
+      setSendingEmail(prev => ({ ...prev, [binId]: false }));
     }
   };
 
@@ -357,6 +384,44 @@ export default function AdminBins() {
                 </span>
               </div>
             </div>
+
+            {/* Send Mail Button for Full Bins */}
+            {bin.fillLevel >= 90 && (
+              <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-2">
+                    <span className="text-red-600 text-lg">🚨</span>
+                    <div>
+                      <p className="text-sm font-semibold text-red-800">Bin Nearly Full</p>
+                      <p className="text-xs text-red-600">Notification recommended</p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => sendBinFullNotification(bin._id)}
+                    disabled={sendingEmail[bin._id]}
+                    className="px-3 py-1.5 bg-red-600 text-white text-sm font-medium rounded-md hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200 flex items-center space-x-1"
+                    title="Send bin full notification to owner"
+                  >
+                    {sendingEmail[bin._id] ? (
+                      <>
+                        <div className="w-3 h-3 border border-white border-t-transparent rounded-full animate-spin"></div>
+                        <span>Sending...</span>
+                      </>
+                    ) : (
+                      <>
+                        <span>📧</span>
+                        <span>Send Mail</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+                {bin.lastNotificationSent && (
+                  <p className="text-xs text-red-500 mt-2">
+                    Last notification: {formatDate(bin.lastNotificationSent)}
+                  </p>
+                )}
+              </div>
+            )}
 
             {/* Bin Details */}
             <div className="space-y-3">
