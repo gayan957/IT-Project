@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { toast } from 'react-hot-toast';
 import api from '../lib/api';
 
 const AdminPickupPartners = () => {
@@ -20,6 +21,177 @@ const AdminPickupPartners = () => {
     serviceAreas: [],
     vehicleFleet: []
   });
+
+  const [formErrors, setFormErrors] = useState({});
+  const [touchedFields, setTouchedFields] = useState({});
+
+  // Validation functions
+  const validateName = (name) => {
+    const nameRegex = /^[a-zA-Z\s]+$/;
+    if (!name.trim()) {
+      return 'Name is required';
+    }
+    if (!nameRegex.test(name)) {
+      return 'Name should only contain letters and spaces';
+    }
+    if (name.trim().length < 2) {
+      return 'Name must be at least 2 characters long';
+    }
+    return '';
+  };
+
+  const validateEmail = (email) => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!email.trim()) {
+      return 'Email is required';
+    }
+    if (!emailRegex.test(email)) {
+      return 'Please enter a valid email address';
+    }
+    return '';
+  };
+
+  const validatePhoneNumber = (phone) => {
+    const phoneRegex = /^0\d{9}$/;
+    if (!phone.trim()) {
+      return 'Phone number is required';
+    }
+    if (!phoneRegex.test(phone)) {
+      return 'Phone number must be 10 digits starting with 0';
+    }
+    return '';
+  };
+
+  const validateBirthDate = (birthDate) => {
+    if (!birthDate) {
+      return 'Birth date is required';
+    }
+    
+    const today = new Date();
+    const selectedDate = new Date(birthDate);
+    let age = today.getFullYear() - selectedDate.getFullYear();
+    const monthDiff = today.getMonth() - selectedDate.getMonth();
+    
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < selectedDate.getDate())) {
+      age--;
+    }
+    
+    if (age < 18) {
+      return 'Must be at least 18 years old';
+    }
+    
+    return '';
+  };
+
+  const validateCompanyName = (companyName) => {
+    if (!companyName.trim()) {
+      return 'Company name is required';
+    }
+    if (companyName.trim().length < 2) {
+      return 'Company name must be at least 2 characters long';
+    }
+    return '';
+  };
+
+  const validateAddress = (address) => {
+    if (!address.trim()) {
+      return 'Address is required';
+    }
+    if (address.trim().length < 10) {
+      return 'Please provide a complete address';
+    }
+    return '';
+  };
+
+  const validateField = (fieldName, value) => {
+    switch (fieldName) {
+      case 'name':
+        return validateName(value);
+      case 'email':
+        return validateEmail(value);
+      case 'phoneNumber':
+        return validatePhoneNumber(value);
+      case 'birthDate':
+        return validateBirthDate(value);
+      case 'companyName':
+        return validateCompanyName(value);
+      case 'contactPerson':
+        return validateName(value); // Same validation as name
+      case 'address':
+        return validateAddress(value);
+      default:
+        return '';
+    }
+  };
+
+  const handleInputChange = (fieldName) => (e) => {
+    let value = e.target.value;
+
+    // Special handling for phone number - only allow digits and limit to 10
+    if (fieldName === 'phoneNumber') {
+      const numbersOnly = value.replace(/\D/g, '');
+      if (numbersOnly.length <= 10) {
+        value = numbersOnly;
+      } else {
+        return; // Don't update if more than 10 digits
+      }
+    }
+
+    // Special handling for name and contactPerson - only allow letters and spaces
+    if (fieldName === 'name' || fieldName === 'contactPerson') {
+      const lettersOnly = value.replace(/[^a-zA-Z\s]/g, '');
+      value = lettersOnly;
+    }
+
+    setFormData(prev => ({
+      ...prev,
+      [fieldName]: value
+    }));
+
+    // Mark field as touched
+    setTouchedFields(prev => ({
+      ...prev,
+      [fieldName]: true
+    }));
+
+    // Validate the field
+    const error = validateField(fieldName, value);
+    setFormErrors(prev => ({
+      ...prev,
+      [fieldName]: error
+    }));
+  };
+
+  const handleBlur = (fieldName) => () => {
+    setTouchedFields(prev => ({
+      ...prev,
+      [fieldName]: true
+    }));
+
+    const error = validateField(fieldName, formData[fieldName]);
+    setFormErrors(prev => ({
+      ...prev,
+      [fieldName]: error
+    }));
+  };
+
+  const isFormValid = () => {
+    const requiredFields = ['name', 'email', 'phoneNumber', 'birthDate', 'companyName', 'address'];
+    
+    for (const field of requiredFields) {
+      const error = validateField(field, formData[field]);
+      if (error) {
+        return false;
+      }
+    }
+
+    // Check password only for new partners
+    if (!editingPartner && !formData.password.trim()) {
+      return false;
+    }
+
+    return true;
+  };
 
   useEffect(() => {
     fetchPartners();
@@ -62,6 +234,23 @@ const AdminPickupPartners = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    // Validate all fields before submitting
+    if (!isFormValid()) {
+      // Mark all fields as touched to show errors
+      setTouchedFields({
+        name: true,
+        email: true,
+        address: true,
+        phoneNumber: true,
+        birthDate: true,
+        companyName: true,
+        contactPerson: true
+      });
+      toast.error('Please fix all validation errors before submitting.');
+      return;
+    }
+    
     try {
       console.log('Submitting form data:', formData);
       console.log('Edit mode:', !!editingPartner);
@@ -147,6 +336,8 @@ const AdminPickupPartners = () => {
       serviceAreas: [],
       vehicleFleet: []
     });
+    setFormErrors({});
+    setTouchedFields({});
   };
 
   const handleCancel = () => {
@@ -260,9 +451,15 @@ const AdminPickupPartners = () => {
                     type="text"
                     required
                     value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    onChange={handleInputChange('name')}
+                    onBlur={handleBlur('name')}
+                    className={`mt-1 block w-full border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                      touchedFields.name && formErrors.name ? 'border-red-500' : 'border-gray-300'
+                    }`}
                   />
+                  {touchedFields.name && formErrors.name && (
+                    <p className="text-red-500 text-xs mt-1">{formErrors.name}</p>
+                  )}
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700">Email *</label>
@@ -270,9 +467,15 @@ const AdminPickupPartners = () => {
                     type="email"
                     required
                     value={formData.email}
-                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                    className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    onChange={handleInputChange('email')}
+                    onBlur={handleBlur('email')}
+                    className={`mt-1 block w-full border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                      touchedFields.email && formErrors.email ? 'border-red-500' : 'border-gray-300'
+                    }`}
                   />
+                  {touchedFields.email && formErrors.email && (
+                    <p className="text-red-500 text-xs mt-1">{formErrors.email}</p>
+                  )}
                 </div>
               </div>
 
@@ -295,10 +498,16 @@ const AdminPickupPartners = () => {
                 <textarea
                   required
                   value={formData.address}
-                  onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                  className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  onChange={handleInputChange('address')}
+                  onBlur={handleBlur('address')}
+                  className={`mt-1 block w-full border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                    touchedFields.address && formErrors.address ? 'border-red-500' : 'border-gray-300'
+                  }`}
                   rows="2"
                 />
+                {touchedFields.address && formErrors.address && (
+                  <p className="text-red-500 text-xs mt-1">{formErrors.address}</p>
+                )}
               </div>
 
               <div className="grid grid-cols-2 gap-4">
@@ -308,9 +517,16 @@ const AdminPickupPartners = () => {
                     type="tel"
                     required
                     value={formData.phoneNumber}
-                    onChange={(e) => setFormData({ ...formData, phoneNumber: e.target.value })}
-                    className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    onChange={handleInputChange('phoneNumber')}
+                    onBlur={handleBlur('phoneNumber')}
+                    className={`mt-1 block w-full border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                      touchedFields.phoneNumber && formErrors.phoneNumber ? 'border-red-500' : 'border-gray-300'
+                    }`}
+                    placeholder="0123456789"
                   />
+                  {touchedFields.phoneNumber && formErrors.phoneNumber && (
+                    <p className="text-red-500 text-xs mt-1">{formErrors.phoneNumber}</p>
+                  )}
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700">Birth Date *</label>
@@ -318,9 +534,15 @@ const AdminPickupPartners = () => {
                     type="date"
                     required
                     value={formData.birthDate}
-                    onChange={(e) => setFormData({ ...formData, birthDate: e.target.value })}
-                    className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    onChange={handleInputChange('birthDate')}
+                    onBlur={handleBlur('birthDate')}
+                    className={`mt-1 block w-full border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                      touchedFields.birthDate && formErrors.birthDate ? 'border-red-500' : 'border-gray-300'
+                    }`}
                   />
+                  {touchedFields.birthDate && formErrors.birthDate && (
+                    <p className="text-red-500 text-xs mt-1">{formErrors.birthDate}</p>
+                  )}
                 </div>
               </div>
 
@@ -331,9 +553,15 @@ const AdminPickupPartners = () => {
                     type="text"
                     required
                     value={formData.companyName}
-                    onChange={(e) => setFormData({ ...formData, companyName: e.target.value })}
-                    className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    onChange={handleInputChange('companyName')}
+                    onBlur={handleBlur('companyName')}
+                    className={`mt-1 block w-full border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                      touchedFields.companyName && formErrors.companyName ? 'border-red-500' : 'border-gray-300'
+                    }`}
                   />
+                  {touchedFields.companyName && formErrors.companyName && (
+                    <p className="text-red-500 text-xs mt-1">{formErrors.companyName}</p>
+                  )}
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700">Business License</label>
@@ -351,9 +579,16 @@ const AdminPickupPartners = () => {
                 <input
                   type="text"
                   value={formData.contactPerson}
-                  onChange={(e) => setFormData({ ...formData, contactPerson: e.target.value })}
-                  className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  onChange={handleInputChange('contactPerson')}
+                  onBlur={handleBlur('contactPerson')}
+                  className={`mt-1 block w-full border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                    touchedFields.contactPerson && formErrors.contactPerson ? 'border-red-500' : 'border-gray-300'
+                  }`}
+                  placeholder="Letters only"
                 />
+                {touchedFields.contactPerson && formErrors.contactPerson && (
+                  <p className="text-red-500 text-xs mt-1">{formErrors.contactPerson}</p>
+                )}
               </div>
 
               <div className="flex justify-end space-x-2 pt-4">
@@ -366,7 +601,12 @@ const AdminPickupPartners = () => {
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                  disabled={!isFormValid()}
+                  className={`px-4 py-2 rounded-md transition-all duration-200 ${
+                    isFormValid()
+                      ? 'bg-blue-600 text-white hover:bg-blue-700'
+                      : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                  }`}
                 >
                   {editingPartner ? 'Update Partner' : 'Create Partner'}
                 </button>

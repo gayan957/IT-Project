@@ -18,6 +18,199 @@ export default function AdminRecyclers() {
     facilityLicense: ''
   });
 
+  // Form validation states
+  const [formErrors, setFormErrors] = useState({});
+  const [touchedFields, setTouchedFields] = useState({});
+
+  // Validation functions
+  const validateName = (name) => {
+    if (!name.trim()) {
+      return 'Name is required';
+    }
+    if (!/^[a-zA-Z\s]+$/.test(name.trim())) {
+      return 'Name can only contain letters and spaces';
+    }
+    if (name.trim().length < 2) {
+      return 'Name must be at least 2 characters long';
+    }
+    return '';
+  };
+
+  const validateEmail = (email) => {
+    if (!email.trim()) {
+      return 'Email is required';
+    }
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return 'Please enter a valid email address';
+    }
+    return '';
+  };
+
+  const validatePhoneNumber = (phone) => {
+    const phoneRegex = /^0\d{9}$/;
+    if (!phone.trim()) {
+      return 'Phone number is required';
+    }
+    if (!phoneRegex.test(phone)) {
+      return 'Phone number must be 10 digits starting with 0';
+    }
+    return '';
+  };
+
+  const validateBirthDate = (birthDate) => {
+    if (!birthDate) {
+      return ''; // Birth date is optional for recyclers
+    }
+    
+    const today = new Date();
+    const selectedDate = new Date(birthDate);
+    
+    // Check if the selected date is in the future
+    if (selectedDate > today) {
+      return 'Birth date cannot be in the future';
+    }
+    
+    let age = today.getFullYear() - selectedDate.getFullYear();
+    const monthDiff = today.getMonth() - selectedDate.getMonth();
+    
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < selectedDate.getDate())) {
+      age--;
+    }
+    
+    if (age < 18) {
+      return 'Must be at least 18 years old';
+    }
+    
+    if (age > 100) {
+      return 'Please enter a valid birth date';
+    }
+    
+    return '';
+  };
+
+  const validateAddress = (address) => {
+    if (!address.trim()) {
+      return 'Address is required';
+    }
+    if (address.trim().length < 10) {
+      return 'Please enter a complete address (minimum 10 characters)';
+    }
+    return '';
+  };
+
+  const validateFacilityName = (facilityName) => {
+    if (!facilityName.trim()) {
+      return 'Facility name is required';
+    }
+    if (facilityName.trim().length < 2) {
+      return 'Facility name must be at least 2 characters long';
+    }
+    return '';
+  };
+
+  // Helper function to get maximum birth date (18 years ago from today)
+  const getMaxBirthDate = () => {
+    const today = new Date();
+    const eighteenYearsAgo = new Date(today.getFullYear() - 18, today.getMonth(), today.getDate());
+    return eighteenYearsAgo.toISOString().split('T')[0];
+  };
+
+  const validateField = (fieldName, value) => {
+    switch (fieldName) {
+      case 'name':
+        return validateName(value);
+      case 'email':
+        return validateEmail(value);
+      case 'phoneNumber':
+        return validatePhoneNumber(value);
+      case 'birthDate':
+        return validateBirthDate(value);
+      case 'address':
+        return validateAddress(value);
+      case 'facilityName':
+        return validateFacilityName(value);
+      default:
+        return '';
+    }
+  };
+
+  const handleInputChange = (fieldName) => (e) => {
+    let value = e.target.value;
+
+    // Special handling for phone number - only allow digits and limit to 10
+    if (fieldName === 'phoneNumber') {
+      const numbersOnly = value.replace(/\D/g, '');
+      if (numbersOnly.length <= 10) {
+        value = numbersOnly;
+      } else {
+        return; // Don't update if more than 10 digits
+      }
+    }
+
+    // Special handling for name and facilityName - only allow letters and spaces
+    if (fieldName === 'name' || fieldName === 'facilityName') {
+      const lettersOnly = value.replace(/[^a-zA-Z\s]/g, '');
+      value = lettersOnly;
+    }
+
+    setFormData(prev => ({
+      ...prev,
+      [fieldName]: value
+    }));
+
+    // Mark field as touched
+    setTouchedFields(prev => ({
+      ...prev,
+      [fieldName]: true
+    }));
+
+    // Validate the field
+    const error = validateField(fieldName, value);
+    setFormErrors(prev => ({
+      ...prev,
+      [fieldName]: error
+    }));
+  };
+
+  const handleBlur = (fieldName) => () => {
+    setTouchedFields(prev => ({
+      ...prev,
+      [fieldName]: true
+    }));
+
+    const error = validateField(fieldName, formData[fieldName]);
+    setFormErrors(prev => ({
+      ...prev,
+      [fieldName]: error
+    }));
+  };
+
+  const isFormValid = () => {
+    const requiredFields = ['name', 'email', 'address', 'phoneNumber', 'facilityName'];
+    
+    // Check if all required fields are filled
+    for (const field of requiredFields) {
+      if (!formData[field] || formData[field].trim() === '') {
+        return false;
+      }
+    }
+
+    // Check if there are any validation errors
+    for (const field of requiredFields) {
+      if (formErrors[field]) {
+        return false;
+      }
+    }
+
+    // Check birth date error if it's provided
+    if (formData.birthDate && formErrors.birthDate) {
+      return false;
+    }
+
+    return true;
+  };
+
   useEffect(() => {
     fetchRecyclers();
   }, []);
@@ -36,6 +229,22 @@ export default function AdminRecyclers() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    // Validate all fields before submitting
+    if (!isFormValid()) {
+      // Mark all required fields as touched to show errors
+      setTouchedFields({
+        name: true,
+        email: true,
+        address: true,
+        phoneNumber: true,
+        facilityName: true,
+        birthDate: !!formData.birthDate // Only mark as touched if has value
+      });
+      toast.error('Please fix all validation errors before submitting.');
+      return;
+    }
+    
     try {
       const submitData = { ...formData };
 
@@ -69,6 +278,9 @@ export default function AdminRecyclers() {
       facilityName: recycler.facilityName,
       facilityLicense: recycler.facilityLicense || ''
     });
+    // Reset validation states when editing
+    setFormErrors({});
+    setTouchedFields({});
     setShowForm(true);
   };
 
@@ -96,14 +308,8 @@ export default function AdminRecyclers() {
       facilityName: '',
       facilityLicense: ''
     });
-  };
-
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
+    setFormErrors({});
+    setTouchedFields({});
   };
 
   if (loading) {
@@ -231,10 +437,17 @@ export default function AdminRecyclers() {
                       type="text"
                       name="name"
                       required
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                      className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 ${
+                        touchedFields.name && formErrors.name ? 'border-red-500' : 'border-gray-300'
+                      }`}
                       value={formData.name}
-                      onChange={handleInputChange}
+                      onChange={handleInputChange('name')}
+                      onBlur={handleBlur('name')}
+                      placeholder="Letters only"
                     />
+                    {touchedFields.name && formErrors.name && (
+                      <p className="text-red-500 text-xs mt-1">{formErrors.name}</p>
+                    )}
                   </div>
 
                   <div>
@@ -245,10 +458,16 @@ export default function AdminRecyclers() {
                       type="email"
                       name="email"
                       required
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                      className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 ${
+                        touchedFields.email && formErrors.email ? 'border-red-500' : 'border-gray-300'
+                      }`}
                       value={formData.email}
-                      onChange={handleInputChange}
+                      onChange={handleInputChange('email')}
+                      onBlur={handleBlur('email')}
                     />
+                    {touchedFields.email && formErrors.email && (
+                      <p className="text-red-500 text-xs mt-1">{formErrors.email}</p>
+                    )}
                   </div>
 
                   <div>
@@ -261,7 +480,7 @@ export default function AdminRecyclers() {
                       required={!editingRecycler}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
                       value={formData.password}
-                      onChange={handleInputChange}
+                      onChange={(e) => setFormData(prev => ({ ...prev, password: e.target.value }))}
                     />
                   </div>
 
@@ -273,10 +492,17 @@ export default function AdminRecyclers() {
                       type="tel"
                       name="phoneNumber"
                       required
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                      className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 ${
+                        touchedFields.phoneNumber && formErrors.phoneNumber ? 'border-red-500' : 'border-gray-300'
+                      }`}
                       value={formData.phoneNumber}
-                      onChange={handleInputChange}
+                      onChange={handleInputChange('phoneNumber')}
+                      onBlur={handleBlur('phoneNumber')}
+                      placeholder="0123456789"
                     />
+                    {touchedFields.phoneNumber && formErrors.phoneNumber && (
+                      <p className="text-red-500 text-xs mt-1">{formErrors.phoneNumber}</p>
+                    )}
                   </div>
 
                   <div>
@@ -286,10 +512,19 @@ export default function AdminRecyclers() {
                     <input
                       type="date"
                       name="birthDate"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                      className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 ${
+                        touchedFields.birthDate && formErrors.birthDate ? 'border-red-500' : 'border-gray-300'
+                      }`}
                       value={formData.birthDate}
-                      onChange={handleInputChange}
+                      onChange={handleInputChange('birthDate')}
+                      onBlur={handleBlur('birthDate')}
+                      max={getMaxBirthDate()}
+                      title="Must be 18 years or older"
                     />
+                    {touchedFields.birthDate && formErrors.birthDate && (
+                      <p className="text-red-500 text-xs mt-1">{formErrors.birthDate}</p>
+                    )}
+                    <p className="text-gray-500 text-xs mt-1">Optional - Must be at least 18 years old if provided</p>
                   </div>
 
                   <div>
@@ -300,10 +535,17 @@ export default function AdminRecyclers() {
                       type="text"
                       name="facilityName"
                       required
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                      className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 ${
+                        touchedFields.facilityName && formErrors.facilityName ? 'border-red-500' : 'border-gray-300'
+                      }`}
                       value={formData.facilityName}
-                      onChange={handleInputChange}
+                      onChange={handleInputChange('facilityName')}
+                      onBlur={handleBlur('facilityName')}
+                      placeholder="Letters only"
                     />
+                    {touchedFields.facilityName && formErrors.facilityName && (
+                      <p className="text-red-500 text-xs mt-1">{formErrors.facilityName}</p>
+                    )}
                   </div>
 
                   <div>
@@ -315,7 +557,7 @@ export default function AdminRecyclers() {
                       name="facilityLicense"
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
                       value={formData.facilityLicense}
-                      onChange={handleInputChange}
+                      onChange={(e) => setFormData(prev => ({ ...prev, facilityLicense: e.target.value }))}
                     />
                   </div>
                 </div>
@@ -329,10 +571,16 @@ export default function AdminRecyclers() {
                     name="address"
                     required
                     rows="3"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                    className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 ${
+                      touchedFields.address && formErrors.address ? 'border-red-500' : 'border-gray-300'
+                    }`}
                     value={formData.address}
-                    onChange={handleInputChange}
+                    onChange={handleInputChange('address')}
+                    onBlur={handleBlur('address')}
                   />
+                  {touchedFields.address && formErrors.address && (
+                    <p className="text-red-500 text-xs mt-1">{formErrors.address}</p>
+                  )}
                 </div>
 
                 {/* Form Actions */}
@@ -350,7 +598,12 @@ export default function AdminRecyclers() {
                   </button>
                   <button
                     type="submit"
-                    className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+                    disabled={!isFormValid()}
+                    className={`px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium transition-colors ${
+                      isFormValid()
+                        ? 'text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500'
+                        : 'text-gray-500 bg-gray-300 cursor-not-allowed'
+                    }`}
                   >
                     {editingRecycler ? 'Update' : 'Create'}
                   </button>

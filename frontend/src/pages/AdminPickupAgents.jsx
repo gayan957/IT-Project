@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { toast } from 'react-hot-toast';
 import pickupAgentApi from '../lib/pickupAgentApi';
 
 export default function AdminPickupAgents() {
@@ -19,6 +20,204 @@ export default function AdminPickupAgents() {
     assignedArea: '',
     partnerId: ''
   });
+
+  // Form validation states
+  const [formErrors, setFormErrors] = useState({});
+  const [touchedFields, setTouchedFields] = useState({});
+
+  // Validation functions
+  const validateName = (name) => {
+    if (!name.trim()) {
+      return 'Name is required';
+    }
+    if (!/^[a-zA-Z\s]+$/.test(name.trim())) {
+      return 'Name can only contain letters and spaces';
+    }
+    if (name.trim().length < 2) {
+      return 'Name must be at least 2 characters long';
+    }
+    return '';
+  };
+
+  const validateEmail = (email) => {
+    if (!email.trim()) {
+      return 'Email is required';
+    }
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return 'Please enter a valid email address';
+    }
+    return '';
+  };
+
+  const validatePhoneNumber = (phone) => {
+    const phoneRegex = /^0\d{9}$/;
+    if (!phone.trim()) {
+      return 'Phone number is required';
+    }
+    if (!phoneRegex.test(phone)) {
+      return 'Phone number must be 10 digits starting with 0';
+    }
+    return '';
+  };
+
+  const validateBirthDate = (birthDate) => {
+    if (!birthDate) {
+      return 'Birth date is required';
+    }
+    
+    const today = new Date();
+    const selectedDate = new Date(birthDate);
+    
+    // Check if the selected date is in the future
+    if (selectedDate > today) {
+      return 'Birth date cannot be in the future';
+    }
+    
+    let age = today.getFullYear() - selectedDate.getFullYear();
+    const monthDiff = today.getMonth() - selectedDate.getMonth();
+    
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < selectedDate.getDate())) {
+      age--;
+    }
+    
+    if (age < 18) {
+      return 'Must be at least 18 years old';
+    }
+    
+    if (age > 100) {
+      return 'Please enter a valid birth date';
+    }
+    
+    return '';
+  };
+
+  const validateAddress = (address) => {
+    if (!address.trim()) {
+      return 'Address is required';
+    }
+    if (address.trim().length < 10) {
+      return 'Please enter a complete address (minimum 10 characters)';
+    }
+    return '';
+  };
+
+  const validateVehicleNumber = (vehicleNumber) => {
+    if (!vehicleNumber) {
+      return ''; // Vehicle number is optional
+    }
+    if (!/^[A-Z]{2,3}[0-9]{4}$/.test(vehicleNumber)) {
+      return 'Vehicle number must be in format ABC1234 or AB1234';
+    }
+    return '';
+  };
+
+  // Helper function to get maximum birth date (18 years ago from today)
+  const getMaxBirthDate = () => {
+    const today = new Date();
+    const eighteenYearsAgo = new Date(today.getFullYear() - 18, today.getMonth(), today.getDate());
+    return eighteenYearsAgo.toISOString().split('T')[0];
+  };
+
+  const validateField = (fieldName, value) => {
+    switch (fieldName) {
+      case 'name':
+        return validateName(value);
+      case 'email':
+        return validateEmail(value);
+      case 'phoneNumber':
+        return validatePhoneNumber(value);
+      case 'birthDate':
+        return validateBirthDate(value);
+      case 'address':
+        return validateAddress(value);
+      case 'vehicleNumber':
+        return validateVehicleNumber(value);
+      default:
+        return '';
+    }
+  };
+
+  const handleInputChange = (fieldName) => (e) => {
+    let value = e.target.value;
+
+    // Special handling for phone number - only allow digits and limit to 10
+    if (fieldName === 'phoneNumber') {
+      const numbersOnly = value.replace(/\D/g, '');
+      if (numbersOnly.length <= 10) {
+        value = numbersOnly;
+      } else {
+        return; // Don't update if more than 10 digits
+      }
+    }
+
+    // Special handling for name - only allow letters and spaces
+    if (fieldName === 'name') {
+      const lettersOnly = value.replace(/[^a-zA-Z\s]/g, '');
+      value = lettersOnly;
+    }
+
+    // Special handling for vehicle number - uppercase and alphanumeric only
+    if (fieldName === 'vehicleNumber') {
+      const alphanumericOnly = value.toUpperCase().replace(/[^A-Z0-9]/g, '');
+      if (alphanumericOnly.length <= 8) {
+        value = alphanumericOnly;
+      } else {
+        return; // Don't update if more than 8 characters
+      }
+    }
+
+    setFormData(prev => ({
+      ...prev,
+      [fieldName]: value
+    }));
+
+    // Mark field as touched
+    setTouchedFields(prev => ({
+      ...prev,
+      [fieldName]: true
+    }));
+
+    // Validate the field
+    const error = validateField(fieldName, value);
+    setFormErrors(prev => ({
+      ...prev,
+      [fieldName]: error
+    }));
+  };
+
+  const handleBlur = (fieldName) => () => {
+    setTouchedFields(prev => ({
+      ...prev,
+      [fieldName]: true
+    }));
+
+    const error = validateField(fieldName, formData[fieldName]);
+    setFormErrors(prev => ({
+      ...prev,
+      [fieldName]: error
+    }));
+  };
+
+  const isFormValid = () => {
+    const requiredFields = ['name', 'email', 'address', 'phoneNumber', 'birthDate'];
+    
+    // Check if all required fields are filled
+    for (const field of requiredFields) {
+      if (!formData[field] || formData[field].trim() === '') {
+        return false;
+      }
+    }
+
+    // Check if there are any validation errors
+    for (const field of requiredFields) {
+      if (formErrors[field]) {
+        return false;
+      }
+    }
+
+    return true;
+  };
 
   useEffect(() => {
     fetchAgents();
@@ -74,6 +273,21 @@ export default function AdminPickupAgents() {
 
   const handleCreateAgent = async (e) => {
     e.preventDefault();
+    
+    // Validate all fields before submitting
+    if (!isFormValid()) {
+      // Mark all fields as touched to show errors
+      setTouchedFields({
+        name: true,
+        email: true,
+        address: true,
+        phoneNumber: true,
+        birthDate: true
+      });
+      toast.error('Please fix all validation errors before submitting.');
+      return;
+    }
+    
     try {
       await pickupAgentApi.createAgent(formData);
       alert('Agent created successfully');
@@ -88,6 +302,21 @@ export default function AdminPickupAgents() {
 
   const handleUpdateAgent = async (e) => {
     e.preventDefault();
+    
+    // Validate all fields before submitting
+    if (!isFormValid()) {
+      // Mark all fields as touched to show errors
+      setTouchedFields({
+        name: true,
+        email: true,
+        address: true,
+        phoneNumber: true,
+        birthDate: true
+      });
+      toast.error('Please fix all validation errors before submitting.');
+      return;
+    }
+    
     try {
       const updateData = { ...formData };
       if (!updateData.password) {
@@ -130,6 +359,9 @@ export default function AdminPickupAgents() {
       assignedArea: agent.assignedArea || '',
       partnerId: agent.partnerId?._id || ''
     });
+    // Reset validation states when editing
+    setFormErrors({});
+    setTouchedFields({});
   };
 
   const resetForm = () => {
@@ -146,6 +378,8 @@ export default function AdminPickupAgents() {
       assignedArea: '',
       partnerId: ''
     });
+    setFormErrors({});
+    setTouchedFields({});
   };
 
   if (loading) {
@@ -250,9 +484,16 @@ export default function AdminPickupAgents() {
                 type="text"
                 required
                 value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                onChange={handleInputChange('name')}
+                onBlur={handleBlur('name')}
+                className={`w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-500 ${
+                  touchedFields.name && formErrors.name ? 'border-red-500' : 'border-gray-300'
+                }`}
+                placeholder="Letters only"
               />
+              {touchedFields.name && formErrors.name && (
+                <p className="text-red-500 text-xs mt-1">{formErrors.name}</p>
+              )}
             </div>
             
             <div>
@@ -261,9 +502,15 @@ export default function AdminPickupAgents() {
                 type="email"
                 required
                 value={formData.email}
-                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                onChange={handleInputChange('email')}
+                onBlur={handleBlur('email')}
+                className={`w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-500 ${
+                  touchedFields.email && formErrors.email ? 'border-red-500' : 'border-gray-300'
+                }`}
               />
+              {touchedFields.email && formErrors.email && (
+                <p className="text-red-500 text-xs mt-1">{formErrors.email}</p>
+              )}
             </div>
             
             <div>
@@ -285,9 +532,16 @@ export default function AdminPickupAgents() {
                 type="tel"
                 required
                 value={formData.phoneNumber}
-                onChange={(e) => setFormData({ ...formData, phoneNumber: e.target.value })}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                onChange={handleInputChange('phoneNumber')}
+                onBlur={handleBlur('phoneNumber')}
+                className={`w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-500 ${
+                  touchedFields.phoneNumber && formErrors.phoneNumber ? 'border-red-500' : 'border-gray-300'
+                }`}
+                placeholder="0123456789"
               />
+              {touchedFields.phoneNumber && formErrors.phoneNumber && (
+                <p className="text-red-500 text-xs mt-1">{formErrors.phoneNumber}</p>
+              )}
             </div>
             
             <div>
@@ -296,9 +550,18 @@ export default function AdminPickupAgents() {
                 type="date"
                 required
                 value={formData.birthDate}
-                onChange={(e) => setFormData({ ...formData, birthDate: e.target.value })}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                onChange={handleInputChange('birthDate')}
+                onBlur={handleBlur('birthDate')}
+                max={getMaxBirthDate()}
+                className={`w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-500 ${
+                  touchedFields.birthDate && formErrors.birthDate ? 'border-red-500' : 'border-gray-300'
+                }`}
+                title="Must be 18 years or older"
               />
+              {touchedFields.birthDate && formErrors.birthDate && (
+                <p className="text-red-500 text-xs mt-1">{formErrors.birthDate}</p>
+              )}
+              <p className="text-gray-500 text-xs mt-1">Must be at least 18 years old</p>
             </div>
             
             <div>
@@ -323,19 +586,37 @@ export default function AdminPickupAgents() {
               <input
                 type="text"
                 value={formData.vehicleNumber}
-                onChange={(e) => setFormData({ ...formData, vehicleNumber: e.target.value })}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                onChange={handleInputChange('vehicleNumber')}
+                onBlur={handleBlur('vehicleNumber')}
+                className={`w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-500 ${
+                  touchedFields.vehicleNumber && formErrors.vehicleNumber ? 'border-red-500' : 'border-gray-300'
+                }`}
+                placeholder="ABC1234 or AB1234"
+                maxLength={8}
               />
+              {touchedFields.vehicleNumber && formErrors.vehicleNumber && (
+                <p className="text-red-500 text-xs mt-1">{formErrors.vehicleNumber}</p>
+              )}
             </div>
             
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Assigned Area</label>
-              <input
-                type="text"
+              <select
                 value={formData.assignedArea}
                 onChange={(e) => setFormData({ ...formData, assignedArea: e.target.value })}
                 className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-              />
+              >
+                <option value="">Select a province</option>
+                <option value="Western Province">Western Province</option>
+                <option value="Central Province">Central Province</option>
+                <option value="Southern Province">Southern Province</option>
+                <option value="North-Western Province">North-Western Province</option>
+                <option value="Sabaragamuwa Province">Sabaragamuwa Province</option>
+                <option value="Northern Province">Northern Province</option>
+                <option value="Eastern Province">Eastern Province</option>
+                <option value="Uva Province">Uva Province</option>
+                <option value="North-Central Province">North-Central Province</option>
+              </select>
             </div>
             
             <div className="md:col-span-2">
@@ -344,15 +625,26 @@ export default function AdminPickupAgents() {
                 type="text"
                 required
                 value={formData.address}
-                onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                onChange={handleInputChange('address')}
+                onBlur={handleBlur('address')}
+                className={`w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-500 ${
+                  touchedFields.address && formErrors.address ? 'border-red-500' : 'border-gray-300'
+                }`}
               />
+              {touchedFields.address && formErrors.address && (
+                <p className="text-red-500 text-xs mt-1">{formErrors.address}</p>
+              )}
             </div>
             
             <div className="md:col-span-2 flex gap-3">
               <button
                 type="submit"
-                className="bg-emerald-500 hover:bg-emerald-600 text-white px-6 py-2 rounded-lg font-medium transition-colors"
+                disabled={!isFormValid()}
+                className={`px-6 py-2 rounded-lg font-medium transition-colors ${
+                  isFormValid()
+                    ? 'bg-emerald-500 hover:bg-emerald-600 text-white'
+                    : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                }`}
               >
                 {editingAgent ? 'Update Agent' : 'Create Agent'}
               </button>
