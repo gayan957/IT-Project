@@ -55,6 +55,7 @@ import AgentSalaryInquiry from './pages/AgentSalaryInquiry';
 import PickupPartnerOrders from './pages/PickupPartnerOrders';
 import AdminWasteOrders from './pages/AdminWasteOrders';
 import AIWastePriceForecasting from './pages/AIWastePriceForecasting';
+import AdminSupportTickets from './pages/AdminSupportTickets';
 import './index.css';
 
 const router = createBrowserRouter([
@@ -186,6 +187,7 @@ const router = createBrowserRouter([
           { path: 'recyclers', element: <AdminRecyclers /> },
           { path: 'schedules', element: <AdminSchedules /> },
           { path: 'bins', element: <AdminBins /> },
+          { path: 'support-tickets', element: <AdminSupportTickets /> },
           { path: 'waste-prices', element: <AdminWastePrices /> },
           { path: 'warehouse-waste-prices', element: <AdminWarehouseWastePrices /> },
           { path: 'ai-forecasting', element: <AIWastePriceForecasting /> },

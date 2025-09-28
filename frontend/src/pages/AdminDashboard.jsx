@@ -20,6 +20,7 @@ export default function AdminDashboard() {
     { path: '/admin/dashboard/recyclers', label: 'Recycler Management', icon: '♻️' },
     { path: '/admin/dashboard/schedules', label: 'Schedule Management', icon: '📅' },
     { path: '/admin/dashboard/bins', label: 'Bin Management', icon: '🗑️' },
+    { path: '/admin/dashboard/support-tickets', label: 'Support Tickets', icon: '🎫' },
     { path: '/admin/dashboard/waste-prices', label: 'Waste Prices', icon: '💰' },
     { path: '/admin/dashboard/warehouse-waste-prices', label: 'Warehouse Waste Prices', icon: '🏭' },
     { path: '/admin/dashboard/ai-forecasting', label: 'Waste Price Forecasting', icon: '🤖' },

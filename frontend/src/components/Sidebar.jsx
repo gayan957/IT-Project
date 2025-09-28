@@ -109,25 +109,6 @@ export default function Sidebar() {
           Support
         </MenuItem>
       </nav>
-
-      {/* Quick Stats */}
-      <div className="mt-8 pt-6 border-t border-gray-200">
-        <h4 className="text-sm font-semibold text-gray-900 mb-4">Quick Stats</h4>
-        <div className="space-y-3">
-          <div className="flex justify-between items-center text-sm">
-            <span className="text-gray-600">Total Recycled</span>
-            <span className="font-semibold text-emerald-600">45.2 kg</span>
-          </div>
-          <div className="flex justify-between items-center text-sm">
-            <span className="text-gray-600">Earnings</span>
-            <span className="font-semibold text-teal-600">Rs. 2,340</span>
-          </div>
-          <div className="flex justify-between items-center text-sm">
-            <span className="text-gray-600">Rank</span>
-            <span className="font-semibold text-cyan-600">#42</span>
-          </div>
-        </div>
-      </div>
     </div>
   );
 }

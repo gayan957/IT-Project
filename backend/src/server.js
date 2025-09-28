@@ -3,6 +3,7 @@ import express from 'express';
 import cors from 'cors';
 import morgan from 'morgan';
 import http from 'http';
+import mongoose from 'mongoose';
 import { Server } from 'socket.io';
 import { connectDB } from './config/db.js';
 import { errorHandler } from './middleware/errorHandler.js';
@@ -21,6 +22,7 @@ import wastePriceRoutes from './routes/wastePrice.routes.js';
 import warehouseWastePriceRoutes from './routes/warehouseWastePrice.routes.js';
 import agentScheduleRoutes from './routes/agentSchedule.routes.js';
 import salaryRoutes from './routes/salary.routes.js';
+import supportTicketRoutes from './routes/supportTicket.routes.js';
 // import BlynkPollingService from './services/blynkPolling.js';
 // import { setBlynkPollingService } from './controllers/bin.controller.js';
 
@@ -89,12 +91,34 @@ app.use('/api/waste-prices', wastePriceRoutes);
 app.use('/api/admin/warehouse-waste-prices', warehouseWastePriceRoutes);
 app.use('/api/agent-schedules', agentScheduleRoutes);
 app.use('/api/salary', salaryRoutes);
+app.use('/api/support-tickets', supportTicketRoutes);
 
 // Health check
 app.get('/', (req, res) => {
   res.json({
-    message: 'Trash2Cash API is running',
-    environment: process.env.NODE_ENV || 'development',
+    message: 'Trash2Cash API Server',
+    status: 'running',
+    timestamp: new Date().toISOString(),
+    database: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected'
+  });
+});
+
+// Database health check endpoint
+app.get('/api/health', (req, res) => {
+  const dbStatus = mongoose.connection.readyState;
+  const dbStates = {
+    0: 'disconnected',
+    1: 'connected', 
+    2: 'connecting',
+    3: 'disconnecting'
+  };
+  
+  res.json({
+    status: 'ok',
+    database: {
+      status: dbStates[dbStatus] || 'unknown',
+      readyState: dbStatus
+    },
     timestamp: new Date().toISOString()
   });
 });
@@ -115,7 +139,12 @@ app.use(errorHandler);
 const startServer = async () => {
   try {
     const PORT = process.env.PORT || 5000;
-    await connectDB(process.env.MONGO_URI);
+    
+    // Attempt to connect to database, but don't fail if it's unavailable
+    const dbConnected = await connectDB(process.env.MONGO_URI);
+    if (!dbConnected) {
+      console.log('⚠️ Server starting without database connection');
+    }
 
     // Initialize Blynk polling service (temporarily disabled for testing)
     // const blynkService = new BlynkPollingService(io);

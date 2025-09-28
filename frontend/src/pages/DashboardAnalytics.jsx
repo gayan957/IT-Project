@@ -2,6 +2,33 @@ import { useState, useEffect } from 'react';
 import { toast } from 'react-hot-toast';
 import api from '../lib/api';
 import PDFReportModal from '../components/PDFReportModal';
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  BarElement,
+  ArcElement,
+  Title,
+  Tooltip,
+  Legend,
+  Filler,
+} from 'chart.js';
+import { Line, Bar, Doughnut, Pie } from 'react-chartjs-2';
+
+ChartJS.register(
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  BarElement,
+  ArcElement,
+  Title,
+  Tooltip,
+  Legend,
+  Filler
+);
 
 export default function DashboardAnalytics() {
   const [analytics, setAnalytics] = useState({
@@ -15,6 +42,17 @@ export default function DashboardAnalytics() {
   const [loading, setLoading] = useState(true);
   const [showDetailedTable, setShowDetailedTable] = useState(false);
   const [showPDFModal, setShowPDFModal] = useState(false);
+  const [selectedChartData, setSelectedChartData] = useState(null);
+  const [showChartModal, setShowChartModal] = useState(false);
+  const [selectedChartView, setSelectedChartView] = useState('collections-overview');
+  const [showDropdown, setShowDropdown] = useState(false);
+
+  const chartOptions = [
+    { id: 'collections-overview', name: 'Collections Overview', icon: '📈' },
+    { id: 'monthly-analysis', name: 'Monthly Analysis', icon: '📊' },
+    { id: 'waste-categories', name: 'Waste Categories', icon: '🗂️' },
+    { id: 'collection-sources', name: 'Collection Sources', icon: '🔄' }
+  ];
 
   useEffect(() => {
     fetchAnalyticsData();
@@ -169,12 +207,319 @@ export default function DashboardAnalytics() {
       setLoading(false);
     }
   };
+
+  const renderSelectedChart = () => {
+    switch (selectedChartView) {
+      case 'collections-overview':
+        return (
+          <>
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h3 className="text-xl font-bold text-gray-900">Collections Overview</h3>
+                <p className="text-gray-600 text-sm mt-1">Recent performance trends • Click points for details</p>
+              </div>
+              <div className="text-blue-500">
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                </svg>
+              </div>
+            </div>
+            <div className="h-96">
+              <Line 
+                data={{
+                  labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
+                  datasets: [
+                    {
+                      label: 'Collections',
+                      data: [12, 19, 8, 15, 24, 18],
+                      borderColor: 'rgb(34, 197, 94)',
+                      backgroundColor: 'rgba(34, 197, 94, 0.1)',
+                      fill: true,
+                      tension: 0.4,
+                    },
+                  ],
+                }}
+                options={{
+                  responsive: true,
+                  maintainAspectRatio: false,
+                  plugins: {
+                    legend: {
+                      position: 'top',
+                    },
+                  },
+                  scales: {
+                    y: {
+                      beginAtZero: true,
+                    },
+                  },
+                  onClick: (event, activeElements) => {
+                    if (activeElements.length > 0) {
+                      const index = activeElements[0].index;
+                      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'];
+                      const data = [12, 19, 8, 15, 24, 18];
+                      
+                      setSelectedChartData({
+                        type: 'collections-overview',
+                        title: `${months[index]} Collections Details`,
+                        label: months[index],
+                        value: `${data[index]} collections`,
+                        color: '#22C55E',
+                        details: {
+                          month: months[index],
+                          totalCollections: data[index],
+                          trend: index > 0 ? (data[index] > data[index-1] ? 'Increasing' : 'Decreasing') : 'N/A',
+                          change: index > 0 ? `${((data[index] - data[index-1]) / data[index-1] * 100).toFixed(1)}%` : 'N/A',
+                          estimatedWeight: `${(data[index] * 4.2).toFixed(1)} kg`
+                        }
+                      });
+                      setShowChartModal(true);
+                    }
+                  },
+                }}
+              />
+            </div>
+          </>
+        );
+        
+      case 'monthly-analysis':
+        return (
+          <>
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h3 className="text-xl font-bold text-gray-900">Monthly Analysis</h3>
+                <p className="text-gray-600 text-sm mt-1">Weight vs Collections count • Click bars for details</p>
+              </div>
+              <div className="text-blue-500">
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                </svg>
+              </div>
+            </div>
+            <div className="h-96">
+              <Bar 
+                data={{
+                  labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
+                  datasets: [
+                    {
+                      label: 'Weight (kg)',
+                      data: [65, 59, 80, 81, 56, 55],
+                      backgroundColor: 'rgba(34, 197, 94, 0.8)',
+                      borderColor: 'rgb(34, 197, 94)',
+                      borderWidth: 1,
+                    },
+                    {
+                      label: 'Collections',
+                      data: [12, 19, 8, 15, 24, 18],
+                      backgroundColor: 'rgba(168, 85, 247, 0.8)',
+                      borderColor: 'rgb(168, 85, 247)',
+                      borderWidth: 1,
+                    },
+                  ],
+                }}
+                options={{
+                  responsive: true,
+                  maintainAspectRatio: false,
+                  plugins: {
+                    legend: {
+                      position: 'top',
+                    },
+                  },
+                  scales: {
+                    y: {
+                      beginAtZero: true,
+                    },
+                  },
+                  onClick: (event, activeElements) => {
+                    if (activeElements.length > 0) {
+                      const datasetIndex = activeElements[0].datasetIndex;
+                      const index = activeElements[0].index;
+                      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'];
+                      const weightData = [65, 59, 80, 81, 56, 55];
+                      const collectionsData = [12, 19, 8, 15, 24, 18];
+                      
+                      const isWeight = datasetIndex === 0;
+                      const value = isWeight ? weightData[index] : collectionsData[index];
+                      
+                      setSelectedChartData({
+                        type: 'monthly-analysis',
+                        title: `${months[index]} - ${isWeight ? 'Weight' : 'Collections'} Details`,
+                        label: months[index],
+                        value: isWeight ? `${value} kg` : `${value} collections`,
+                        color: isWeight ? '#22C55E' : '#A855F7',
+                        details: {
+                          month: months[index],
+                          totalWeight: `${weightData[index]} kg`,
+                          totalCollections: collectionsData[index],
+                          avgPerCollection: `${(weightData[index] / collectionsData[index]).toFixed(1)} kg`,
+                          estimatedEarnings: `Rs. ${(weightData[index] * 30).toFixed(0)}`
+                        }
+                      });
+                      setShowChartModal(true);
+                    }
+                  },
+                }}
+              />
+            </div>
+          </>
+        );
+        
+      case 'waste-categories':
+        return (
+          <>
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h3 className="text-xl font-bold text-gray-900">Waste Categories</h3>
+                <p className="text-gray-600 text-sm mt-1">Distribution by waste type • Click segments for details</p>
+              </div>
+              <div className="text-blue-500">
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z" />
+                </svg>
+              </div>
+            </div>
+            <div className="h-96">
+              <Doughnut 
+                data={{
+                  labels: ['Plastic', 'Paper', 'Glass', 'Metal', 'Organic'],
+                  datasets: [
+                    {
+                      data: [30, 25, 15, 20, 10],
+                      backgroundColor: [
+                        '#EF4444',
+                        '#3B82F6',
+                        '#10B981',
+                        '#F59E0B',
+                        '#8B5CF6',
+                      ],
+                      borderColor: [
+                        '#DC2626',
+                        '#2563EB',
+                        '#059669',
+                        '#D97706',
+                        '#7C3AED',
+                      ],
+                      borderWidth: 2,
+                    },
+                  ],
+                }}
+                options={{
+                  responsive: true,
+                  maintainAspectRatio: false,
+                  plugins: {
+                    legend: {
+                      position: 'bottom',
+                    },
+                  },
+                  onClick: (event, activeElements) => {
+                    if (activeElements.length > 0) {
+                      const index = activeElements[0].index;
+                      const labels = ['Plastic', 'Paper', 'Glass', 'Metal', 'Organic'];
+                      const data = [30, 25, 15, 20, 10];
+                      const colors = ['#EF4444', '#3B82F6', '#10B981', '#F59E0B', '#8B5CF6'];
+                      
+                      setSelectedChartData({
+                        type: 'waste-category',
+                        title: `${labels[index]} Waste Details`,
+                        label: labels[index],
+                        value: data[index],
+                        percentage: ((data[index] / data.reduce((a, b) => a + b, 0)) * 100).toFixed(1),
+                        color: colors[index],
+                        details: {
+                          totalWeight: `${data[index]} kg`,
+                          collections: Math.floor(data[index] / 2.5),
+                          avgPerCollection: (data[index] / Math.floor(data[index] / 2.5)).toFixed(1),
+                          estimatedValue: `Rs. ${(data[index] * 25).toFixed(0)}`
+                        }
+                      });
+                      setShowChartModal(true);
+                    }
+                  },
+                }}
+              />
+            </div>
+          </>
+        );
+        
+      case 'collection-sources':
+        return (
+          <>
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h3 className="text-xl font-bold text-gray-900">Collection Sources</h3>
+                <p className="text-gray-600 text-sm mt-1">Regular vs Scheduled collections • Click segments for details</p>
+              </div>
+              <div className="text-blue-500">
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z" />
+                </svg>
+              </div>
+            </div>
+            <div className="h-96">
+              <Pie 
+                data={{
+                  labels: ['Waste Collections', 'Schedule Collections'],
+                  datasets: [
+                    {
+                      data: [analytics.binCollections, analytics.scheduleCollections],
+                      backgroundColor: ['#8B5CF6', '#F59E0B'],
+                      borderColor: ['#7C3AED', '#D97706'],
+                      borderWidth: 2,
+                    },
+                  ],
+                }}
+                options={{
+                  responsive: true,
+                  maintainAspectRatio: false,
+                  plugins: {
+                    legend: {
+                      position: 'bottom',
+                    },
+                  },
+                  onClick: (event, activeElements) => {
+                    if (activeElements.length > 0) {
+                      const index = activeElements[0].index;
+                      const labels = ['Waste Collections', 'Schedule Collections'];
+                      const data = [analytics.binCollections, analytics.scheduleCollections];
+                      const colors = ['#8B5CF6', '#F59E0B'];
+                      const total = data.reduce((a, b) => a + b, 0);
+                      
+                      setSelectedChartData({
+                        type: 'collection-source',
+                        title: `${labels[index]} Details`,
+                        label: labels[index],
+                        value: data[index],
+                        percentage: total > 0 ? ((data[index] / total) * 100).toFixed(1) : '0',
+                        color: colors[index],
+                        details: {
+                          totalCollections: data[index],
+                          totalWeight: `${(parseFloat(analytics.totalWeight) * (data[index] / total)).toFixed(1)} kg`,
+                          totalEarnings: `Rs. ${(parseFloat(analytics.totalEarnings) * (data[index] / total)).toFixed(2)}`,
+                          avgPerCollection: data[index] > 0 ? `${(parseFloat(analytics.totalWeight) / data[index]).toFixed(1)} kg` : '0 kg'
+                        }
+                      });
+                      setShowChartModal(true);
+                    }
+                  },
+                }}
+              />
+            </div>
+          </>
+        );
+        
+      default:
+        return null;
+    }
+  };
   return (
     <div className="space-y-8">
       {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold text-gray-900">My Waste Collection Analytics</h1>
-        <p className="text-gray-600 mt-2">
+      <div className="text-center">
+        <h1 className="text-4xl font-bold bg-gradient-to-r from-green-600 to-blue-600 bg-clip-text text-transparent">
+          My Waste Collection Analytics
+        </h1>
+        <p className="text-gray-600 mt-3 text-lg">
           Track your waste collection history and earnings from recycling activities
         </p>
       </div>
@@ -187,7 +532,7 @@ export default function DashboardAnalytics() {
         <>
           {/* Statistics Cards */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            <div className="bg-gradient-to-r from-green-500 to-green-600 rounded-xl p-6 text-white">
+            <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-xl p-6 text-white shadow-lg hover:shadow-2xl transform hover:scale-105 transition-all duration-300">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-green-100 text-sm font-medium">Total Weight Collected</p>
@@ -201,7 +546,7 @@ export default function DashboardAnalytics() {
               </div>
             </div>
 
-            <div className="bg-gradient-to-r from-blue-500 to-blue-600 rounded-xl p-6 text-white">
+            <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl p-6 text-white shadow-lg hover:shadow-2xl transform hover:scale-105 transition-all duration-300">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-blue-100 text-sm font-medium">Total Earnings</p>
@@ -215,7 +560,7 @@ export default function DashboardAnalytics() {
               </div>
             </div>
 
-            <div className="bg-gradient-to-r from-purple-500 to-purple-600 rounded-xl p-6 text-white">
+            <div className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl p-6 text-white shadow-lg hover:shadow-2xl transform hover:scale-105 transition-all duration-300">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-purple-100 text-sm font-medium">Waste Collections</p>
@@ -229,7 +574,7 @@ export default function DashboardAnalytics() {
               </div>
             </div>
 
-            <div className="bg-gradient-to-r from-orange-500 to-orange-600 rounded-xl p-6 text-white">
+            <div className="bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl p-6 text-white shadow-lg hover:shadow-2xl transform hover:scale-105 transition-all duration-300">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-orange-100 text-sm font-medium">Schedule Collections</p>
@@ -242,6 +587,64 @@ export default function DashboardAnalytics() {
                 </div>
               </div>
             </div>
+          </div>
+
+          {/* Charts Section */}
+          <div className="mb-6">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-2 text-sm text-gray-500">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.121 2.122" />
+                </svg>
+                <span>Click on any chart element to view detailed information</span>
+              </div>
+              
+              {/* Chart Selector Dropdown */}
+              <div className="relative">
+                <button
+                  onClick={() => setShowDropdown(!showDropdown)}
+                  className="flex items-center space-x-2 bg-white border border-gray-300 rounded-lg px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-colors"
+                >
+                  <span>{chartOptions.find(option => option.id === selectedChartView)?.icon}</span>
+                  <span>{chartOptions.find(option => option.id === selectedChartView)?.name}</span>
+                  <svg className={`w-4 h-4 transition-transform ${showDropdown ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+                
+                {showDropdown && (
+                  <div className="absolute right-0 mt-2 w-56 bg-white border border-gray-200 rounded-lg shadow-lg z-20">
+                    <div className="p-2">
+                      {chartOptions.map((option) => (
+                        <button
+                          key={option.id}
+                          onClick={() => {
+                            setSelectedChartView(option.id);
+                            setShowDropdown(false);
+                          }}
+                          className={`w-full flex items-center space-x-3 px-3 py-2 text-left rounded-md text-sm transition-colors ${
+                            option.id === selectedChartView ? 'bg-purple-50 text-purple-700' : 'text-gray-700 hover:bg-gray-50'
+                          }`}
+                        >
+                          <span className="text-lg">{option.icon}</span>
+                          <span>{option.name}</span>
+                          {option.id === selectedChartView && (
+                            <svg className="w-4 h-4 ml-auto text-purple-600" fill="currentColor" viewBox="0 0 20 20">
+                              <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                            </svg>
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Single Chart Container */}
+          <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-lg hover:shadow-xl transition-shadow duration-300">
+            {renderSelectedChart()}
           </div>
 
           {/* Collection Type Breakdown */}
@@ -473,6 +876,94 @@ export default function DashboardAnalytics() {
             )}
           </div>
         </>
+      )}
+
+      {/* Chart Details Modal */}
+      {showChartModal && selectedChartData && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              {/* Modal Header */}
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center space-x-3">
+                  <div 
+                    className="w-4 h-4 rounded-full"
+                    style={{ backgroundColor: selectedChartData.color }}
+                  ></div>
+                  <h3 className="text-xl font-bold text-gray-900">
+                    {selectedChartData.title}
+                  </h3>
+                </div>
+                <button
+                  onClick={() => setShowChartModal(false)}
+                  className="text-gray-400 hover:text-gray-600 transition-colors"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+
+              {/* Main Value Display */}
+              <div className="text-center mb-6">
+                <div className="text-4xl font-bold text-gray-900 mb-2">
+                  {selectedChartData.value}
+                </div>
+                {selectedChartData.percentage && (
+                  <div className="text-lg text-gray-600">
+                    {selectedChartData.percentage}% of total
+                  </div>
+                )}
+              </div>
+
+              {/* Details Grid */}
+              <div className="space-y-4">
+                {Object.entries(selectedChartData.details).map(([key, value]) => (
+                  <div key={key} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                    <span className="font-medium text-gray-700 capitalize">
+                      {key.replace(/([A-Z])/g, ' $1').trim()}:
+                    </span>
+                    <span className="font-semibold text-gray-900">
+                      {value}
+                    </span>
+                  </div>
+                ))}
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex space-x-3 mt-6">
+                <button
+                  onClick={() => setShowChartModal(false)}
+                  className="flex-1 bg-gray-100 text-gray-700 py-3 px-4 rounded-lg font-medium hover:bg-gray-200 transition-colors"
+                >
+                  Close
+                </button>
+                <button
+                  onClick={() => {
+                    // You could add more functionality here like exporting or filtering
+                    toast.success(`Viewing ${selectedChartData.label} details`);
+                  }}
+                  className="flex-1 bg-blue-600 text-white py-3 px-4 rounded-lg font-medium hover:bg-blue-700 transition-colors"
+                >
+                  View More
+                </button>
+              </div>
+
+              {/* Additional Info */}
+              <div className="mt-4 p-3 bg-blue-50 rounded-lg">
+                <div className="flex items-start space-x-2">
+                  <svg className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <div className="text-sm text-blue-800">
+                    <p className="font-medium mb-1">Interactive Chart</p>
+                    <p>Click on different chart segments to view detailed information and insights about your waste collection data.</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* PDF Report Modal */}
