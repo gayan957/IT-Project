@@ -10,6 +10,8 @@ import {
   processRecyclerOrder
 } from '../lib/recyclerApi';
 import OrderWasteModal from '../components/OrderWasteModal';
+import jsPDF from 'jspdf';
+import logoPng from '../assets/images/logos/trash2cash_logo.png';
 
 const RecyclerDashboard = () => {
   const navigate = useNavigate();
@@ -306,6 +308,250 @@ const RecyclerDashboard = () => {
     }
   };
 
+  // PDF Generation Function for Completed Orders
+  const generateCompletedOrdersReport = () => {
+    try {
+      const doc = new jsPDF('p', 'mm', 'a4');
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const pageHeight = doc.internal.pageSize.getHeight();
+      
+      // Helper function to ensure page space
+      const ensurePageSpace = (y, needed = 20) => {
+        if (y + needed > pageHeight - 20) {
+          doc.addPage();
+          return 20; // reset Y with a top margin on the new page
+        }
+        return y;
+      };
+
+      // Header with company branding
+      doc.setFillColor(16, 185, 129); // Green header
+      doc.rect(0, 0, pageWidth, 35, 'F');
+      
+      // Company logo area with white background for better contrast
+      try {
+        // Add white circular background for logo visibility
+        doc.setFillColor(255, 255, 255);
+        doc.circle(20, 17.5, 8, 'F');
+        
+        // Add the Trash2Cash logo
+        doc.addImage(logoPng, 'PNG', 14, 11.5, 12, 12);
+      } catch (error) {
+        // Fallback to text if logo fails to load
+        console.warn('Logo failed to load, using fallback:', error);
+        doc.setFillColor(255, 255, 255);
+        doc.circle(20, 17.5, 6, 'F');
+        doc.setFillColor(16, 185, 129);
+        doc.setFontSize(8);
+        doc.text('T2C', 17.5, 19);
+      }
+      
+      // Company name and title
+      doc.setTextColor(255, 255, 255);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(18);
+      doc.text('Trash2Cash', 35, 15);
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(10);
+      doc.text('Completed Orders Report', 35, 22);
+      doc.text('No 23/A, Kandy Road, Malabe', 35, 28);
+      
+      // Date and recycler info
+      doc.setFontSize(9);
+      doc.text(`Generated: ${new Date().toLocaleDateString()}`, pageWidth - 15, 12, { align: 'right' });
+      doc.text(`Recycler: ${user?.name || user?.facilityName || 'N/A'}`, pageWidth - 15, 18, { align: 'right' });
+      doc.text(`ID: ${user?.recyclerId || 'N/A'}`, pageWidth - 15, 24, { align: 'right' });
+
+      let y = 50;
+
+      // Summary Statistics
+      doc.setTextColor(0, 0, 0);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(14);
+      doc.text('Processing Summary', 15, y);
+      y += 10;
+
+      // Summary box
+      doc.setFillColor(248, 250, 252);
+      doc.rect(15, y - 5, pageWidth - 30, 25, 'F');
+      doc.setDrawColor(200, 200, 200);
+      doc.rect(15, y - 5, pageWidth - 30, 25);
+
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(10);
+      
+      const totalOrders = completedOrders.length;
+      const totalValue = completedOrders.reduce((sum, order) => sum + (order.totalOrderValue || 0), 0);
+      const totalWeight = completedOrders.reduce((sum, order) => sum + (order.weight || 0), 0);
+      
+      doc.text(`Total Orders Processed: ${totalOrders}`, 20, y + 5);
+      doc.text(`Total Weight Processed: ${totalWeight.toFixed(1)} kg`, 20, y + 12);
+      doc.text(`Total Value: Rs. ${totalValue.toFixed(2)}`, 20, y + 19);
+      
+      // Report information
+      doc.text(`Report Date: ${new Date().toLocaleDateString()}`, pageWidth - 20, y + 5, { align: 'right' });
+      doc.text(`Total Orders: ${totalOrders}`, pageWidth - 20, y + 12, { align: 'right' });
+
+      y += 35;
+
+      // Completed Orders Table
+      y = ensurePageSpace(y, 30);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(12);
+      doc.text('Order Details', 15, y);
+      y += 10;
+
+      if (completedOrders.length === 0) {
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(10);
+        doc.text('No completed orders found.', 15, y);
+        y += 15;
+      } else {
+        // Table header
+        y = ensurePageSpace(y, 20);
+        const tableWidth = pageWidth - 30;
+        const colPositions = [15, 50, 80, 105, 130, 160]; // Column positions
+        
+        doc.setFillColor(16, 185, 129);
+        doc.rect(15, y - 5, tableWidth, 12, 'F');
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(255, 255, 255);
+        doc.setFontSize(8);
+        doc.text('Date', colPositions[0], y + 2);
+        doc.text('Order ID', colPositions[1], y + 2);
+        doc.text('Waste Type', colPositions[2], y + 2);
+        doc.text('Weight (kg)', colPositions[3], y + 2);
+        doc.text('Value (Rs.)', colPositions[4], y + 2);
+        doc.text('Status', colPositions[5], y + 2);
+        
+        y += 15;
+
+        // Table rows
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(0, 0, 0);
+        doc.setFontSize(7);
+
+        completedOrders.forEach((order, index) => {
+          y = ensurePageSpace(y, 12);
+
+          // Alternate row background
+          if (index % 2 === 0) {
+            doc.setFillColor(248, 250, 252);
+            doc.rect(15, y - 3, tableWidth, 10, 'F');
+          }
+
+          // Row separator line
+          doc.setDrawColor(220, 220, 220);
+          doc.setLineWidth(0.3);
+          doc.line(15, y + 7, 15 + tableWidth, y + 7);
+
+          // Cell data
+          const orderDate = new Date(order.completedAt || order.updatedAt).toLocaleDateString('en-US', {
+            month: 'short',
+            day: 'numeric'
+          });
+          const orderId = order._id ? order._id.slice(-6) : `#${index + 1}`;
+          const wasteType = order.wasteWarehouseId?.wasteType || order.meta?.wasteType || 'Unknown';
+          const weight = (order.weight || 0).toFixed(1);
+          const value = (order.totalOrderValue || 0).toFixed(2);
+          const status = 'Completed';
+          
+          // Truncate long text
+          const truncatedWasteType = wasteType.length > 10 ? wasteType.substring(0, 10) + '...' : wasteType;
+
+          doc.text(orderDate, colPositions[0], y + 2);
+          doc.text(orderId, colPositions[1], y + 2);
+          doc.text(truncatedWasteType, colPositions[2], y + 2);
+          doc.text(weight, colPositions[3], y + 2);
+          doc.text(value, colPositions[4], y + 2);
+          doc.text(status, colPositions[5], y + 2);
+
+          // Column separators
+          for (let i = 1; i < colPositions.length; i++) {
+            const x = colPositions[i] - 2;
+            doc.line(x, y - 3, x, y + 7);
+          }
+          
+          y += 10;
+        });
+
+        // Table summary
+        y += 5;
+        y = ensurePageSpace(y, 15);
+        
+        doc.setFillColor(240, 253, 244);
+        doc.rect(15, y - 3, tableWidth, 12, 'F');
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(8);
+        doc.text('TOTALS:', colPositions[0], y + 3);
+        doc.text(`${totalOrders} orders`, colPositions[1], y + 3);
+        doc.text('', colPositions[2], y + 3);
+        doc.text(`${totalWeight.toFixed(1)} kg`, colPositions[3], y + 3);
+        doc.text(`Rs. ${totalValue.toFixed(2)}`, colPositions[4], y + 3);
+        doc.text('', colPositions[5], y + 3);
+        
+        y += 15;
+      }
+
+      // Additional Statistics
+      if (completedOrders.length > 0) {
+        y = ensurePageSpace(y, 25);
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(12);
+        doc.text('Processing Statistics', 15, y);
+        y += 10;
+
+        // Calculate statistics
+        const wasteTypes = completedOrders.reduce((acc, order) => {
+          const type = order.wasteWarehouseId?.wasteType || order.meta?.wasteType || 'Unknown';
+          acc[type] = (acc[type] || 0) + 1;
+          return acc;
+        }, {});
+
+        const avgWeight = totalWeight / totalOrders;
+        const avgValue = totalValue / totalOrders;
+        const mostProcessedWaste = Object.keys(wasteTypes).reduce((a, b) => 
+          wasteTypes[a] > wasteTypes[b] ? a : b, 'None'
+        );
+
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(9);
+        doc.text(`• Average weight per order: ${avgWeight.toFixed(2)} kg`, 20, y);
+        y += 6;
+        doc.text(`• Average value per order: Rs. ${avgValue.toFixed(2)}`, 20, y);
+        y += 6;
+        doc.text(`• Most processed waste type: ${mostProcessedWaste}`, 20, y);
+        y += 6;
+        doc.text(`• Processing efficiency: ${((totalWeight / totalOrders) * 10).toFixed(1)}%`, 20, y);
+        y += 10;
+      }
+
+      // Footer
+      const footerY = pageHeight - 15;
+      doc.setDrawColor(16, 185, 129);
+      doc.setLineWidth(1);
+      doc.line(15, footerY - 5, pageWidth - 15, footerY - 5);
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(8);
+      doc.setTextColor(100, 100, 100);
+      doc.text('Trash2Cash Waste Management System | Generated automatically', 15, footerY);
+      doc.text(`Page 1 | ${new Date().toLocaleDateString()}`, pageWidth - 15, footerY, { align: 'right' });
+
+      // Generate filename
+      const recyclerName = (user?.name || user?.facilityName || 'Recycler').replace(/[^a-zA-Z0-9]/g, '_');
+      const dateStr = new Date().toISOString().split('T')[0];
+      const filename = `Completed_Orders_Report_${recyclerName}_${dateStr}.pdf`;
+
+      // Save the PDF
+      doc.save(filename);
+      toast.success('PDF report generated successfully!');
+      
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      toast.error('Failed to generate PDF report. Please try again.');
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -486,10 +732,21 @@ const RecyclerDashboard = () => {
                   </h3>
                   <p className="text-gray-600 mt-1">Your recent completed processing orders</p>
                 </div>
-                <div className="w-10 h-10 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-xl flex items-center justify-center shadow-lg">
-                  <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
+                <div className="flex items-center space-x-3">
+                  <button
+                    onClick={generateCompletedOrdersReport}
+                    className="flex items-center space-x-2 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors text-sm font-medium shadow-md"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                    <span>Generate Report</span>
+                  </button>
+                  <div className="w-10 h-10 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-xl flex items-center justify-center shadow-lg">
+                    <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  </div>
                 </div>
               </div>
               
@@ -580,107 +837,83 @@ const RecyclerDashboard = () => {
             </div>
             
             {availableWaste.length > 0 ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                 {availableWaste.map((waste) => {
-                  // Define colors and icons for each waste type
+                  // Define colors for each waste type
                   const getWasteTypeInfo = (wasteType) => {
                     const type = wasteType.toLowerCase();
                     switch (type) {
                       case 'plastic':
                         return {
-                          color: 'from-sky-400 to-sky-500',
-                          bgColor: 'from-sky-50/90 to-sky-100/80',
-                          borderColor: 'border-sky-200/60',
-                          textColor: 'text-sky-800',
-                          icon: (
-                            <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
-                              <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8 0-1.12.23-2.19.65-3.17L9 10.5V12c0 .55.45 1 1 1h1v1.5c0 .28.22.5.5.5s.5-.22.5-.5V13h1c.55 0 1-.45 1-1v-1.5l4.35-1.67c.42.98.65 2.05.65 3.17 0 4.41-3.59 8-8 8z"/>
-                            </svg>
-                          )
+                          primaryColor: '#3B82F6',
+                          bgColor: 'bg-blue-50',
+                          accentColor: 'bg-blue-100',
+                          iconBg: 'bg-blue-500',
+                          textColor: 'text-blue-600',
+                          emoji: '♻️'
                         };
                       case 'metal':
                         return {
-                          color: 'from-slate-400 to-slate-500',
-                          bgColor: 'from-slate-50/90 to-slate-100/80',
-                          borderColor: 'border-slate-200/60',
-                          textColor: 'text-slate-800',
-                          icon: (
-                            <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
-                              <path d="M12,2A2,2 0 0,1 14,4C14,4.74 13.6,5.39 13,5.73V7H14A7,7 0 0,1 21,14H22A1,1 0 0,1 23,15V18A1,1 0 0,1 22,19H21A7,7 0 0,1 14,26H10A7,7 0 0,1 3,19H2A1,1 0 0,1 1,18V15A1,1 0 0,1 2,14H3A7,7 0 0,1 10,7H11V5.73C10.4,5.39 10,4.74 10,4A2,2 0 0,1 12,2M12,4.5A0.5,0.5 0 0,0 11.5,5A0.5,0.5 0 0,0 12,5.5A0.5,0.5 0 0,0 12.5,5A0.5,0.5 0 0,0 12,4.5Z"/>
-                            </svg>
-                          )
+                          primaryColor: '#64748B',
+                          bgColor: 'bg-slate-50',
+                          accentColor: 'bg-slate-100',
+                          iconBg: 'bg-slate-500',
+                          textColor: 'text-slate-600',
+                          emoji: '🔩'
                         };
                       case 'glass':
                         return {
-                          color: 'from-emerald-400 to-emerald-500',
-                          bgColor: 'from-emerald-50/90 to-emerald-100/80',
-                          borderColor: 'border-emerald-200/60',
-                          textColor: 'text-emerald-800',
-                          icon: (
-                            <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
-                              <path d="M5,4V6H6V10A4,4 0 0,0 10,14V20A2,2 0 0,0 12,22A2,2 0 0,0 14,20V14A4,4 0 0,0 18,10V6H19V4H5M8,6H16V10A2,2 0 0,1 14,12H10A2,2 0 0,1 8,10V6Z"/>
-                            </svg>
-                          )
+                          primaryColor: '#10B981',
+                          bgColor: 'bg-emerald-50',
+                          accentColor: 'bg-emerald-100',
+                          iconBg: 'bg-emerald-500',
+                          textColor: 'text-emerald-600',
+                          emoji: '🍾'
                         };
                       case 'mixed':
                         return {
-                          color: 'from-violet-400 to-violet-500',
-                          bgColor: 'from-violet-50/90 to-violet-100/80',
-                          borderColor: 'border-violet-200/60',
-                          textColor: 'text-violet-800',
-                          icon: (
-                            <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
-                              <path d="M9.5,3A6.5,6.5 0 0,1 16,9.5C16,11.11 15.41,12.59 14.44,13.73L14.71,14H15.5C15.78,14 16,14.22 16,14.5V16H14.5C14.22,16 14,15.78 14,15.5V14H13.71L13.44,13.73C12.59,15.41 11.11,16 9.5,16A6.5,6.5 0 0,1 3,9.5A6.5,6.5 0 0,1 9.5,3M9.5,5C7.56,5 6,6.56 6,8.5C6,10.44 7.56,12 9.5,12C11.44,12 13,10.44 13,8.5C13,6.56 11.44,5 9.5,5Z"/>
-                            </svg>
-                          )
+                          primaryColor: '#8B5CF6',
+                          bgColor: 'bg-violet-50',
+                          accentColor: 'bg-violet-100',
+                          iconBg: 'bg-violet-500',
+                          textColor: 'text-violet-600',
+                          emoji: '🗂️'
                         };
                       case 'paper':
                         return {
-                          color: 'from-amber-400 to-amber-500',
-                          bgColor: 'from-amber-50/90 to-amber-100/80',
-                          borderColor: 'border-amber-200/60',
-                          textColor: 'text-amber-800',
-                          icon: (
-                            <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
-                              <path d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z"/>
-                            </svg>
-                          )
+                          primaryColor: '#F59E0B',
+                          bgColor: 'bg-amber-50',
+                          accentColor: 'bg-amber-100',
+                          iconBg: 'bg-amber-500',
+                          textColor: 'text-amber-600',
+                          emoji: '📄'
                         };
                       case 'organic':
                         return {
-                          color: 'from-green-400 to-green-500',
-                          bgColor: 'from-green-50/90 to-green-100/80',
-                          borderColor: 'border-green-200/60',
-                          textColor: 'text-green-800',
-                          icon: (
-                            <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
-                              <path d="M17,8C8,10 5.9,16.17 3.82,21.34L5.71,22L6.66,19.7C7.14,19.87 7.64,20 8,20C19,20 22,3 22,3C21,5 14,5.25 9,6.25C4,7.25 2,11.5 2,13.5C2,15.5 3.75,17.25 3.75,17.25C7,8 17,8 17,8Z"/>
-                            </svg>
-                          )
+                          primaryColor: '#22C55E',
+                          bgColor: 'bg-green-50',
+                          accentColor: 'bg-green-100',
+                          iconBg: 'bg-green-500',
+                          textColor: 'text-green-600',
+                          emoji: '🌱'
                         };
                       case 'electronic':
                         return {
-                          color: 'from-indigo-400 to-indigo-500',
-                          bgColor: 'from-indigo-50/90 to-indigo-100/80',
-                          borderColor: 'border-indigo-200/60',
-                          textColor: 'text-indigo-800',
-                          icon: (
-                            <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
-                              <path d="M21,16V4H3V16H21M21,2A2,2 0 0,1 23,4V16A2,2 0 0,1 21,18H14L16,21V22H8V21L10,18H3C1.89,18 1,17.1 1,16V4C1,2.89 1.89,2 3,2H21Z"/>
-                            </svg>
-                          )
+                          primaryColor: '#6366F1',
+                          bgColor: 'bg-indigo-50',
+                          accentColor: 'bg-indigo-100',
+                          iconBg: 'bg-indigo-500',
+                          textColor: 'text-indigo-600',
+                          emoji: '💻'
                         };
                       default:
                         return {
-                          color: 'from-teal-400 to-teal-500',
-                          bgColor: 'from-teal-50/90 to-teal-100/80',
-                          borderColor: 'border-teal-200/60',
-                          textColor: 'text-teal-800',
-                          icon: (
-                            <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
-                              <path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
-                            </svg>
-                          )
+                          primaryColor: '#14B8A6',
+                          bgColor: 'bg-teal-50',
+                          accentColor: 'bg-teal-100',
+                          iconBg: 'bg-teal-500',
+                          textColor: 'text-teal-600',
+                          emoji: '🗑️'
                         };
                     }
                   };
@@ -688,54 +921,54 @@ const RecyclerDashboard = () => {
                   const wasteInfo = getWasteTypeInfo(waste.wasteType);
 
                   return (
-                    <div key={waste._id} className={`group relative bg-gradient-to-br ${wasteInfo.bgColor} backdrop-blur-sm border-2 ${wasteInfo.borderColor} rounded-2xl p-6 hover:shadow-2xl transition-all duration-300 hover:-translate-y-2 hover:border-opacity-60`}>
-                      <div className={`absolute inset-0 bg-gradient-to-br ${wasteInfo.color} opacity-0 group-hover:opacity-5 rounded-2xl transition-opacity duration-300`}></div>
-                      <div className="relative">
-                        <div className="flex items-start justify-between mb-4">
-                          <div className="flex items-center gap-3">
-                            <div className={`p-3 bg-gradient-to-br ${wasteInfo.color} text-white rounded-xl shadow-lg group-hover:scale-110 transition-transform duration-300`}>
-                              {wasteInfo.icon}
-                            </div>
-                            <div>
-                              <h4 className={`font-bold text-xl capitalize ${wasteInfo.textColor}`}>{waste.wasteType}</h4>
-                              <span className={`bg-gradient-to-r ${wasteInfo.color} text-white text-xs px-3 py-1 rounded-full font-medium shadow-md`}>
-                                Available
-                              </span>
-                            </div>
+                    <div key={waste._id} className={`group ${wasteInfo.bgColor} border border-gray-200 rounded-2xl p-6 hover:shadow-xl transition-all duration-300 hover:scale-105 hover:border-gray-300`}>
+                      {/* Header */}
+                      <div className="flex items-center justify-between mb-6">
+                        <div className="flex items-center gap-3">
+                          <div className={`w-12 h-12 ${wasteInfo.iconBg} rounded-xl flex items-center justify-center text-white text-xl shadow-md`}>
+                            {wasteInfo.emoji}
+                          </div>
+                          <div>
+                            <h3 className="font-bold text-lg text-gray-900 capitalize">{waste.wasteType}</h3>
+                            <span className="text-xs text-gray-500 uppercase tracking-wide font-medium">Available</span>
                           </div>
                         </div>
-                        
-                        <div className="space-y-3 mb-6">
-                          <div className="flex items-center justify-between p-3 bg-white/60 backdrop-blur-sm rounded-lg border border-white/40">
-                            <span className="text-sm text-gray-600 font-medium">Weight:</span>
-                            <span className={`text-lg font-bold ${wasteInfo.textColor}`}>{waste.totalWeight} kg</span>
-                          </div>
-                          <div className="flex items-center justify-between p-3 bg-white/60 backdrop-blur-sm rounded-lg border border-white/40">
-                            <span className="text-sm text-gray-600 font-medium">From:</span>
-                            <span className="text-sm font-semibold text-gray-900">{waste.pickupPartnerId?.companyName || 'root'}</span>
-                          </div>
-                          <div className="flex items-center justify-between p-3 bg-white/60 backdrop-blur-sm rounded-lg border border-white/40">
-                            <span className="text-sm text-gray-600 font-medium">Date:</span>
-                            <span className="text-sm font-medium text-gray-700">{formatDate(waste.createdAt)}</span>
-                          </div>
-                        </div>
-
-                        {/* Order Button */}
-                        <button 
-                          onClick={() => handleOrderWaste(waste)}
-                          className={`w-full bg-gradient-to-r ${wasteInfo.color} text-white font-bold py-4 px-6 rounded-xl hover:shadow-xl transform hover:scale-105 transition-all duration-300 flex items-center justify-center gap-3 group-hover:shadow-2xl relative overflow-hidden`}
-                          title={`Place order for ${waste.totalWeight} kg of ${waste.wasteType} waste`}
-                        >
-                          <div className="absolute inset-0 bg-white/20 transform -skew-x-12 -translate-x-full group-hover:translate-x-full transition-transform duration-700"></div>
-                          <svg className="w-5 h-5 relative z-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"/>
-                          </svg>
-                          <span className="relative z-10">Place Order</span>
-                          <svg className="w-4 h-4 group-hover:translate-x-1 transition-transform duration-300 relative z-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7"/>
-                          </svg>
-                        </button>
+                        <div className="w-3 h-3 bg-green-400 rounded-full shadow-md"></div>
                       </div>
+
+                      {/* Weight Display */}
+                      <div className={`${wasteInfo.accentColor} rounded-xl p-4 mb-6`}>
+                        <div className="text-center">
+                          <p className="text-2xl font-bold text-gray-900">{waste.totalWeight}</p>
+                          <p className="text-sm text-gray-600 font-medium">Kilograms</p>
+                        </div>
+                      </div>
+
+                      {/* Details */}
+                      <div className="space-y-3 mb-6">
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm text-gray-600">Company:</span>
+                          <span className="text-sm font-semibold text-gray-900 truncate max-w-[120px]" title={waste.pickupPartnerId?.companyName || 'Root'}>
+                            {waste.pickupPartnerId?.companyName || 'Root'}
+                          </span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm text-gray-600">Listed:</span>
+                          <span className="text-sm font-medium text-gray-700">{formatDate(waste.createdAt)}</span>
+                        </div>
+                      </div>
+
+                      {/* Action Button */}
+                      <button 
+                        onClick={() => handleOrderWaste(waste)}
+                        className={`w-full ${wasteInfo.iconBg} hover:opacity-90 text-white font-semibold py-3.5 px-6 rounded-xl transition-all duration-300 flex items-center justify-center gap-2 shadow-md hover:shadow-lg group-hover:scale-105`}
+                        title={`Place order for ${waste.totalWeight} kg of ${waste.wasteType} waste`}
+                      >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"/>
+                        </svg>
+                        <span>Place Order</span>
+                      </button>
                     </div>
                   );
                 })}
