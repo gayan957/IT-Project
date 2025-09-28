@@ -23,9 +23,7 @@ export default function AdminDashboard() {
     { path: '/admin/dashboard/support-tickets', label: 'Support Tickets', icon: '🎫' },
     { path: '/admin/dashboard/waste-prices', label: 'Waste Prices', icon: '💰' },
     { path: '/admin/dashboard/warehouse-waste-prices', label: 'Warehouse Waste Prices', icon: '🏭' },
-    { path: '/admin/dashboard/ai-forecasting', label: 'Waste Price Forecasting', icon: '🤖' },
-    { path: '/admin/dashboard/analytics', label: 'Analytics', icon: '📈' },
-    { path: '/admin/dashboard/settings', label: 'Settings', icon: '⚙️' }
+    { path: '/admin/dashboard/ai-forecasting', label: 'Waste Price Forecasting', icon: '🤖' }
   ];
 
   useEffect(() => {

@@ -4,6 +4,18 @@ import { toast } from 'react-hot-toast';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  BarElement,
+  LineElement,
+  PointElement,
+  Title,
+  Tooltip,
+  Legend,
+} from 'chart.js';
+import { Bar, Line } from 'react-chartjs-2';
+import {
   getRecyclerStatistics,
   getAvailableWaste,
   getRecyclerWarehouse,
@@ -13,6 +25,18 @@ import {
 } from '../lib/recyclerApi';
 import OrderWasteModal from '../components/OrderWasteModal';
 import trash2cashLogo from '../assets/images/trash2cash_logo.png';
+
+// Register Chart.js components
+ChartJS.register(
+  CategoryScale,
+  LinearScale,
+  BarElement,
+  LineElement,
+  PointElement,
+  Title,
+  Tooltip,
+  Legend
+);
 
 const RecyclerDashboard = () => {
   const navigate = useNavigate();
@@ -897,7 +921,7 @@ const RecyclerDashboard = () => {
                           </td>
                           <td className="py-4 px-4">
                             <span className="font-semibold text-blue-600">
-                              ${(order.totalOrderValue || 0).toFixed(2)}
+                              Rs{(order.totalOrderValue || 0).toFixed(2)}
                             </span>
                           </td>
                           <td className="py-4 px-4">
@@ -1383,7 +1407,7 @@ const RecyclerDashboard = () => {
                           <div className="flex justify-between items-center">
                             <span className="text-sm text-gray-600 font-medium">Total Price:</span>
                             <span className="text-lg font-bold text-green-600">
-                              ${order.totalOrderValue ? order.totalOrderValue.toFixed(2) : '0.00'}
+                              Rs{order.totalOrderValue ? order.totalOrderValue.toFixed(2) : '0.00'}
                             </span>
                           </div>
                           
@@ -1488,14 +1512,14 @@ const RecyclerDashboard = () => {
         {/* Statistics Tab - Enhanced */}
         {activeTab === 'statistics' && (
           <div className="space-y-8">
-            {/* Monthly Trends - Enhanced */}
+            {/* Real-time Statistics Table and Graph */}
             <div className="relative bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl p-8 border border-gray-100">
               <div className="flex items-center justify-between mb-6">
                 <div>
                   <h3 className="text-xl font-bold bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent">
-                    Monthly Processing Trends
+                    Real-time Processing Statistics
                   </h3>
-                  <p className="text-gray-600 mt-1">Track your monthly processing performance</p>
+                  <p className="text-gray-600 mt-1">Live data overview with interactive charts</p>
                 </div>
                 <div className="w-10 h-10 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-xl flex items-center justify-center shadow-lg">
                   <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1504,32 +1528,263 @@ const RecyclerDashboard = () => {
                 </div>
               </div>
               
-              {statistics?.monthlyTrends?.length > 0 ? (
-                <div className="space-y-4">
-                  {statistics.monthlyTrends.map((trend, index) => (
-                    <div key={index} className="group flex items-center justify-between p-4 bg-gradient-to-r from-gray-50 to-gray-100/50 rounded-xl border border-gray-200 hover:shadow-md transition-all duration-200">
-                      <div className="flex items-center space-x-4">
-                        <div className="bg-gradient-to-br from-emerald-500 to-teal-600 rounded-xl p-2.5 shadow-md group-hover:scale-110 transition-transform duration-200">
-                          <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+              {completedOrders && completedOrders.length > 0 ? (
+                <div className="space-y-6">
+                  {/* Statistics Summary Cards */}
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    <div className="bg-gradient-to-r from-blue-500 to-blue-600 rounded-xl p-4 text-white">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-blue-100 text-sm font-medium">Total Orders</p>
+                          <p className="text-2xl font-bold">{calculateCompletedOrdersStats(completedOrders).totalOrders}</p>
+                        </div>
+                        <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center">
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
                           </svg>
                         </div>
-                        <div>
-                          <p className="font-semibold text-gray-900 text-lg">
-                            {new Date(trend._id.year, trend._id.month - 1).toLocaleDateString('en-US', { 
-                              year: 'numeric', 
-                              month: 'long' 
-                            })}
-                          </p>
-                          <p className="text-sm text-gray-600 font-medium">{trend.count} entries processed</p>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-2xl font-bold text-emerald-600">{trend.weight} kg</p>
-                        <p className="text-sm text-gray-500">total weight</p>
                       </div>
                     </div>
-                  ))}
+                    <div className="bg-gradient-to-r from-green-500 to-green-600 rounded-xl p-4 text-white">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-green-100 text-sm font-medium">Total Weight</p>
+                          <p className="text-2xl font-bold">{calculateCompletedOrdersStats(completedOrders).totalWeight} kg</p>
+                        </div>
+                        <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center">
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 6l3 1m0 0l-3 9a5.002 5.002 0 006.001 0M6 7l3 9M6 7l6-2m6 2l3-1m-3 1l-3 9a5.002 5.002 0 006.001 0M18 7l3 9m-3-9l-6-2m0-2v2m0 16V5m0 16H9m3 0h3" />
+                          </svg>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="bg-gradient-to-r from-purple-500 to-purple-600 rounded-xl p-4 text-white">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-purple-100 text-sm font-medium">Total Value</p>
+                          <p className="text-2xl font-bold">Rs. {calculateCompletedOrdersStats(completedOrders).totalValue.toFixed(2)}</p>
+                        </div>
+                        <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center">
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
+                          </svg>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="bg-gradient-to-r from-orange-500 to-orange-600 rounded-xl p-4 text-white">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-orange-100 text-sm font-medium">Waste Types</p>
+                          <p className="text-2xl font-bold">{calculateCompletedOrdersStats(completedOrders).wasteTypes.length}</p>
+                        </div>
+                        <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center">
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                          </svg>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Statistics Table */}
+                  <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+                    <div className="px-6 py-4 bg-gray-50 border-b border-gray-200">
+                      <h4 className="text-lg font-semibold text-gray-900">Recent Processing Activity</h4>
+                    </div>
+                    <div className="overflow-x-auto">
+                      <table className="w-full">
+                        <thead className="bg-gray-50">
+                          <tr>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Waste Type</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Weight (kg)</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Value (Rs.)</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                          </tr>
+                        </thead>
+                        <tbody className="bg-white divide-y divide-gray-200">
+                          {completedOrders.slice(0, 10).map((order) => (
+                            <tr key={order._id} className="hover:bg-gray-50">
+                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                {new Date(order.completedAt || order.updatedAt).toLocaleDateString()}
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 capitalize">
+                                  {order.wasteWarehouseId?.wasteType || order.meta?.wasteType || 'Unknown'}
+                                </span>
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                                {order.weight || 0}
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-green-600">
+                                {(order.totalOrderValue || 0).toFixed(2)}
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                  Completed
+                                </span>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+
+                  {/* Charts Section */}
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    {/* Weight Distribution Chart */}
+                    <div className="bg-white rounded-xl border border-gray-200 p-6">
+                      <h4 className="text-lg font-semibold text-gray-900 mb-4">Weight Distribution by Waste Type</h4>
+                      <div className="h-64">
+                        <Bar
+                          data={{
+                            labels: calculateCompletedOrdersStats(completedOrders).wasteTypes,
+                            datasets: [{
+                              label: 'Weight (kg)',
+                              data: calculateCompletedOrdersStats(completedOrders).wasteTypes.map(type => {
+                                return completedOrders
+                                  .filter(order => (order.wasteWarehouseId?.wasteType || order.meta?.wasteType) === type)
+                                  .reduce((sum, order) => sum + (order.weight || 0), 0);
+                              }),
+                              backgroundColor: [
+                                'rgba(34, 197, 94, 0.8)',
+                                'rgba(59, 130, 246, 0.8)',
+                                'rgba(168, 85, 247, 0.8)',
+                                'rgba(245, 158, 11, 0.8)',
+                                'rgba(239, 68, 68, 0.8)',
+                                'rgba(6, 182, 212, 0.8)',
+                              ],
+                              borderColor: [
+                                'rgb(34, 197, 94)',
+                                'rgb(59, 130, 246)',
+                                'rgb(168, 85, 247)',
+                                'rgb(245, 158, 11)',
+                                'rgb(239, 68, 68)',
+                                'rgb(6, 182, 212)',
+                              ],
+                              borderWidth: 2,
+                              borderRadius: 4,
+                            }]
+                          }}
+                          options={{
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {
+                              legend: {
+                                display: false,
+                              },
+                              title: {
+                                display: false,
+                              },
+                            },
+                            scales: {
+                              y: {
+                                beginAtZero: true,
+                                grid: {
+                                  color: 'rgba(0, 0, 0, 0.1)',
+                                },
+                                ticks: {
+                                  font: {
+                                    size: 12,
+                                  },
+                                },
+                              },
+                              x: {
+                                grid: {
+                                  display: false,
+                                },
+                                ticks: {
+                                  font: {
+                                    size: 12,
+                                  },
+                                },
+                              },
+                            },
+                          }}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Processing Timeline Chart */}
+                    <div className="bg-white rounded-xl border border-gray-200 p-6">
+                      <h4 className="text-lg font-semibold text-gray-900 mb-4">Daily Processing Timeline</h4>
+                      <div className="h-64">
+                        <Line
+                          data={{
+                            labels: (() => {
+                              const last7Days = [];
+                              for (let i = 6; i >= 0; i--) {
+                                const date = new Date();
+                                date.setDate(date.getDate() - i);
+                                last7Days.push(date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }));
+                              }
+                              return last7Days;
+                            })(),
+                            datasets: [{
+                              label: 'Weight Processed (kg)',
+                              data: (() => {
+                                const last7Days = [];
+                                for (let i = 6; i >= 0; i--) {
+                                  const date = new Date();
+                                  date.setDate(date.getDate() - i);
+                                  const dateString = date.toDateString();
+                                  const dayWeight = completedOrders
+                                    .filter(order => new Date(order.completedAt || order.updatedAt).toDateString() === dateString)
+                                    .reduce((sum, order) => sum + (order.weight || 0), 0);
+                                  last7Days.push(dayWeight);
+                                }
+                                return last7Days;
+                              })(),
+                              borderColor: 'rgb(34, 197, 94)',
+                              backgroundColor: 'rgba(34, 197, 94, 0.1)',
+                              tension: 0.4,
+                              fill: true,
+                              pointBackgroundColor: 'rgb(34, 197, 94)',
+                              pointBorderColor: '#fff',
+                              pointBorderWidth: 2,
+                              pointRadius: 4,
+                            }]
+                          }}
+                          options={{
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {
+                              legend: {
+                                display: false,
+                              },
+                              title: {
+                                display: false,
+                              },
+                            },
+                            scales: {
+                              y: {
+                                beginAtZero: true,
+                                grid: {
+                                  color: 'rgba(0, 0, 0, 0.1)',
+                                },
+                                ticks: {
+                                  font: {
+                                    size: 12,
+                                  },
+                                },
+                              },
+                              x: {
+                                grid: {
+                                  display: false,
+                                },
+                                ticks: {
+                                  font: {
+                                    size: 12,
+                                  },
+                                },
+                              },
+                            },
+                          }}
+                        />
+                      </div>
+                    </div>
+                  </div>
                 </div>
               ) : (
                 <div className="text-center py-12">
@@ -1538,57 +1793,8 @@ const RecyclerDashboard = () => {
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
                     </svg>
                   </div>
-                  <p className="text-gray-500 font-medium">No monthly data available</p>
-                </div>
-              )}
-            </div>
-
-            {/* Waste Type Statistics - Enhanced */}
-            <div className="relative bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl p-8 border border-gray-100">
-              <div className="flex items-center justify-between mb-6">
-                <div>
-                  <h3 className="text-xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
-                    Waste Type Processing Statistics
-                  </h3>
-                  <p className="text-gray-600 mt-1">Breakdown by waste type categories</p>
-                </div>
-                <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-pink-600 rounded-xl flex items-center justify-center shadow-lg">
-                  <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                  </svg>
-                </div>
-              </div>
-              
-              {statistics?.wasteTypes?.length > 0 ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {statistics.wasteTypes.map((type) => (
-                    <div key={type._id} className="group flex items-center justify-between p-6 border border-gray-200 rounded-xl hover:shadow-lg transition-all duration-300 bg-gradient-to-r from-gray-50 to-gray-100/50">
-                      <div className="flex items-center space-x-4">
-                        <div className="bg-gradient-to-br from-purple-500 to-pink-600 rounded-xl p-2.5 shadow-md group-hover:scale-110 transition-transform duration-200">
-                          <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                          </svg>
-                        </div>
-                        <div>
-                          <p className="font-semibold text-gray-900 capitalize text-lg">{type._id}</p>
-                          <p className="text-sm text-gray-600 font-medium">{type.count} entries processed</p>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-xl font-bold text-purple-600">{type.weight} kg</p>
-                        <p className="text-sm text-gray-500">total weight</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center py-12">
-                  <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                    </svg>
-                  </div>
-                  <p className="text-gray-500 font-medium">No waste type data available</p>
+                  <p className="text-gray-500 font-medium">No processing data available</p>
+                  <p className="text-gray-400 text-sm mt-1">Complete some orders to see real-time statistics</p>
                 </div>
               )}
             </div>

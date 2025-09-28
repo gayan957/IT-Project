@@ -28,7 +28,7 @@ ChartJS.register(
 );
 
 const AIWastePriceForecasting = () => {
-  const [wasteTypes] = useState(['plastic', 'paper', 'glass', 'metal', 'organic', 'electronic', 'mixed']);
+  const [wasteTypes] = useState(['plastic', 'paper', 'glass', 'metal', 'organic', 'e-waste', 'mixed']);
   const [currentPrices, setCurrentPrices] = useState({});
   const [forecasts, setForecasts] = useState({});
   const [loading, setLoading] = useState(true);
@@ -42,7 +42,7 @@ const AIWastePriceForecasting = () => {
     glass: { icon: '🥛', color: '#8B5CF6', bgColor: '#F5F3FF' },
     metal: { icon: '🔧', color: '#F59E0B', bgColor: '#FFFBEB' },
     organic: { icon: '🌱', color: '#22C55E', bgColor: '#F0FDF4' },
-    electronic: { icon: '💻', color: '#EF4444', bgColor: '#FEF2F2' },
+    'e-waste': { icon: '💻', color: '#EF4444', bgColor: '#FEF2F2' },
     mixed: { icon: '📦', color: '#6B7280', bgColor: '#F9FAFB' }
   };
 
@@ -53,7 +53,7 @@ const AIWastePriceForecasting = () => {
   const fetchCurrentPrices = async () => {
     try {
       setLoading(true);
-      const response = await api.get('/api/admin/warehouse-waste-prices');
+      const response = await api.get('/api/admin/pricing-data');
       
       if (response.data.success) {
         const prices = {};
@@ -61,8 +61,8 @@ const AIWastePriceForecasting = () => {
           prices[price.wasteType] = {
             pricePerKg: price.pricePerKg,
             adminTaxPerKg: price.adminTaxPerKg,
-            lastUpdated: price.updatedAt,
-            totalPrice: price.pricePerKg + price.adminTaxPerKg
+            lastUpdated: price.lastUpdated,
+            totalPrice: price.totalPrice
           };
         });
         setCurrentPrices(prices);
