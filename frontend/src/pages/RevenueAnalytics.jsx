@@ -225,7 +225,7 @@ const RevenueAnalytics = () => {
       doc.setTextColor(0, 0, 0);
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(16);
-      doc.text('Executive Summary', 20, yPosition);
+      doc.text('Revenue Summary', 20, yPosition);
       yPosition += 15;
 
       // Summary box

@@ -1,5 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { toast } from 'react-hot-toast';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
+import trash2cashLogo from '../assets/images/trash2cash_logo.png';
 
 // API functions for warehouse waste prices
 const API_BASE_URL = 'http://localhost:5000/api';
@@ -99,6 +102,8 @@ const AdminWarehouseWastePrices = () => {
     pricePerKg: '',
     adminTaxPerKg: ''
   });
+  const [showReport, setShowReport] = useState(false);
+  const [generating, setGenerating] = useState(false);
 
   useEffect(() => {
     fetchWastePrices();
@@ -250,6 +255,214 @@ const AdminWarehouseWastePrices = () => {
     return WASTE_TYPES.filter(type => !usedTypes.includes(type));
   };
 
+  const handleGenerateReport = async () => {
+    try {
+      setGenerating(true);
+      
+      if (!wastePrices || wastePrices.length === 0) {
+        toast.error('No warehouse waste price data available to generate report');
+        return;
+      }
+
+      const doc = new jsPDF('p', 'mm', 'a4');
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const pageHeight = doc.internal.pageSize.getHeight();
+      
+      // Helper function for currency formatting
+      const formatCurrency = (amount) => {
+        return `Rs.${Number(amount || 0).toFixed(2)}`;
+      };
+
+      // Header with company info
+      doc.setFillColor(16, 185, 129); // Emerald color
+      doc.rect(0, 0, pageWidth, 40, 'F');
+      
+      // Add white background circle for logo
+      doc.setFillColor(255, 255, 255); // White background
+      doc.circle(25, 20, 12, 'F'); // Larger circle for background
+      
+      // Add company logo
+      try {
+        doc.addImage(trash2cashLogo, 'PNG', 15, 10, 20, 20);
+      } catch (error) {
+        console.log('Logo could not be added:', error);
+        // Fallback to circle placeholder if logo fails
+        doc.setFillColor(255, 255, 255);
+        doc.circle(25, 20, 8, 'F');
+        doc.setFillColor(16, 185, 129);
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(16, 185, 129);
+        doc.text('T2C', 25, 22, { align: 'center' });
+      }
+      
+      // Company name and title
+      doc.setTextColor(255, 255, 255);
+      doc.setFontSize(24);
+      doc.setFont('helvetica', 'bold');
+      doc.text('TRASH2CASH', 40, 22);
+      
+      doc.setFontSize(16);
+      doc.setFont('helvetica', 'normal');
+      doc.text('Warehouse Waste Price Report', 40, 32);
+      
+      // Report metadata
+      doc.setTextColor(255, 255, 255);
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'normal');
+      const currentDate = new Date().toLocaleDateString('en-US');
+      doc.text(`Generated: ${currentDate}`, pageWidth - 20, 25, { align: 'right' });
+      doc.text(`Total Prices: ${wastePrices.length}`, pageWidth - 20, 31, { align: 'right' });
+
+      let yPosition = 55;
+
+      // Report Summary Section
+      doc.setTextColor(16, 185, 129);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(16);
+      doc.text('WAREHOUSE WASTE PRICE SUMMARY', 20, yPosition);
+      
+      doc.setDrawColor(16, 185, 129);
+      doc.setLineWidth(1);
+      doc.line(20, yPosition + 4, pageWidth - 20, yPosition + 4);
+      
+      yPosition += 20;
+
+      // Summary statistics
+      const totalWasteTypes = wastePrices.length;
+      const averageBasePrice = wastePrices.reduce((sum, price) => sum + price.pricePerKg, 0) / totalWasteTypes;
+      const averageTax = wastePrices.reduce((sum, price) => sum + price.adminTaxPerKg, 0) / totalWasteTypes;
+      const averageTotal = averageBasePrice + averageTax;
+
+      const summaryData = [
+        ['Total Waste Types', totalWasteTypes.toString()],
+        ['Average Base Price', formatCurrency(averageBasePrice)],
+        ['Average Admin Tax', formatCurrency(averageTax)],
+        ['Average Total Price', formatCurrency(averageTotal)]
+      ];
+
+      autoTable(doc, {
+        startY: yPosition,
+        head: [['Metric', 'Value']],
+        body: summaryData,
+        theme: 'grid',
+        headStyles: { 
+          fillColor: [16, 185, 129],
+          textColor: [255, 255, 255],
+          fontStyle: 'bold'
+        },
+        bodyStyles: { 
+          fillColor: [248, 250, 252],
+          textColor: [60, 60, 60]
+        },
+        alternateRowStyles: {
+          fillColor: [255, 255, 255]
+        },
+        margin: { left: 20, right: 20 }
+      });
+
+      yPosition = doc.lastAutoTable.finalY + 20;
+
+      // Price Details Section
+      if (yPosition > pageHeight - 60) {
+        doc.addPage();
+        yPosition = 20;
+      }
+
+      doc.setTextColor(16, 185, 129);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(16);
+      doc.text('DETAILED PRICE BREAKDOWN', 20, yPosition);
+      
+      doc.setDrawColor(16, 185, 129);
+      doc.setLineWidth(1);
+      doc.line(20, yPosition + 4, pageWidth - 20, yPosition + 4);
+      
+      yPosition += 15;
+
+      // Prices table
+      const pricesData = wastePrices.map(price => [
+        formatWasteTypeName(price.wasteType),
+        formatCurrency(price.pricePerKg),
+        formatCurrency(price.adminTaxPerKg),
+        formatCurrency(price.pricePerKg + price.adminTaxPerKg),
+        new Date(price.updatedAt).toLocaleDateString(),
+        price.updatedBy?.name || 'System'
+      ]);
+
+      autoTable(doc, {
+        startY: yPosition,
+        head: [['Waste Type', 'Base Price', 'Admin Tax', 'Total Price', 'Last Updated', 'Updated By']],
+        body: pricesData,
+        theme: 'grid',
+        headStyles: { 
+          fillColor: [16, 185, 129],
+          textColor: [255, 255, 255],
+          fontStyle: 'bold',
+          fontSize: 10
+        },
+        bodyStyles: { 
+          fontSize: 9,
+          textColor: [60, 60, 60]
+        },
+        alternateRowStyles: {
+          fillColor: [248, 250, 252]
+        },
+        columnStyles: {
+          0: { cellWidth: 30 }, // Waste Type
+          1: { cellWidth: 25 }, // Base Price
+          2: { cellWidth: 25 }, // Admin Tax
+          3: { cellWidth: 25 }, // Total Price
+          4: { cellWidth: 30 }, // Last Updated
+          5: { cellWidth: 35 }  // Updated By
+        },
+        margin: { left: 20, right: 20 }
+      });
+
+      // Footer
+      const finalY = doc.lastAutoTable.finalY || yPosition;
+      if (finalY > pageHeight - 40) {
+        doc.addPage();
+      }
+      
+      const footerY = pageHeight - 25;
+      doc.setDrawColor(16, 185, 129);
+      doc.setLineWidth(0.5);
+      doc.line(20, footerY - 10, pageWidth - 20, footerY - 10);
+      
+      doc.setTextColor(100, 116, 139);
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(9);
+      doc.text('TRASH2CASH | Warehouse Management System | admin@trash2cash.com', pageWidth / 2, footerY - 5, { align: 'center' });
+      
+      doc.setFontSize(8);
+      doc.text('This report is computer-generated and contains warehouse waste pricing information.', pageWidth / 2, footerY, { align: 'center' });
+      doc.text(`Report ID: WWP-${new Date().getFullYear()}${String(new Date().getMonth() + 1).padStart(2, '0')}${String(new Date().getDate()).padStart(2, '0')}-${Date.now().toString().slice(-4)}`, pageWidth / 2, footerY + 5, { align: 'center' });
+
+      // Generate filename with timestamp
+      const timestamp = new Date().toISOString().slice(0, 10);
+      const filename = `WarehouseWastePrices_Report_${timestamp}.pdf`;
+      
+      // Download the PDF
+      doc.save(filename);
+      toast.success('Warehouse waste price report generated successfully!');
+      
+    } catch (error) {
+      console.error('Error generating warehouse waste price report:', error);
+      toast.error('Failed to generate warehouse waste price report. Please try again.');
+    } finally {
+      setGenerating(false);
+    }
+  };
+
+  const handleShowReportModal = () => {
+    setShowReport(true);
+  };
+
+  const handleCloseReportModal = () => {
+    setShowReport(false);
+  };
+
   if (loading) {
     return (
       <div className="bg-white rounded-2xl shadow-xl p-8 border border-gray-100">
@@ -281,6 +494,17 @@ const AdminWarehouseWastePrices = () => {
           </div>
           
           <div className="flex items-center space-x-4">
+            <button
+              onClick={handleShowReportModal}
+              disabled={!wastePrices.length}
+              className="flex items-center space-x-2 px-4 py-2 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-lg hover:from-green-600 hover:to-green-700 transition-colors font-medium shadow-md disabled:opacity-50"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+              <span>Report</span>
+            </button>
+
             {getAvailableWasteTypes().length > 0 && (
               <button
                 onClick={() => setShowCreateForm(true)}
@@ -597,6 +821,118 @@ const AdminWarehouseWastePrices = () => {
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* Report Modal */}
+      {showReport && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-4xl w-full max-h-screen overflow-hidden flex flex-col shadow-2xl">
+            <div className="flex justify-between items-center p-6 border-b border-gray-200">
+              <div>
+                <h3 className="text-xl font-bold text-gray-900">Warehouse Waste Price Report</h3>
+                <p className="text-sm text-gray-600 mt-1">Complete warehouse waste pricing details with admin tax breakdown</p>
+              </div>
+              <div className="flex items-center space-x-3">
+                <button
+                  onClick={handleGenerateReport}
+                  disabled={generating}
+                  className="flex items-center space-x-2 px-4 py-2 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-lg hover:from-red-600 hover:to-red-700 transition-colors font-medium shadow-md disabled:opacity-50"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                  <span>{generating ? 'Generating...' : 'Download PDF'}</span>
+                </button>
+                <button
+                  onClick={handleCloseReportModal}
+                  className="text-gray-400 hover:text-gray-600 p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+            
+            <div className="flex-1 overflow-auto p-6">
+              {/* Report Preview */}
+              <div className="bg-gray-50 rounded-xl p-6">
+                <div className="mb-6">
+                  <h4 className="text-lg font-bold text-gray-900 mb-2">Report Preview</h4>
+                  <p className="text-sm text-gray-600">This preview shows what will be included in your PDF report.</p>
+                </div>
+                
+                {/* Summary Stats */}
+                <div className="bg-white rounded-lg p-4 mb-4 border border-gray-200">
+                  <h5 className="font-semibold text-gray-900 mb-3">Summary Statistics</h5>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div className="text-center">
+                      <div className="text-2xl font-bold text-emerald-600">{wastePrices.length}</div>
+                      <div className="text-xs text-gray-600">Total Waste Types</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-2xl font-bold text-blue-600">
+                        {wastePrices.length > 0 ? formatPrice(wastePrices.reduce((sum, price) => sum + price.pricePerKg, 0) / wastePrices.length) : 'Rs.0.00'}
+                      </div>
+                      <div className="text-xs text-gray-600">Avg Base Price</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-2xl font-bold text-orange-600">
+                        {wastePrices.length > 0 ? formatPrice(wastePrices.reduce((sum, price) => sum + price.adminTaxPerKg, 0) / wastePrices.length) : 'Rs.0.00'}
+                      </div>
+                      <div className="text-xs text-gray-600">Avg Admin Tax</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-2xl font-bold text-emerald-600">
+                        {wastePrices.length > 0 ? formatPrice(wastePrices.reduce((sum, price) => sum + price.pricePerKg + price.adminTaxPerKg, 0) / wastePrices.length) : 'Rs.0.00'}
+                      </div>
+                      <div className="text-xs text-gray-600">Avg Total Price</div>
+                    </div>
+                  </div>
+                </div>
+                
+                {/* Price List */}
+                <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+                  <h5 className="font-semibold text-gray-900 p-4 border-b border-gray-200">Detailed Price Breakdown</h5>
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <thead className="bg-emerald-50">
+                        <tr>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-emerald-700 uppercase tracking-wider">Waste Type</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-emerald-700 uppercase tracking-wider">Base Price</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-emerald-700 uppercase tracking-wider">Admin Tax</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-emerald-700 uppercase tracking-wider">Total Price</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-emerald-700 uppercase tracking-wider">Last Updated</th>
+                        </tr>
+                      </thead>
+                      <tbody className="bg-white divide-y divide-gray-200">
+                        {wastePrices.map((price, index) => (
+                          <tr key={price._id} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                            <td className="px-4 py-3 text-sm font-medium text-gray-900 capitalize">
+                              {formatWasteTypeName(price.wasteType)}
+                            </td>
+                            <td className="px-4 py-3 text-sm text-gray-700">
+                              {formatPrice(price.pricePerKg)}
+                            </td>
+                            <td className="px-4 py-3 text-sm text-orange-600 font-medium">
+                              {formatPrice(price.adminTaxPerKg)}
+                            </td>
+                            <td className="px-4 py-3 text-sm font-bold text-emerald-600">
+                              {formatPrice(price.pricePerKg + price.adminTaxPerKg)}
+                            </td>
+                            <td className="px-4 py-3 text-sm text-gray-600">
+                              {new Date(price.updatedAt).toLocaleDateString()}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       )}
     </div>
