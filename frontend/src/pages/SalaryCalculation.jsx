@@ -164,7 +164,7 @@ export default function SalaryCalculation() {
             Salary Calculator
           </h1>
           <p className="text-lg text-slate-600 max-w-2xl mx-auto">
-            Modern payroll management system for pickup agents with automated calculations and comprehensive reporting
+            Payroll management system for pickup agents with automated calculations and comprehensive reporting
           </p>
         </div>
 
@@ -283,15 +283,47 @@ export default function SalaryCalculation() {
                       </Select>
                     </Field>
 
-                    <Field label="Working Days" required helpText="Total working days">
+                    <Field label="Working Days" required helpText="Total working days (1-31)">
                       <Input
                         type="number"
                         value={formData.attendance.workingDays}
-                        onChange={(e) => updateFormData('attendance.workingDays', Number(e.target.value))}
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          const numValue = Number(value);
+                          
+                          // Allow empty input for user to type
+                          if (value === '') {
+                            updateFormData('attendance.workingDays', '');
+                            return;
+                          }
+                          
+                          // Validate range: 1-31
+                          if (numValue >= 1 && numValue <= 31) {
+                            updateFormData('attendance.workingDays', numValue);
+                          }
+                          // If value is 0 or negative, set to 1
+                          else if (numValue <= 0) {
+                            updateFormData('attendance.workingDays', 1);
+                          }
+                          // If value is greater than 31, set to 31
+                          else if (numValue > 31) {
+                            updateFormData('attendance.workingDays', 31);
+                          }
+                        }}
+                        onBlur={(e) => {
+                          // Ensure field is not empty on blur
+                          if (e.target.value === '' || Number(e.target.value) < 1) {
+                            updateFormData('attendance.workingDays', 22); // Default to 22 working days
+                          }
+                        }}
                         placeholder="22"
-                        min="0"
+                        min="1"
                         max="31"
-                        className="bg-white border-slate-300 focus:border-emerald-500 focus:ring-emerald-500"
+                        className={`bg-white border-slate-300 focus:border-emerald-500 focus:ring-emerald-500 ${
+                          formData.attendance.workingDays < 1 || formData.attendance.workingDays > 31 
+                            ? 'border-red-300 focus:border-red-500 focus:ring-red-500' 
+                            : ''
+                        }`}
                       />
                     </Field>
                   </div>
@@ -443,11 +475,9 @@ export default function SalaryCalculation() {
                       <Input
                         type="number"
                         value={formData.salary.perks.overtime}
-                        onChange={(e) => updateFormData('salary.perks.overtime', Number(e.target.value))}
+                        readOnly
                         placeholder="0"
-                        min="0"
-                        step="0.01"
-                        className="bg-gradient-to-r from-green-50 to-green-100 border-green-200 focus:border-green-500 focus:ring-green-500"
+                        className="bg-gradient-to-r from-slate-100 to-slate-200 border-slate-300 cursor-not-allowed"
                       />
                     </Field>
                   </div>
@@ -471,11 +501,9 @@ export default function SalaryCalculation() {
                       <Input
                         type="number"
                         value={formData.salary.deductions.noPay}
-                        onChange={(e) => updateFormData('salary.deductions.noPay', Number(e.target.value))}
+                        readOnly
                         placeholder="0"
-                        min="0"
-                        step="0.01"
-                        className="bg-gradient-to-r from-red-50 to-red-100 border-red-200 focus:border-red-500 focus:ring-red-500"
+                        className="bg-gradient-to-r from-slate-100 to-slate-200 border-slate-300 cursor-not-allowed"
                       />
                     </Field>
 

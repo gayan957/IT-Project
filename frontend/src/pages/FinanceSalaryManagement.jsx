@@ -1,7 +1,10 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
+import { toast } from 'react-hot-toast';
 import api from '../lib/api';
 import { SalaryCalculator } from '../lib/salaryCalculator';
+import jsPDF from 'jspdf';
+import logoPng from '../assets/images/logos/trash2cash_logo.png';
 
 export default function FinanceSalaryManagement() {
   const [salaries, setSalaries] = useState([]);
@@ -227,6 +230,356 @@ export default function FinanceSalaryManagement() {
     }
   };
 
+  // Salary Management Report Generation Function
+  const generateSalaryReport = () => {
+    try {
+      const doc = new jsPDF('p', 'mm', 'a4');
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const pageHeight = doc.internal.pageSize.getHeight();
+      let yPosition = 20;
+
+      // Helper function for currency formatting
+      const formatCurrency = (amount) => {
+        return `Rs. ${Number(amount || 0).toLocaleString('en-LK', {
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2
+        })}`;
+      };
+
+      // Header with company branding (similar to AgentSalarySlip)
+      doc.setFillColor(25, 46, 94);
+      doc.rect(0, 0, pageWidth, 35, 'F');
+      
+      // Company logo area
+      try {
+        doc.setFillColor(255, 255, 255);
+        doc.circle(25, 18, 8, 'F');
+        doc.addImage(logoPng, 'PNG', 19, 12, 12, 12);
+      } catch (error) {
+        // Fallback to text if logo fails to load
+        console.warn('Logo failed to load, using fallback:', error);
+        doc.setFillColor(255, 255, 255);
+        doc.circle(25, 18, 6, 'F');
+        doc.setFillColor(25, 46, 94);
+        doc.setFontSize(8);
+        doc.text('T2C', 22, 19);
+      }
+      
+      // Company name and title
+      doc.setTextColor(255, 255, 255);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(20);
+      doc.text('TRASH2CASH', 40, 16);
+      doc.setFontSize(8);
+      doc.setFont('helvetica', 'normal');
+      doc.text('No 23/A, Kandy Road, Malabe', 40, 22);
+      
+      
+      // Document title
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(14);
+      doc.text('SALARY MANAGEMENT REPORT', pageWidth - 15, 16, { align: 'right' });
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(8);
+      const currentDate = new Date().toLocaleDateString();
+      const filterText = selectedMonth || 'All Months';
+      doc.text(`Period: ${filterText}`, pageWidth - 15, 25, { align: 'right' });
+      doc.text(`Generated: ${currentDate}`, pageWidth - 15, 31, { align: 'right' });
+
+      yPosition = 50;
+
+      // Executive Summary Section
+      doc.setTextColor(25, 46, 94);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(14);
+      doc.text('SALARY SUMMARY', 20, yPosition);
+      doc.setDrawColor(25, 46, 94);
+      doc.setLineWidth(1);
+      doc.line(20, yPosition + 2, pageWidth - 20, yPosition + 2);
+      yPosition += 15;
+
+      // Calculate summary statistics
+      const totalEmployees = filteredSalaries.length;
+      const totalBasicSalary = filteredSalaries.reduce((sum, salary) => sum + (salary.salary?.basic || 0), 0);
+      const totalAllowances = filteredSalaries.reduce((sum, salary) => sum + (salary.totals?.totalAllowances || 0), 0);
+      const totalDeductions = filteredSalaries.reduce((sum, salary) => sum + (salary.totals?.totalDeductions || 0), 0);
+      const totalNetSalary = filteredSalaries.reduce((sum, salary) => sum + (salary.totals?.netSalary || 0), 0);
+      const avgNetSalary = totalEmployees > 0 ? totalNetSalary / totalEmployees : 0;
+
+      // Summary box with colored background
+      doc.setFillColor(248, 249, 252);
+      doc.rect(20, yPosition - 5, pageWidth - 40, 50, 'F');
+      doc.setDrawColor(25, 46, 94);
+      doc.setLineWidth(0.5);
+      doc.rect(20, yPosition - 5, pageWidth - 40, 50, 'S');
+
+      doc.setTextColor(51, 65, 85);
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(10);
+      
+      // Two-column layout for summary
+      const leftCol = 25, rightCol = pageWidth / 2 + 10;
+      
+      doc.text(`Total Employees: ${totalEmployees}`, leftCol, yPosition + 5);
+      doc.text(`Average Net Salary: ${formatCurrency(avgNetSalary)}`, rightCol, yPosition + 5);
+      
+      doc.text(`Total Basic Salary: ${formatCurrency(totalBasicSalary)}`, leftCol, yPosition + 15);
+      doc.text(`Total Allowances: ${formatCurrency(totalAllowances)}`, rightCol, yPosition + 15);
+      
+      doc.text(`Total Deductions: ${formatCurrency(totalDeductions)}`, leftCol, yPosition + 25);
+      doc.text(`Total Net Salary: ${formatCurrency(totalNetSalary)}`, rightCol, yPosition + 25);
+      
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(25, 46, 94);
+      doc.text(`Payroll Period: ${filterText}`, leftCol, yPosition + 35);
+
+      yPosition += 65;
+
+      // Employee Salary Details Table
+      if (filteredSalaries.length > 0) {
+        doc.setTextColor(25, 46, 94);
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(14);
+        doc.text('EMPLOYEE SALARY DETAILS', 20, yPosition);
+        yPosition += 15;
+
+        // Table headers with background
+        doc.setFillColor(25, 46, 94);
+        doc.rect(20, yPosition - 5, pageWidth - 40, 10, 'F');
+        doc.setTextColor(255, 255, 255);
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(8);
+        
+        doc.text('Employee', 25, yPosition + 2);
+        doc.text('Agent ID', 80, yPosition + 2);
+        doc.text('Month', 130, yPosition + 2);
+        doc.text('Net Salary', pageWidth - 25, yPosition + 2, { align: 'right' });
+        
+        yPosition += 15;
+
+        // Table rows
+        doc.setTextColor(51, 65, 85);
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(7);
+
+        filteredSalaries.forEach((salary, index) => {
+          if (yPosition > pageHeight - 30) {
+            doc.addPage();
+            yPosition = 20;
+          }
+
+          // Alternate row colors
+          if (index % 2 === 0) {
+            doc.setFillColor(248, 250, 252);
+            doc.rect(20, yPosition - 3, pageWidth - 40, 10, 'F');
+          }
+
+          // Truncate long names for table display
+          const displayName = salary.employee?.name?.length > 12 ? 
+            salary.employee?.name?.substring(0, 12) + '...' : salary.employee?.name || 'Unknown';
+          
+          doc.text(displayName, 25, yPosition + 3);
+          doc.text(salary.employee?.agentId || 'N/A', 80, yPosition + 3);
+          doc.text(salary.attendance?.month || 'N/A', 130, yPosition + 3);
+          doc.text(formatCurrency(salary.totals?.netSalary || 0), pageWidth - 25, yPosition + 3, { align: 'right' });
+          
+          yPosition += 10;
+        });
+
+        yPosition += 10;
+      }
+
+      // Monthly Analysis (if multiple months available)
+      if (availableMonths.length > 1) {
+        if (yPosition > pageHeight - 80) {
+          doc.addPage();
+          yPosition = 20;
+        }
+
+        doc.setTextColor(25, 46, 94);
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(14);
+        doc.text('MONTHLY ANALYSIS', 20, yPosition);
+        doc.setDrawColor(25, 46, 94);
+        doc.line(20, yPosition + 2, pageWidth - 20, yPosition + 2);
+        yPosition += 15;
+
+        const monthlyStats = availableMonths.map(month => {
+          const monthSalaries = salaries.filter(s => s.attendance?.month === month);
+          const monthTotal = monthSalaries.reduce((sum, s) => sum + (s.totals?.netSalary || 0), 0);
+          const monthEmployees = monthSalaries.length;
+          const monthAvg = monthEmployees > 0 ? monthTotal / monthEmployees : 0;
+          
+          return { month, total: monthTotal, employees: monthEmployees, average: monthAvg };
+        });
+
+        // Monthly summary table
+        doc.setFillColor(25, 46, 94);
+        doc.rect(20, yPosition - 5, pageWidth - 40, 10, 'F');
+        doc.setTextColor(255, 255, 255);
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(9);
+        
+        doc.text('Month', 25, yPosition + 2);
+        doc.text('Employees', 80, yPosition + 2);
+        doc.text('Total Salary', 120, yPosition + 2);
+        doc.text('Average', pageWidth - 25, yPosition + 2, { align: 'right' });
+        
+        yPosition += 15;
+
+        doc.setTextColor(51, 65, 85);
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(8);
+
+        monthlyStats.forEach((stat, index) => {
+          if (yPosition > pageHeight - 30) {
+            doc.addPage();
+            yPosition = 20;
+          }
+
+          if (index % 2 === 0) {
+            doc.setFillColor(248, 250, 252);
+            doc.rect(20, yPosition - 3, pageWidth - 40, 10, 'F');
+          }
+
+          doc.text(stat.month, 25, yPosition + 3);
+          doc.text(stat.employees.toString(), 80, yPosition + 3);
+          doc.text(formatCurrency(stat.total), 120, yPosition + 3);
+          doc.text(formatCurrency(stat.average), pageWidth - 25, yPosition + 3, { align: 'right' });
+          
+          yPosition += 10;
+        });
+
+        yPosition += 15;
+      }
+
+      // Performance Metrics
+      if (yPosition > pageHeight - 80) {
+        doc.addPage();
+        yPosition = 20;
+      }
+
+      doc.setTextColor(25, 46, 94);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(14);
+      doc.text('PERFORMANCE METRICS', 20, yPosition);
+      doc.setDrawColor(25, 46, 94);
+      doc.line(20, yPosition + 2, pageWidth - 20, yPosition + 2);
+      yPosition += 15;
+
+      doc.setTextColor(51, 65, 85);
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(9);
+      
+      // Calculate metrics
+      const totalOvertimeHours = filteredSalaries.reduce((sum, s) => sum + (s.attendance?.overtimeHours || 0), 0);
+      const totalWorkingDays = filteredSalaries.reduce((sum, s) => sum + (s.attendance?.workingDays || 0), 0);
+      const avgWorkingDays = totalEmployees > 0 ? totalWorkingDays / totalEmployees : 0;
+      const totalOvertimePay = filteredSalaries.reduce((sum, s) => sum + (s.salary?.perks?.overtime || 0), 0);
+      
+      // Highest and lowest salaries
+      const salaryAmounts = filteredSalaries.map(s => s.totals?.netSalary || 0).filter(s => s > 0);
+      const highestSalary = salaryAmounts.length > 0 ? Math.max(...salaryAmounts) : 0;
+      const lowestSalary = salaryAmounts.length > 0 ? Math.min(...salaryAmounts) : 0;
+      
+      doc.text(`• Total Overtime Hours: ${totalOvertimeHours} hours`, 25, yPosition);
+      yPosition += 8;
+      doc.text(`• Total Overtime Pay: ${formatCurrency(totalOvertimePay)}`, 25, yPosition);
+      yPosition += 8;
+      doc.text(`• Average Working Days per Employee: ${avgWorkingDays.toFixed(1)} days`, 25, yPosition);
+      yPosition += 8;
+      doc.text(`• Highest Net Salary: ${formatCurrency(highestSalary)}`, 25, yPosition);
+      yPosition += 8;
+      doc.text(`• Lowest Net Salary: ${formatCurrency(lowestSalary)}`, 25, yPosition);
+      yPosition += 8;
+      doc.text(`• Salary Range: ${formatCurrency(highestSalary - lowestSalary)}`, 25, yPosition);
+
+      yPosition += 20;
+
+      // Authorized Signature Section
+      if (yPosition > pageHeight - 60) {
+        doc.addPage();
+        yPosition = 20;
+      }
+
+      doc.setTextColor(25, 46, 94);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(14);
+      doc.text('AUTHORIZATION', 20, yPosition);
+      yPosition += 15;
+
+      // Signature area with professional layout
+      doc.setFillColor(248, 250, 252);
+      doc.rect(20, yPosition - 5, pageWidth - 40, 40, 'F');
+      doc.setDrawColor(25, 46, 94);
+      doc.setLineWidth(0.5);
+      doc.rect(20, yPosition - 5, pageWidth - 40, 40, 'S');
+
+      doc.setTextColor(51, 65, 85);
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(9);
+      
+      // Left side - Prepared by
+      doc.text('Prepared by:', 25, yPosition + 8);
+      doc.text('HR Department', 25, yPosition + 15);
+      doc.text(`Date: ${currentDate}`, 25, yPosition + 22);
+      
+      // Signature line
+      doc.setDrawColor(100, 100, 100);
+      doc.setLineWidth(0.5);
+      doc.line(25, yPosition + 28, 85, yPosition + 28);
+      doc.setFontSize(7);
+      doc.text('Signature', 25, yPosition + 32);
+
+      // Right side - Approved by
+      doc.setFontSize(9);
+      doc.text('Approved by:', pageWidth - 95, yPosition + 8);
+      doc.text('Finance Manager', pageWidth - 95, yPosition + 15);
+      doc.text('Date: _______________', pageWidth - 95, yPosition + 22);
+      
+      // Signature line
+      doc.line(pageWidth - 95, yPosition + 28, pageWidth - 35, yPosition + 28);
+      doc.setFontSize(7);
+      doc.text('Signature', pageWidth - 95, yPosition + 32);
+
+      yPosition += 50;
+
+      // Professional Footer
+      if (yPosition > pageHeight - 25) {
+        doc.addPage();
+        yPosition = 20;
+      }
+
+      doc.setFillColor(248, 250, 252);
+      doc.rect(0, yPosition, pageWidth, 15, 'F');
+      doc.setDrawColor(25, 46, 94);
+      doc.setLineWidth(0.3);
+      doc.line(0, yPosition, pageWidth, yPosition);
+      
+      doc.setTextColor(51, 65, 85);
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(7);
+      doc.text('TRASH2CASH | hr@trash2cash.com | +94 11 234 5678', pageWidth / 2, yPosition + 5, { align: 'center' });
+      
+      doc.setTextColor(100, 116, 139);
+      doc.setFontSize(6);
+      doc.text('Computer-generated document. For inquiries contact HR department.', pageWidth / 2, yPosition + 10, { align: 'center' });
+
+      // Generate professional filename
+      const timestamp = new Date().toISOString().slice(0, 7); // YYYY-MM format
+      const monthFilter = selectedMonth ? `_${selectedMonth.replace(/[^a-zA-Z0-9]/g, '_')}` : '_AllMonths';
+      const filename = `SalaryManagement_Report${monthFilter}_${timestamp}.pdf`;
+
+      // Save the PDF
+      doc.save(filename);
+      toast.success('Salary management report generated successfully!');
+      
+    } catch (error) {
+      console.error('Error generating salary report:', error);
+      toast.error('Failed to generate salary report. Please try again.');
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -290,9 +643,21 @@ export default function FinanceSalaryManagement() {
             </select>
           </div>
 
-          {/* Clear Filters Button */}
-          {(searchTerm || selectedMonth) && (
-            <div className="flex items-end">
+          {/* Action Buttons */}
+          <div className="flex items-end gap-3">
+            {/* Generate Report Button */}
+            <button
+              onClick={generateSalaryReport}
+              className="px-4 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-all duration-200 flex items-center gap-2 shadow-lg"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+              Generate Report
+            </button>
+
+            {/* Clear Filters Button */}
+            {(searchTerm || selectedMonth) && (
               <button
                 onClick={() => {
                   setSearchTerm('');
@@ -305,8 +670,8 @@ export default function FinanceSalaryManagement() {
                 </svg>
                 Clear
               </button>
-            </div>
-          )}
+            )}
+          </div>
         </div>
 
         {/* Search Results Summary */}
@@ -369,21 +734,25 @@ export default function FinanceSalaryManagement() {
                     <h4 className="font-semibold text-gray-800 mb-3">Employee Details</h4>
                     <div className="grid grid-cols-2 gap-4">
                       <div>
-                        <label className="text-sm text-gray-600">Name</label>
+                        <label className="text-sm text-gray-600 flex items-center gap-1">
+                          Name
+                        </label>
                         <input
                           type="text"
                           value={editData.employee?.name || ''}
-                          onChange={e => updateEditData('employee.name', e.target.value)}
-                          className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                          readOnly
+                          className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm bg-gray-100 cursor-not-allowed"
                         />
                       </div>
                       <div>
-                        <label className="text-sm text-gray-600">Agent ID</label>
+                        <label className="text-sm text-gray-600 flex items-center gap-1">
+                          Agent ID
+                        </label>
                         <input
                           type="text"
                           value={editData.employee?.agentId || ''}
-                          onChange={e => updateEditData('employee.agentId', e.target.value)}
-                          className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                          readOnly
+                          className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm bg-gray-100 cursor-not-allowed"
                         />
                       </div>
                     </div>
@@ -486,7 +855,7 @@ export default function FinanceSalaryManagement() {
                         <div>
                           <label className="text-sm text-gray-600 flex items-center gap-1">
                             Overtime Pay 
-                            <span className="text-xs bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded">Auto-calc</span>
+                            
                           </label>
                           <input
                             type="number"
@@ -516,7 +885,7 @@ export default function FinanceSalaryManagement() {
                       <div>
                         <label className="text-sm text-gray-600 flex items-center gap-1">
                           No Pay Deduction 
-                          <span className="text-xs bg-red-100 text-red-700 px-1.5 py-0.5 rounded">Auto-calc</span>
+                          
                         </label>
                         <input
                           type="number"
@@ -529,7 +898,7 @@ export default function FinanceSalaryManagement() {
                       <div>
                         <label className="text-sm text-gray-600 flex items-center gap-1">
                           EPF (8%) 
-                          <span className="text-xs bg-yellow-100 text-yellow-700 px-1.5 py-0.5 rounded">Auto-calc</span>
+                          
                         </label>
                         <input
                           type="number"
@@ -542,7 +911,7 @@ export default function FinanceSalaryManagement() {
                       <div>
                         <label className="text-sm text-gray-600 flex items-center gap-1">
                           ETF (3%) 
-                          <span className="text-xs bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded">Info Only</span>
+                          
                         </label>
                         <input
                           type="number"
@@ -566,37 +935,58 @@ export default function FinanceSalaryManagement() {
 
                   {/* Live Preview - Real-time calculations */}
                   {editPreviewCalculation && (
-                    <div className="bg-gradient-to-r from-indigo-50 to-purple-50 rounded-xl p-4 border border-indigo-200">
-                      <div className="flex items-center gap-2 mb-3">
-                        <div className="p-1.5 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-lg">
-                          <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <div className="bg-gradient-to-r from-indigo-50 to-purple-50 rounded-xl p-6 border-2 border-indigo-200 shadow-lg">
+                      <div className="flex items-center justify-center gap-2 mb-4">
+                        <div className="p-2 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-lg shadow-md">
+                          <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
                           </svg>
                         </div>
-                        <h4 className="text-sm font-semibold text-indigo-900">Live Preview - Calculations Update Automatically</h4>
+                        <h4 className="text-xs font-medium text-indigo-900">Live Preview - Calculations Update Automatically</h4>
                       </div>
-                      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-                        <div className="text-center p-2.5 bg-white/60 rounded-lg border border-white">
-                          <p className="text-xs text-indigo-600 font-medium mb-1">Basic Salary</p>
-                          <p className="text-sm font-bold text-indigo-900">{editPreviewCalculation.formattedAmounts.basic}</p>
+                      
+                      {/* Main calculation cards - responsive grid */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 mb-3">
+                        <div className="bg-white/80 rounded p-2 text-center border border-indigo-100 shadow-sm hover:shadow-md transition-shadow">
+                          <div className="text-xs font-medium text-indigo-500 uppercase tracking-wide mb-1">Basic Salary</div>
+                          <div className="text-xs font-bold text-indigo-900">{editPreviewCalculation.formattedAmounts.basic}</div>
                         </div>
-                        <div className="text-center p-2.5 bg-white/60 rounded-lg border border-white">
-                          <p className="text-xs text-green-600 font-medium mb-1">Total Allowances</p>
-                          <p className="text-sm font-bold text-green-900">{editPreviewCalculation.formattedAmounts.totalAllowances}</p>
+                        <div className="bg-white/80 rounded p-2 text-center border border-green-100 shadow-sm hover:shadow-md transition-shadow">
+                          <div className="text-xs font-medium text-green-600 uppercase tracking-wide mb-1">Total Allowances</div>
+                          <div className="text-xs font-bold text-green-800">{editPreviewCalculation.formattedAmounts.totalAllowances}</div>
                         </div>
-                        <div className="text-center p-2.5 bg-white/60 rounded-lg border border-white">
-                          <p className="text-xs text-red-600 font-medium mb-1">Total Deductions</p>
-                          <p className="text-sm font-bold text-red-900">{editPreviewCalculation.formattedAmounts.totalDeductions}</p>
+                        <div className="bg-white/80 rounded p-2 text-center border border-red-100 shadow-sm hover:shadow-md transition-shadow">
+                          <div className="text-xs font-medium text-red-600 uppercase tracking-wide mb-1">Total Deductions</div>
+                          <div className="text-xs font-bold text-red-800">{editPreviewCalculation.formattedAmounts.totalDeductions}</div>
                         </div>
-                        <div className="text-center p-2.5 bg-gradient-to-r from-blue-100 to-indigo-100 rounded-lg border-2 border-blue-300">
-                          <p className="text-xs text-blue-600 font-medium mb-1">Net Salary</p>
-                          <p className="text-sm font-bold text-blue-900">{editPreviewCalculation.formattedAmounts.netSalary}</p>
+                        <div className="bg-gradient-to-br from-blue-100 via-indigo-100 to-purple-100 rounded p-2 text-center border border-blue-300 shadow-md">
+                          <div className="text-xs font-medium text-blue-700 uppercase tracking-wide mb-1">Net Salary</div>
+                          <div className="text-sm font-bold text-blue-900">{editPreviewCalculation.formattedAmounts.netSalary}</div>
                         </div>
                       </div>
-                      <div className="mt-3 text-xs text-indigo-600 bg-white/40 rounded-lg p-2.5">
-                        💡 <strong>Auto-calculated:</strong> EPF Employee: {SalaryCalculator.formatCurrency(editPreviewCalculation.statutory.epfEmployee)} | 
-                        EPF Employer: {SalaryCalculator.formatCurrency(editPreviewCalculation.statutory.epfEmployer)} | 
-                        ETF Employer: {SalaryCalculator.formatCurrency(editPreviewCalculation.statutory.etfEmployer)}
+                      
+                      {/* Statutory breakdown */}
+                      <div className="bg-white/50 rounded-lg p-3 border border-indigo-200">
+                        <div className="flex items-center justify-center gap-2 mb-2">
+                          <svg className="w-3 h-3 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                          <span className="text-xs font-medium text-indigo-800">Auto-calculated Statutory Contributions</span>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-2 text-center">
+                          <div className="bg-yellow-50 rounded p-2 border border-yellow-200">
+                            <div className="text-xs font-medium text-yellow-700">EPF Employee (8%)</div>
+                            <div className="text-xs font-bold text-yellow-800">{SalaryCalculator.formatCurrency(editPreviewCalculation.statutory.epfEmployee)}</div>
+                          </div>
+                          <div className="bg-blue-50 rounded p-2 border border-blue-200">
+                            <div className="text-xs font-medium text-blue-700">EPF Employer (12%)</div>
+                            <div className="text-xs font-bold text-blue-800">{SalaryCalculator.formatCurrency(editPreviewCalculation.statutory.epfEmployer)}</div>
+                          </div>
+                          <div className="bg-purple-50 rounded p-2 border border-purple-200">
+                            <div className="text-xs font-medium text-purple-700">ETF Employer (3%)</div>
+                            <div className="text-xs font-bold text-purple-800">{SalaryCalculator.formatCurrency(editPreviewCalculation.statutory.etfEmployer)}</div>
+                          </div>
+                        </div>
                       </div>
                     </div>
                   )}

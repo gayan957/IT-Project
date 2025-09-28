@@ -1,8 +1,119 @@
 import { useAuth } from '../lib/auth';
-import { Link, Outlet } from 'react-router-dom';
+import { Link, Outlet, useLocation } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { toast } from 'react-hot-toast';
+import api from '../lib/api';
 
 export default function FinanceManagementDashboard() {
   const { user, logout } = useAuth();
+  const location = useLocation();
+  
+  // State for financial data
+  const [financeData, setFinanceData] = useState({
+    totalRevenue: 0,
+    monthlyRevenue: 0,
+    totalOrders: 0,
+    activeUsers: 0,
+    totalSalaries: 0,
+    operationalCosts: 0,
+    profitMargin: 0,
+    loading: true
+  });
+  
+  // Check if we're on the main dashboard route
+  const isMainDashboard = location.pathname === '/admin/finance' || location.pathname === '/admin/finance/';
+
+  // Fetch financial data
+  useEffect(() => {
+    if (isMainDashboard) {
+      fetchFinancialData();
+    }
+  }, [isMainDashboard]);
+
+  const fetchFinancialData = async () => {
+    try {
+      setFinanceData(prev => ({ ...prev, loading: true }));
+
+      // Fetch multiple data sources in parallel
+      const [
+        wasteOrdersResponse,
+        salariesResponse,
+        usersResponse,
+        wastePricesResponse
+      ] = await Promise.all([
+        // Waste orders for revenue calculation
+        api.get('/api/orderWaste').catch(() => ({ data: { orders: [] } })),
+        
+        // Salary data
+        api.get('/api/salary').catch(() => ({ data: { salaries: [] } })),
+        
+        // Users count
+        api.get('/api/admin/users').catch(() => ({ data: { users: [] } })),
+        
+        // Waste prices for operational insights
+        api.get('/api/waste-prices').catch(() => ({ data: { wastePrices: [] } }))
+      ]);
+
+      // Calculate financial metrics
+      const orders = wasteOrdersResponse.data?.orders || [];
+      const salaries = salariesResponse.data?.salaries || [];
+      const users = usersResponse.data?.users || [];
+
+      // Total revenue from service charges
+      const totalRevenue = orders.reduce((sum, order) => {
+        return sum + (order.adminTaxAmount || 0);
+      }, 0);
+
+      // Monthly revenue (current month)
+      const currentMonth = new Date().getMonth();
+      const currentYear = new Date().getFullYear();
+      const monthlyRevenue = orders
+        .filter(order => {
+          const orderDate = new Date(order.createdAt);
+          return orderDate.getMonth() === currentMonth && orderDate.getFullYear() === currentYear;
+        })
+        .reduce((sum, order) => sum + (order.adminTaxAmount || 0), 0);
+
+      // Total orders count
+      const totalOrders = orders.length;
+
+      // Active users (users with recent activity)
+      const activeUsers = users.filter(user => {
+        if (!user.lastLogin) return false;
+        const lastLogin = new Date(user.lastLogin);
+        const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+        return lastLogin >= thirtyDaysAgo;
+      }).length;
+
+      // Total salaries
+      const totalSalaries = salaries.reduce((sum, salary) => {
+        return sum + (salary.totalSalary || salary.amount || 0);
+      }, 0);
+
+      // Estimate operational costs (40% of revenue + salaries)
+      const operationalCosts = (totalRevenue * 0.4) + totalSalaries;
+
+      // Calculate profit margin
+      const netProfit = totalRevenue - operationalCosts;
+      const profitMargin = totalRevenue > 0 ? (netProfit / totalRevenue) * 100 : 0;
+
+      setFinanceData({
+        totalRevenue,
+        monthlyRevenue,
+        totalOrders,
+        activeUsers: activeUsers || users.length, // Fallback to total users if no activity data
+        totalSalaries,
+        operationalCosts,
+        profitMargin,
+        loading: false
+      });
+
+    } catch (error) {
+      console.error('Error fetching financial data:', error);
+      toast.error('Failed to load financial data');
+      setFinanceData(prev => ({ ...prev, loading: false }));
+    }
+  };
 
   const navigationSections = [
     {
@@ -135,38 +246,7 @@ export default function FinanceManagementDashboard() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
-      <header className="shadow-lg border-b border-gray-200 backdrop-blur-sm bg-white/95">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-20">
-            <div className="flex items-center space-x-4">
-              <div className="w-12 h-12 bg-gradient-to-br from-green-500 to-emerald-600 rounded-2xl flex items-center justify-center shadow-lg">
-                <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-              </div>
-              <div>
-                <h1 className="text-2xl font-bold bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent">Finance Hub</h1>
-                <p className="text-gray-600 text-sm font-medium">Comprehensive Financial Management System</p>
-              </div>
-            </div>
-            
-            <div className="flex items-center space-x-4">
-              <Link
-                to="/admin/dashboard"
-                className="flex items-center space-x-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-xl font-medium hover:bg-gray-200 transition-all duration-200"
-              >
-                <span>Admin Dashboard</span>
-              </Link>
-              <button
-                onClick={logout}
-                className="flex items-center space-x-2 px-4 py-2 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-xl font-medium hover:from-red-600 hover:to-red-700 transition-all duration-200 transform hover:scale-105 shadow-lg"
-              >
-                <span>Logout</span>
-              </button>
-            </div>
-          </div>
-        </div>
-      </header>
+      
 
       <div className="flex">
         <aside className="w-80 bg-white/90 backdrop-blur-sm shadow-2xl min-h-[calc(100vh-80px)] border-r border-gray-200">
@@ -189,57 +269,330 @@ export default function FinanceManagementDashboard() {
                   {section.title}
                 </h3>
                 <div className="space-y-1">
-                  {section.items.map((item, itemIndex) => (
-                    item.path ? (
-                      <Link
-                        key={itemIndex}
-                        to={item.path}
-                        className="group flex items-center space-x-3 px-3 py-2 rounded-xl transition-all duration-300 hover:bg-gradient-to-r hover:from-green-50 hover:to-emerald-50 hover:scale-105"
-                      >
-                        <span className="text-lg group-hover:scale-110 transition-transform duration-300">
-                          {item.icon}
-                        </span>
-                        <div className="flex-1 min-w-0">
-                          <p className="font-medium text-gray-900 text-sm group-hover:text-green-700 transition-colors">
-                            {item.label}
-                          </p>
-                          <p className="text-xs text-gray-500 group-hover:text-green-600 transition-colors truncate">
-                            {item.description}
-                          </p>
-                        </div>
-                        <svg className="w-4 h-4 text-gray-400 group-hover:text-green-600 transition-colors duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                        </svg>
-                      </Link>
-                    ) : (
-                      <div
-                        key={itemIndex}
-                        className="group flex items-center space-x-3 px-3 py-2 rounded-xl transition-all duration-300 text-gray-400 cursor-not-allowed"
-                      >
-                        <span className="text-lg">
-                          {item.icon}
-                        </span>
-                        <div className="flex-1 min-w-0">
-                          <p className="font-medium text-sm">
-                            {item.label}
-                          </p>
-                          <p className="text-xs truncate">
-                            {item.description}
-                          </p>
-                        </div>
-                        <span className="text-xs bg-gray-100 px-2 py-1 rounded">Coming Soon</span>
+                  {section.items.filter(item => item.path).map((item, itemIndex) => (
+                    <Link
+                      key={itemIndex}
+                      to={item.path}
+                      className="group flex items-center space-x-3 px-3 py-2 rounded-xl transition-all duration-300 hover:bg-gradient-to-r hover:from-green-50 hover:to-emerald-50 hover:scale-105"
+                    >
+                      <span className="text-lg group-hover:scale-110 transition-transform duration-300">
+                        {item.icon}
+                      </span>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-gray-900 text-sm group-hover:text-green-700 transition-colors">
+                          {item.label}
+                        </p>
+                        <p className="text-xs text-gray-500 group-hover:text-green-600 transition-colors truncate">
+                          {item.description}
+                        </p>
                       </div>
-                    )
+                      <svg className="w-4 h-4 text-gray-400 group-hover:text-green-600 transition-colors duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                      </svg>
+                    </Link>
                   ))}
                 </div>
               </div>
             ))}
+            
+            {/* Navigation Actions */}
+            <div className="space-y-2 border-t border-gray-200 pt-4">
+              <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider px-3 py-1">
+                Actions
+              </h3>
+              <div className="space-y-1">
+                <Link
+                  to="/admin/dashboard"
+                  className="group flex items-center space-x-3 px-3 py-2 rounded-xl transition-all duration-300 hover:bg-gradient-to-r hover:from-blue-50 hover:to-indigo-50 hover:scale-105"
+                >
+                  <span className="text-lg group-hover:scale-110 transition-transform duration-300">
+                    🏠
+                  </span>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium text-gray-900 text-sm group-hover:text-blue-700 transition-colors">
+                      Admin Dashboard
+                    </p>
+                    <p className="text-xs text-gray-500 group-hover:text-blue-600 transition-colors truncate">
+                      Return to main admin panel
+                    </p>
+                  </div>
+                  <svg className="w-4 h-4 text-gray-400 group-hover:text-blue-600 transition-colors duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                </Link>
+                
+                <button
+                  onClick={logout}
+                  className="group w-full flex items-center space-x-3 px-3 py-2 rounded-xl transition-all duration-300 hover:bg-gradient-to-r hover:from-red-50 hover:to-red-100 hover:scale-105"
+                >
+                  <span className="text-lg group-hover:scale-110 transition-transform duration-300">
+                    🚪
+                  </span>
+                  <div className="flex-1 min-w-0 text-left">
+                    <p className="font-medium text-gray-900 text-sm group-hover:text-red-700 transition-colors">
+                      Logout
+                    </p>
+                    <p className="text-xs text-gray-500 group-hover:text-red-600 transition-colors truncate">
+                      Sign out of your account
+                    </p>
+                  </div>
+                  <svg className="w-4 h-4 text-gray-400 group-hover:text-red-600 transition-colors duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                  </svg>
+                </button>
+              </div>
+            </div>
           </nav>
         </aside>
 
         <main className="flex-1 p-8">
-          <Outlet />
+          {isMainDashboard ? (
+            <FinanceDashboardContent 
+              financeData={financeData} 
+              onRefresh={fetchFinancialData}
+            />
+          ) : (
+            <Outlet />
+          )}
         </main>
+      </div>
+    </div>
+  );
+}
+
+// Finance Dashboard Content Component
+function FinanceDashboardContent({ financeData, onRefresh }) {
+  const formatCurrency = (amount) => {
+    return new Intl.NumberFormat('en-LK', {
+      style: 'currency',
+      currency: 'LKR',
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    }).format(amount);
+  };
+
+  const formatNumber = (num) => {
+    return new Intl.NumberFormat('en-US').format(num);
+  };
+
+  if (financeData.loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Loading financial data...</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-8">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900">Finance Dashboard</h1>
+          <p className="text-gray-600 mt-1">Comprehensive financial overview and key metrics</p>
+        </div>
+        <button
+          onClick={onRefresh}
+          className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors flex items-center gap-2"
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+          </svg>
+          Refresh
+        </button>
+      </div>
+
+      {/* Key Metrics Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        {/* Total Revenue Card */}
+        <div className="bg-white rounded-2xl shadow-lg p-6 border border-gray-100 hover:shadow-xl transition-all duration-300">
+          <div className="flex items-center justify-between">
+            <div className="flex-1">
+              <p className="text-sm font-medium text-gray-600 uppercase tracking-wide">Total Revenue</p>
+              <p className="text-2xl font-bold text-gray-900 mt-2">{formatCurrency(financeData.totalRevenue)}</p>
+              <div className="flex items-center mt-2">
+                <svg className="w-4 h-4 text-green-500 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+                </svg>
+                <span className="text-sm text-green-600 font-medium">All time service charges</span>
+              </div>
+            </div>
+            <div className="p-3 bg-emerald-100 rounded-xl">
+              <svg className="w-6 h-6 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
+              </svg>
+            </div>
+          </div>
+        </div>
+
+        {/* Monthly Revenue Card */}
+        <div className="bg-white rounded-2xl shadow-lg p-6 border border-gray-100 hover:shadow-xl transition-all duration-300">
+          <div className="flex items-center justify-between">
+            <div className="flex-1">
+              <p className="text-sm font-medium text-gray-600 uppercase tracking-wide">Monthly Revenue</p>
+              <p className="text-2xl font-bold text-gray-900 mt-2">{formatCurrency(financeData.monthlyRevenue)}</p>
+              <div className="flex items-center mt-2">
+                <svg className="w-4 h-4 text-blue-500 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+                <span className="text-sm text-blue-600 font-medium">Current month</span>
+              </div>
+            </div>
+            <div className="p-3 bg-blue-100 rounded-xl">
+              <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+              </svg>
+            </div>
+          </div>
+        </div>
+
+        {/* Total Orders Card */}
+        <div className="bg-white rounded-2xl shadow-lg p-6 border border-gray-100 hover:shadow-xl transition-all duration-300">
+          <div className="flex items-center justify-between">
+            <div className="flex-1">
+              <p className="text-sm font-medium text-gray-600 uppercase tracking-wide">Total Orders</p>
+              <p className="text-2xl font-bold text-gray-900 mt-2">{formatNumber(financeData.totalOrders)}</p>
+              <div className="flex items-center mt-2">
+                <svg className="w-4 h-4 text-purple-500 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+                </svg>
+                <span className="text-sm text-purple-600 font-medium">Waste orders processed</span>
+              </div>
+            </div>
+            <div className="p-3 bg-purple-100 rounded-xl">
+              <svg className="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+            </div>
+          </div>
+        </div>
+
+        {/* Active Users Card */}
+        <div className="bg-white rounded-2xl shadow-lg p-6 border border-gray-100 hover:shadow-xl transition-all duration-300">
+          <div className="flex items-center justify-between">
+            <div className="flex-1">
+              <p className="text-sm font-medium text-gray-600 uppercase tracking-wide">Active Users</p>
+              <p className="text-2xl font-bold text-gray-900 mt-2">{formatNumber(financeData.activeUsers)}</p>
+              <div className="flex items-center mt-2">
+                <svg className="w-4 h-4 text-orange-500 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                </svg>
+                <span className="text-sm text-orange-600 font-medium">Last 30 days</span>
+              </div>
+            </div>
+            <div className="p-3 bg-orange-100 rounded-xl">
+              <svg className="w-6 h-6 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z" />
+              </svg>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Financial Breakdown Cards */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Total Salaries */}
+        <div className="bg-white rounded-2xl shadow-lg p-6 border border-gray-100">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold text-gray-900">Total Salaries</h3>
+            <div className="p-2 bg-red-100 rounded-lg">
+              <svg className="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
+              </svg>
+            </div>
+          </div>
+          <p className="text-2xl font-bold text-gray-900">{formatCurrency(financeData.totalSalaries)}</p>
+          <p className="text-sm text-gray-600 mt-2">Employee payroll expenses</p>
+        </div>
+
+        {/* Operational Costs */}
+        <div className="bg-white rounded-2xl shadow-lg p-6 border border-gray-100">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold text-gray-900">Operational Costs</h3>
+            <div className="p-2 bg-yellow-100 rounded-lg">
+              <svg className="w-5 h-5 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+              </svg>
+            </div>
+          </div>
+          <p className="text-2xl font-bold text-gray-900">{formatCurrency(financeData.operationalCosts)}</p>
+          <p className="text-sm text-gray-600 mt-2">Including salaries & overhead</p>
+        </div>
+
+        {/* Profit Margin */}
+        <div className="bg-white rounded-2xl shadow-lg p-6 border border-gray-100">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold text-gray-900">Profit Margin</h3>
+            <div className={`p-2 rounded-lg ${financeData.profitMargin >= 0 ? 'bg-green-100' : 'bg-red-100'}`}>
+              <svg className={`w-5 h-5 ${financeData.profitMargin >= 0 ? 'text-green-600' : 'text-red-600'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={financeData.profitMargin >= 0 ? "M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" : "M13 17h8m0 0V9m0 8l-8-8-4 4-6-6"} />
+              </svg>
+            </div>
+          </div>
+          <p className={`text-2xl font-bold ${financeData.profitMargin >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+            {financeData.profitMargin.toFixed(1)}%
+          </p>
+          <p className="text-sm text-gray-600 mt-2">
+            {financeData.profitMargin >= 0 ? 'Healthy profit margin' : 'Loss margin'}
+          </p>
+        </div>
+      </div>
+
+      {/* Quick Actions */}
+      <div className="bg-white rounded-2xl shadow-lg p-6 border border-gray-100">
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h3>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <Link
+            to="/admin/finance/analytics"
+            className="flex flex-col items-center p-4 border border-gray-200 rounded-xl hover:bg-emerald-50 hover:border-emerald-200 transition-all duration-200 group"
+          >
+            <div className="p-2 bg-emerald-100 rounded-lg group-hover:bg-emerald-200 transition-colors">
+              <svg className="w-6 h-6 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+              </svg>
+            </div>
+            <span className="text-sm font-medium text-gray-700 mt-2 text-center">Revenue Analytics</span>
+          </Link>
+
+          <Link
+            to="/admin/finance/salaries"
+            className="flex flex-col items-center p-4 border border-gray-200 rounded-xl hover:bg-blue-50 hover:border-blue-200 transition-all duration-200 group"
+          >
+            <div className="p-2 bg-blue-100 rounded-lg group-hover:bg-blue-200 transition-colors">
+              <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
+              </svg>
+            </div>
+            <span className="text-sm font-medium text-gray-700 mt-2 text-center">Manage Salaries</span>
+          </Link>
+
+          <Link
+            to="/admin/finance/waste-orders"
+            className="flex flex-col items-center p-4 border border-gray-200 rounded-xl hover:bg-purple-50 hover:border-purple-200 transition-all duration-200 group"
+          >
+            <div className="p-2 bg-purple-100 rounded-lg group-hover:bg-purple-200 transition-colors">
+              <svg className="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+            </div>
+            <span className="text-sm font-medium text-gray-700 mt-2 text-center">Waste Orders</span>
+          </Link>
+
+          <Link
+            to="/admin/dashboard/waste-prices"
+            className="flex flex-col items-center p-4 border border-gray-200 rounded-xl hover:bg-orange-50 hover:border-orange-200 transition-all duration-200 group"
+          >
+            <div className="p-2 bg-orange-100 rounded-lg group-hover:bg-orange-200 transition-colors">
+              <svg className="w-6 h-6 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
+              </svg>
+            </div>
+            <span className="text-sm font-medium text-gray-700 mt-2 text-center">Manage Prices</span>
+          </Link>
+        </div>
       </div>
     </div>
   );

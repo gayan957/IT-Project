@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { toast } from 'react-hot-toast';
-import { getAllWasteOrders, getWasteOrderStats } from '../lib/adminWasteOrdersApi';
+import { getAllWasteOrders } from '../lib/adminWasteOrdersApi';
+import jsPDF from 'jspdf';
+import logoPng from '../assets/images/logos/trash2cash_logo.png';
 
 const RevenueAnalytics = () => {
   const [orderWasteData, setOrderWasteData] = useState([]);
@@ -14,7 +16,6 @@ const RevenueAnalytics = () => {
     avgServiceCharge: 0,
     wasteTypeBreakdown: {}
   });
-  const [overallStats, setOverallStats] = useState({});
 
   useEffect(() => {
     fetchOrderWasteData();
@@ -78,11 +79,8 @@ const RevenueAnalytics = () => {
     try {
       setLoading(true);
       
-      // Fetch both orders and statistics
-      const [ordersResponse, statsResponse] = await Promise.all([
-        getAllWasteOrders(1, 1000, 'all'),
-        getWasteOrderStats()
-      ]);
+      // Fetch orders
+      const ordersResponse = await getAllWasteOrders(1, 1000, 'all');
       
       if (ordersResponse.success) {
         let orders = ordersResponse.data.orders || [];
@@ -94,10 +92,6 @@ const RevenueAnalytics = () => {
         calculateRevenueStats(orders);
       } else {
         toast.error(ordersResponse.error || 'Failed to load revenue data');
-      }
-
-      if (statsResponse.success) {
-        setOverallStats(statsResponse.data || {});
       }
     } catch (error) {
       console.error('Error fetching order waste data:', error);
@@ -171,6 +165,326 @@ const RevenueAnalytics = () => {
     setRevenueStats(stats);
   };
 
+  // Revenue Report Generation Function
+  const generateRevenueReport = () => {
+    try {
+      const doc = new jsPDF('p', 'mm', 'a4');
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const pageHeight = doc.internal.pageSize.getHeight();
+      let yPosition = 20;
+
+      // Header
+      doc.setFillColor(16, 185, 129); // Emerald color
+      doc.rect(0, 0, pageWidth, 40, 'F');
+      
+      // Company logo and title
+      try {
+        // Add white circular background for logo visibility
+        doc.setFillColor(255, 255, 255);
+        doc.circle(25, 20, 8, 'F');
+        
+        // Add the Trash2Cash logo
+        doc.addImage(logoPng, 'PNG', 19, 14, 12, 12);
+      } catch (error) {
+        // Fallback to text if logo fails to load
+        console.warn('Logo failed to load, using fallback:', error);
+        doc.setFillColor(255, 255, 255);
+        doc.circle(25, 20, 6, 'F');
+        doc.setFillColor(16, 185, 129);
+        doc.setFontSize(8);
+        doc.text('T2C', 22, 22);
+      }
+      
+      // Company title next to logo
+      doc.setTextColor(255, 255, 255);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(24);
+      doc.text('Trash2Cash', 40, 18);
+      
+      // Company address
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(10);
+      doc.text('No 23/A, Kandy Road, Malabe', 40, 26);
+      
+      doc.setFontSize(12);
+      doc.text('Revenue Analytics Report', 40, 34);
+      
+      // Date and period info
+      doc.setFontSize(10);
+      const currentDate = new Date().toLocaleDateString();
+      const periodText = filter === 'all' ? 'All Time' : 
+                        filter === 'this-month' ? 'This Month' :
+                        filter === 'last-month' ? 'Last Month' : 'This Year';
+      
+      doc.text(`Generated: ${currentDate}`, pageWidth - 20, 20, { align: 'right' });
+      doc.text(`Period: ${periodText}`, pageWidth - 20, 30, { align: 'right' });
+
+      yPosition = 60;
+
+      // Executive Summary
+      doc.setTextColor(0, 0, 0);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(16);
+      doc.text('Executive Summary', 20, yPosition);
+      yPosition += 15;
+
+      // Summary box
+      doc.setFillColor(248, 250, 252);
+      doc.rect(20, yPosition - 5, pageWidth - 40, 45, 'F');
+      doc.setDrawColor(200, 200, 200);
+      doc.rect(20, yPosition - 5, pageWidth - 40, 45);
+
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(11);
+      
+      doc.text(`Total Service Charge Revenue: ${formatCurrency(revenueStats.totalServiceCharge)}`, 25, yPosition + 8);
+      doc.text(`Total Order Value: ${formatCurrency(revenueStats.totalOrderValue)}`, 25, yPosition + 18);
+      doc.text(`Total Orders Processed: ${revenueStats.totalOrders}`, 25, yPosition + 28);
+      doc.text(`Average Service Charge: ${formatCurrency(revenueStats.avgServiceCharge)}`, 25, yPosition + 38);
+
+      yPosition += 60;
+
+      // Revenue Breakdown by Waste Type
+      if (Object.keys(revenueStats.wasteTypeBreakdown).length > 0) {
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(14);
+        doc.text('Revenue Breakdown by Waste Type', 20, yPosition);
+        yPosition += 15;
+
+        // Table headers
+        doc.setFillColor(16, 185, 129);
+        doc.rect(20, yPosition - 5, pageWidth - 40, 10, 'F');
+        doc.setTextColor(255, 255, 255);
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(10);
+        
+        doc.text('Waste Type', 25, yPosition + 2);
+        doc.text('Orders', 70, yPosition + 2);
+        doc.text('Weight (kg)', 100, yPosition + 2);
+        doc.text('Service Charge', 135, yPosition + 2);
+        doc.text('Percentage', 170, yPosition + 2);
+        
+        yPosition += 15;
+
+        // Table rows
+        doc.setTextColor(0, 0, 0);
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(9);
+
+        Object.entries(revenueStats.wasteTypeBreakdown).forEach(([wasteType, data], index) => {
+          if (yPosition > pageHeight - 30) {
+            doc.addPage();
+            yPosition = 20;
+          }
+
+          // Alternate row colors
+          if (index % 2 === 0) {
+            doc.setFillColor(248, 250, 252);
+            doc.rect(20, yPosition - 3, pageWidth - 40, 10, 'F');
+          }
+
+          const percentage = revenueStats.totalServiceCharge > 0 ? 
+            (data.serviceCharge / revenueStats.totalServiceCharge * 100).toFixed(1) : '0.0';
+          
+          doc.text(wasteType.charAt(0).toUpperCase() + wasteType.slice(1), 25, yPosition + 3);
+          doc.text(data.count.toString(), 70, yPosition + 3);
+          doc.text(data.weight.toFixed(1), 100, yPosition + 3);
+          doc.text(formatCurrency(data.serviceCharge), 135, yPosition + 3);
+          doc.text(`${percentage}%`, 170, yPosition + 3);
+          
+          yPosition += 10;
+        });
+
+        yPosition += 10;
+      }
+
+      // Top Recyclers (if available)
+      if (Object.keys(revenueStats.recyclerBreakdown).length > 0) {
+        if (yPosition > pageHeight - 60) {
+          doc.addPage();
+          yPosition = 20;
+        }
+
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(14);
+        doc.text('Top Recyclers by Revenue', 20, yPosition);
+        yPosition += 15;
+
+        // Sort recyclers by service charge and take top 10
+        const topRecyclers = Object.entries(revenueStats.recyclerBreakdown)
+          .sort((a, b) => b[1].serviceCharge - a[1].serviceCharge)
+          .slice(0, 10);
+
+        // Table headers
+        doc.setFillColor(16, 185, 129);
+        doc.rect(20, yPosition - 5, pageWidth - 40, 10, 'F');
+        doc.setTextColor(255, 255, 255);
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(10);
+        
+        doc.text('Recycler', 25, yPosition + 2);
+        doc.text('Orders', 100, yPosition + 2);
+        doc.text('Service Charge', 130, yPosition + 2);
+        doc.text('Total Value', 170, yPosition + 2);
+        
+        yPosition += 15;
+
+        // Table rows
+        doc.setTextColor(0, 0, 0);
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(9);
+
+        topRecyclers.forEach(([recyclerName, data], index) => {
+          if (yPosition > pageHeight - 30) {
+            doc.addPage();
+            yPosition = 20;
+          }
+
+          // Alternate row colors
+          if (index % 2 === 0) {
+            doc.setFillColor(248, 250, 252);
+            doc.rect(20, yPosition - 3, pageWidth - 40, 10, 'F');
+          }
+
+          // Truncate long names
+          const displayName = recyclerName.length > 25 ? 
+            recyclerName.substring(0, 25) + '...' : recyclerName;
+          
+          doc.text(displayName, 25, yPosition + 3);
+          doc.text(data.count.toString(), 100, yPosition + 3);
+          doc.text(formatCurrency(data.serviceCharge), 130, yPosition + 3);
+          doc.text(formatCurrency(data.totalValue), 170, yPosition + 3);
+          
+          yPosition += 10;
+        });
+
+        yPosition += 15;
+      }
+
+      // Performance Analytics
+      if (yPosition > pageHeight - 80) {
+        doc.addPage();
+        yPosition = 20;
+      }
+
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(14);
+      doc.text('Performance Analytics', 20, yPosition);
+      yPosition += 15;
+
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(10);
+      
+      // Calculate additional metrics
+      const totalWeight = Object.values(revenueStats.wasteTypeBreakdown)
+        .reduce((sum, data) => sum + data.weight, 0);
+      const avgWeightPerOrder = revenueStats.totalOrders > 0 ? totalWeight / revenueStats.totalOrders : 0;
+      const revenuePerKg = totalWeight > 0 ? revenueStats.totalServiceCharge / totalWeight : 0;
+      
+      // Status breakdown
+      const completedOrders = revenueStats.statusBreakdown?.completed || 0;
+      const completionRate = revenueStats.totalOrders > 0 ? 
+        (completedOrders / revenueStats.totalOrders * 100) : 0;
+      
+      doc.text(`• Total Weight Processed: ${totalWeight.toFixed(1)} kg`, 25, yPosition);
+      yPosition += 8;
+      doc.text(`• Average Weight per Order: ${avgWeightPerOrder.toFixed(2)} kg`, 25, yPosition);
+      yPosition += 8;
+      doc.text(`• Revenue per Kilogram: ${formatCurrency(revenuePerKg)}`, 25, yPosition);
+      yPosition += 8;
+      doc.text(`• Order Completion Rate: ${completionRate.toFixed(1)}%`, 25, yPosition);
+      yPosition += 8;
+      
+      // Most profitable waste type
+      const mostProfitableWaste = Object.entries(revenueStats.wasteTypeBreakdown)
+        .sort((a, b) => b[1].serviceCharge - a[1].serviceCharge)[0];
+      
+      if (mostProfitableWaste) {
+        doc.text(`• Most Profitable Waste Type: ${mostProfitableWaste[0]} (${formatCurrency(mostProfitableWaste[1].serviceCharge)})`, 25, yPosition);
+      }
+
+      yPosition += 20;
+
+      // Authorized Signature Section
+      if (yPosition > pageHeight - 70) {
+        doc.addPage();
+        yPosition = 20;
+      }
+
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(14);
+      doc.text('Authorization', 20, yPosition);
+      yPosition += 20;
+
+      // Signature area with box
+      doc.setFillColor(248, 250, 252);
+      doc.rect(20, yPosition - 5, pageWidth - 40, 40, 'F');
+      doc.setDrawColor(200, 200, 200);
+      doc.rect(20, yPosition - 5, pageWidth - 40, 40);
+
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(10);
+      doc.setTextColor(0, 0, 0);
+      
+      // Left side - Prepared by
+      doc.text('Prepared by:', 25, yPosition + 5);
+      doc.text('Finance Department', 25, yPosition + 12);
+      doc.text(`Date: ${currentDate}`, 25, yPosition + 19);
+      
+      // Signature line for prepared by
+      doc.setDrawColor(100, 100, 100);
+      doc.setLineWidth(0.5);
+      doc.line(25, yPosition + 25, 85, yPosition + 25);
+      doc.setFontSize(8);
+      doc.text('Signature', 25, yPosition + 29);
+
+      // Right side - Approved by
+      doc.setFontSize(10);
+      doc.text('Approved by:', pageWidth - 95, yPosition + 5);
+      doc.text('Manager/Director', pageWidth - 95, yPosition + 12);
+      doc.text(`Date: _______________`, pageWidth - 95, yPosition + 19);
+      
+      // Signature line for approved by
+      doc.line(pageWidth - 95, yPosition + 25, pageWidth - 35, yPosition + 25);
+      doc.setFontSize(8);
+      doc.text('Signature', pageWidth - 95, yPosition + 29);
+
+      yPosition += 50;
+
+      // Footer
+      if (yPosition > pageHeight - 30) {
+        doc.addPage();
+        yPosition = 20;
+      }
+
+      doc.setDrawColor(16, 185, 129);
+      doc.setLineWidth(1);
+      doc.line(20, yPosition, pageWidth - 20, yPosition);
+      
+      yPosition += 10;
+      doc.setFont('helvetica', 'italic');
+      doc.setFontSize(8);
+      doc.setTextColor(100, 100, 100);
+      doc.text('This report was generated automatically by Trash2Cash Revenue Analytics System', 20, yPosition);
+      doc.text(`Generated on ${currentDate}`, pageWidth - 20, yPosition, { align: 'right' });
+
+      // Generate filename
+      const filterText = filter === 'all' ? 'AllTime' : 
+                        filter === 'this-month' ? 'ThisMonth' :
+                        filter === 'last-month' ? 'LastMonth' : 'ThisYear';
+      const dateStr = new Date().toISOString().split('T')[0];
+      const filename = `Revenue_Analytics_Report_${filterText}_${dateStr}.pdf`;
+
+      // Save the PDF
+      doc.save(filename);
+      toast.success('Revenue report generated successfully!');
+      
+    } catch (error) {
+      console.error('Error generating revenue report:', error);
+      toast.error('Failed to generate revenue report. Please try again.');
+    }
+  };
+
   const formatCurrency = (amount) => {
     return `Rs${amount.toFixed(2)}`;
   };
@@ -199,14 +513,7 @@ const RevenueAnalytics = () => {
     );
   };
 
-  // Prepare data for pie chart
-  const pieChartData = Object.entries(revenueStats.wasteTypeBreakdown).map(([wasteType, data]) => ({
-    name: wasteType.charAt(0).toUpperCase() + wasteType.slice(1),
-    value: data.serviceCharge,
-    percentage: revenueStats.totalServiceCharge > 0 ? (data.serviceCharge / revenueStats.totalServiceCharge * 100) : 0
-  }));
 
-  const colors = ['#10B981', '#3B82F6', '#8B5CF6', '#F59E0B', '#EF4444', '#06B6D4', '#EC4899'];
 
   if (loading) {
     return (
@@ -289,6 +596,17 @@ const RevenueAnalytics = () => {
                 Clear Search
               </button>
             )}
+            
+            {/* Generate Report Button */}
+            <button
+              onClick={generateRevenueReport}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+              Generate Report
+            </button>
             
             {/* Refresh Button */}
             <button
@@ -374,79 +692,10 @@ const RevenueAnalytics = () => {
         </div>
       </div>
 
-      {/* Charts and Table Row */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Revenue Pie Chart */}
-        <div className="lg:col-span-1">
-          <div className="bg-white rounded-lg shadow-lg p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Service Charge by Waste Type</h3>
-            <div className="relative">
-              {/* Simple SVG Pie Chart */}
-              <div className="w-64 h-64 mx-auto">
-                <svg viewBox="0 0 200 200" className="w-full h-full">
-                  {pieChartData.length > 0 ? (
-                    (() => {
-                      let cumulativePercentage = 0;
-                      return pieChartData.map((data, index) => {
-                        const startAngle = cumulativePercentage * 3.6; // Convert percentage to degrees
-                        const endAngle = (cumulativePercentage + data.percentage) * 3.6;
-                        cumulativePercentage += data.percentage;
-
-                        const startAngleRad = (startAngle - 90) * Math.PI / 180;
-                        const endAngleRad = (endAngle - 90) * Math.PI / 180;
-
-                        const largeArcFlag = data.percentage > 50 ? 1 : 0;
-
-                        const x1 = 100 + 80 * Math.cos(startAngleRad);
-                        const y1 = 100 + 80 * Math.sin(startAngleRad);
-                        const x2 = 100 + 80 * Math.cos(endAngleRad);
-                        const y2 = 100 + 80 * Math.sin(endAngleRad);
-
-                        const pathData = [
-                          `M 100 100`,
-                          `L ${x1} ${y1}`,
-                          `A 80 80 0 ${largeArcFlag} 1 ${x2} ${y2}`,
-                          'Z'
-                        ].join(' ');
-
-                        return (
-                          <path
-                            key={index}
-                            d={pathData}
-                            fill={colors[index % colors.length]}
-                            stroke="#fff"
-                            strokeWidth="2"
-                          />
-                        );
-                      });
-                    })()
-                  ) : (
-                    <circle cx="100" cy="100" r="80" fill="#e5e7eb" />
-                  )}
-                </svg>
-              </div>
-              
-              {/* Legend */}
-              <div className="mt-4 space-y-2">
-                {pieChartData.map((data, index) => (
-                  <div key={index} className="flex items-center text-sm">
-                    <div 
-                      className="w-3 h-3 rounded-full mr-2"
-                      style={{ backgroundColor: colors[index % colors.length] }}
-                    ></div>
-                    <span className="text-gray-600">{data.name}</span>
-                    <span className="ml-auto font-medium">
-                      {formatCurrency(data.value)} ({data.percentage.toFixed(1)}%)
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
-
+      {/* OrderWaste Table */}
+      <div className="mb-8">
         {/* OrderWaste Table */}
-        <div className="lg:col-span-2">
+        <div className="w-full">
           <div className="bg-white rounded-lg shadow-lg p-6">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">Waste Orders & Service Charges</h3>
             <div className="overflow-x-auto">
