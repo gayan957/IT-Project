@@ -46,6 +46,9 @@ export default function DashboardAnalytics() {
   const [showChartModal, setShowChartModal] = useState(false);
   const [selectedChartView, setSelectedChartView] = useState('collections-overview');
   const [showDropdown, setShowDropdown] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filteredActivities, setFilteredActivities] = useState([]);
+  const [filteredCollections, setFilteredCollections] = useState([]);
 
   const chartOptions = [
     { id: 'collections-overview', name: 'Collections Overview', icon: '📈' },
@@ -193,6 +196,10 @@ export default function DashboardAnalytics() {
         allCollections: allCollections
       });
 
+      // Initialize filtered data
+      setFilteredActivities(recentActivity.slice(0, 8));
+      setFilteredCollections(allCollections);
+
     } catch (error) {
       console.error('Failed to fetch collections:', error);
       if (error.response?.status === 403) {
@@ -206,6 +213,40 @@ export default function DashboardAnalytics() {
     } finally {
       setLoading(false);
     }
+  };
+
+  // Search and filter function
+  const handleSearch = (searchValue) => {
+    setSearchTerm(searchValue);
+    
+    if (!searchValue.trim()) {
+      setFilteredActivities(analytics.recentActivity);
+      setFilteredCollections(analytics.allCollections);
+      return;
+    }
+
+    const searchLower = searchValue.toLowerCase();
+    
+    // Filter recent activities
+    const filteredActivitiesResult = analytics.recentActivity.filter(activity =>
+      activity.action.toLowerCase().includes(searchLower) ||
+      activity.amount.toLowerCase().includes(searchLower) ||
+      activity.time.toLowerCase().includes(searchLower) ||
+      activity.type.toLowerCase().includes(searchLower)
+    );
+    
+    // Filter all collections
+    const filteredCollectionsResult = analytics.allCollections.filter(collection =>
+      collection.wasteType.toLowerCase().includes(searchLower) ||
+      collection.type.toLowerCase().includes(searchLower) ||
+      collection.location.toLowerCase().includes(searchLower) ||
+      collection.status.toLowerCase().includes(searchLower) ||
+      collection.weight.toString().includes(searchLower) ||
+      collection.totalPrice.toString().includes(searchLower)
+    );
+    
+    setFilteredActivities(filteredActivitiesResult);
+    setFilteredCollections(filteredCollectionsResult);
   };
 
   const renderSelectedChart = () => {
@@ -729,12 +770,45 @@ export default function DashboardAnalytics() {
                 </button>
               </div>
             </div>
+
+            {/* Search Bar */}
+            <div className="mb-6">
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                  </svg>
+                </div>
+                <input
+                  type="text"
+                  placeholder="Search by waste type, amount, location, or date..."
+                  value={searchTerm}
+                  onChange={(e) => handleSearch(e.target.value)}
+                  className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-sm"
+                />
+                {searchTerm && (
+                  <button
+                    onClick={() => handleSearch('')}
+                    className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                  >
+                    <svg className="h-4 w-4 text-gray-400 hover:text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                )}
+              </div>
+              {searchTerm && (
+                <div className="mt-2 text-sm text-gray-600">
+                  Found {!showDetailedTable ? filteredActivities.length : filteredCollections.length} result(s) for "{searchTerm}"
+                </div>
+              )}
+            </div>
             
             {!showDetailedTable ? (
               // Summary View
-              analytics.recentActivity.length > 0 ? (
+              filteredActivities.length > 0 ? (
                 <div className="space-y-4">
-                  {analytics.recentActivity.map((activity, index) => (
+                  {filteredActivities.map((activity, index) => (
                     <div key={index} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
                       <div className="flex items-center space-x-3">
                         <div className={`w-3 h-3 ${activity.color === 'blue' ? 'bg-blue-500' : 'bg-green-500'} rounded-full`}></div>
@@ -759,8 +833,8 @@ export default function DashboardAnalytics() {
                   <svg className="w-12 h-12 mx-auto mb-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
                   </svg>
-                  <p>No collection activity yet</p>
-                  <p className="text-sm mt-1">Start collecting waste to see your activity here</p>
+                  <p>{searchTerm ? `No activities found matching "${searchTerm}"` : 'No collection activity yet'}</p>
+                  <p className="text-sm mt-1">{searchTerm ? 'Try adjusting your search terms' : 'Start collecting waste to see your activity here'}</p>
                 </div>
               )
             ) : (
@@ -796,8 +870,8 @@ export default function DashboardAnalytics() {
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
-                    {analytics.allCollections.length > 0 ? (
-                      analytics.allCollections.map((collection, index) => (
+                    {filteredCollections.length > 0 ? (
+                      filteredCollections.map((collection, index) => (
                         <tr key={collection.id || index} className="hover:bg-gray-50">
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                             <div>
@@ -846,8 +920,8 @@ export default function DashboardAnalytics() {
                           <svg className="w-12 h-12 mx-auto mb-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
                           </svg>
-                          <p className="text-lg font-medium">No collection data available</p>
-                          <p className="text-sm mt-1">Start collecting waste to see detailed records here</p>
+                          <p className="text-lg font-medium">{searchTerm ? `No collections found matching "${searchTerm}"` : 'No collection data available'}</p>
+                          <p className="text-sm mt-1">{searchTerm ? 'Try adjusting your search terms' : 'Start collecting waste to see detailed records here'}</p>
                         </td>
                       </tr>
                     )}
@@ -855,18 +929,22 @@ export default function DashboardAnalytics() {
                 </table>
                 
                 {/* Table Summary */}
-                {analytics.allCollections.length > 0 && (
+                {filteredCollections.length > 0 && (
                   <div className="mt-4 p-4 bg-gray-50 rounded-lg">
                     <div className="flex justify-between items-center text-sm">
                       <span className="text-gray-600">
-                        Showing {analytics.allCollections.length} total collections
+                        Showing {filteredCollections.length} {searchTerm ? 'filtered' : 'total'} collections
                       </span>
                       <div className="flex space-x-4">
                         <span className="text-gray-600">
-                          Total Weight: <span className="font-semibold text-gray-900">{analytics.totalWeight} kg</span>
+                          Total Weight: <span className="font-semibold text-gray-900">
+                            {filteredCollections.reduce((sum, collection) => sum + (collection.weight || 0), 0).toFixed(1)} kg
+                          </span>
                         </span>
                         <span className="text-gray-600">
-                          Total Earnings: <span className="font-semibold text-green-600">Rs. {analytics.totalEarnings}</span>
+                          Total Earnings: <span className="font-semibold text-green-600">
+                            Rs. {filteredCollections.reduce((sum, collection) => sum + (collection.totalPrice || 0), 0).toFixed(2)}
+                          </span>
                         </span>
                       </div>
                     </div>
