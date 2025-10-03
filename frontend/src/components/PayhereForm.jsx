@@ -94,7 +94,7 @@ const PayHereForm = ({ orderDetails, actualWeight, wastePrice }) => {
       <input
         type="hidden"
         name="return_url"
-        value="http://localhost:5173/pickup-agent/dashboard"
+        value={`http://localhost:5173/payment-success?order_id=${orderDetails.order_id}&amount=${orderDetails.amount}&actualWeight=${actualWeight}&wasteType=${orderDetails.custom_1.wasteType}&scheduleId=${orderDetails.custom_1._id}`}
       />
       <input
         type="hidden"
@@ -126,6 +126,11 @@ const PayHereForm = ({ orderDetails, actualWeight, wastePrice }) => {
         type="hidden"
         name="custom_1"
         value={JSON.stringify(orderDetails.custom_1)}
+      />
+      <input
+        type="hidden"
+        name="custom_2"
+        value={JSON.stringify({actualWeight, wastePrice})}
       />
 
       <button

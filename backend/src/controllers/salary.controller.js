@@ -503,6 +503,27 @@ export const sendSalarySlipEmail = async (req, res, next) => {
     const pdfBuffer = Buffer.from(pdfData, 'base64');
     console.log('✅ PDF buffer created, size:', pdfBuffer.length, 'bytes');
 
+    // Validate email before sending
+    console.log('📧 Validating employee email...');
+    if (!salary.employee.email) {
+      console.log('❌ No email address found for employee');
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Employee email address is missing. Please update employee profile.' 
+      });
+    }
+    
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(salary.employee.email)) {
+      console.log('❌ Invalid email format:', salary.employee.email);
+      return res.status(400).json({ 
+        success: false, 
+        message: `Invalid email address format: ${salary.employee.email}. Please update employee profile.` 
+      });
+    }
+    
+    console.log('✅ Email validation passed:', salary.employee.email);
+
     // Send email
     console.log('📤 Sending email...');
     const emailResult = await sendEmailService({
@@ -540,10 +561,37 @@ export const sendSalarySlipEmail = async (req, res, next) => {
     console.error('Request body keys:', Object.keys(req.body || {}));
     console.error('User info:', req.user ? { id: req.user.id, role: req.user.role } : 'No user');
     
-    res.status(500).json({ 
+    // Provide specific error responses
+    let errorMessage = 'Failed to send salary slip email';
+    let statusCode = 500;
+    
+    if (error.message.includes('Email configuration missing')) {
+      errorMessage = 'Email service is not configured properly. Please contact administrator.';
+      statusCode = 503; // Service Unavailable
+    } else if (error.message.includes('Invalid email address')) {
+      errorMessage = `Invalid employee email address. Please update employee email in system.`;
+      statusCode = 400; // Bad Request
+    } else if (error.message.includes('authentication failed') || error.message.includes('Invalid login')) {
+      errorMessage = 'Email service authentication failed. Please contact administrator.';
+      statusCode = 503; // Service Unavailable
+    } else if (error.message.includes('Network connection failed') || error.message.includes('ENOTFOUND')) {
+      errorMessage = 'Network connection failed. Please check internet connection and try again.';
+      statusCode = 503; // Service Unavailable
+    } else if (error.message.includes('PDF')) {
+      errorMessage = 'Failed to generate or process PDF document. Please try again.';
+      statusCode = 500;
+    } else if (error.message.includes('not found') || error.message.includes('does not exist')) {
+      errorMessage = 'Salary record not found or employee data is incomplete.';
+      statusCode = 404; // Not Found
+    } else {
+      errorMessage = error.message || 'An unexpected error occurred while sending the email';
+    }
+    
+    res.status(statusCode).json({ 
       success: false, 
-      message: error.message || 'Failed to send salary slip email',
-      error: process.env.NODE_ENV === 'development' ? error.stack : undefined
+      message: errorMessage,
+      error: process.env.NODE_ENV === 'development' ? error.stack : undefined,
+      timestamp: new Date().toISOString()
     });
   }
 };

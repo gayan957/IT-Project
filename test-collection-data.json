@@ -1,0 +1,13 @@
+﻿{
+    "notes":  "Test collection for payment integration testing",
+    "actualWeight":  5.5,
+    "wasteType":  "mixed",
+    "pricePerKg":  25,
+    "scheduleId":  "test-schedule-20251003124027",
+    "scheduleLocation":  {
+                             "longitude":  79.8612,
+                             "address":  "Test Payment Location",
+                             "latitude":  6.9271
+                         },
+    "totalPrice":  137.5
+}

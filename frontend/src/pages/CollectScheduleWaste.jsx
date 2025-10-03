@@ -10,7 +10,6 @@ const CollectScheduleWaste = () => {
   const scheduleData = location.state?.schedule;
 
   const [loading, setLoading] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
   const [actualWeight, setActualWeight] = useState("");
   const [wastePrice, setWastePrice] = useState(null);
   const [totalPrice, setTotalPrice] = useState(0);
@@ -30,9 +29,6 @@ const CollectScheduleWaste = () => {
 
   // Use scheduleData if available, otherwise use sample data for testing
   const currentScheduleData = scheduleData || sampleScheduleData;
-
-  // Get agent info from localStorage
-  const agentInfo = JSON.parse(localStorage.getItem("user") || "{}");
 
   const fetchWastePrice = useCallback(async () => {
     try {
@@ -147,130 +143,6 @@ const CollectScheduleWaste = () => {
       setTotalPrice(0);
     }
   }, [actualWeight, wastePrice]);
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-
-    if (!actualWeight || parseFloat(actualWeight) <= 0) {
-      toast.error("Please enter a valid weight");
-      return;
-    }
-
-    if (!wastePrice) {
-      toast.error("Waste price not loaded");
-      return;
-    }
-
-    try {
-      setSubmitting(true);
-
-      // Prepare collection data for AgentSchedule model
-      const pricePerKg =
-        wastePrice?.pricePerKg || totalPrice / parseFloat(actualWeight) || 0;
-
-      const collectionData = {
-        scheduleId: currentScheduleData._id,
-        wasteType: currentScheduleData.wasteType,
-        actualWeight: parseFloat(actualWeight),
-        pricePerKg: pricePerKg,
-        totalPrice: totalPrice,
-        scheduleLocation: {
-          latitude: currentScheduleData.location?.lat || 6.9271,
-          longitude: currentScheduleData.location?.lng || 79.8612,
-          address: currentScheduleData.address || "Unknown location",
-        },
-        notes:
-          notes ||
-          `Schedule collection by ${
-            agentInfo.name || "Agent"
-          } on ${new Date().toLocaleDateString()}`,
-      };
-
-      console.log("🎯 Agent Info:", agentInfo);
-      console.log("📋 Schedule Collection Data:", collectionData);
-      console.log("💰 Price Details:", {
-        pricePerKg,
-        totalPrice,
-        actualWeight,
-      });
-
-      // Check if this is mock data (for testing)
-      const isMockData =
-        currentScheduleData._id.length < 20 ||
-        !currentScheduleData._id.match(/^[0-9a-fA-F]{24}$/);
-
-      if (isMockData) {
-        // For mock data, just show success message
-        console.log("✅ Mock schedule collection completed:", collectionData);
-        toast.success(
-          `Mock schedule collected successfully! Weight: ${actualWeight}kg, Total: Rs. ${totalPrice.toFixed(
-            2
-          )}`
-        );
-      } else {
-        // Save real schedule collection data
-        try {
-          const apiUrl = `${
-            import.meta.env.VITE_API_BASE_URL
-          }/api/agent-schedules/collect`;
-          const response = await fetch(apiUrl, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${localStorage.getItem("token")}`,
-            },
-            body: JSON.stringify(collectionData),
-          });
-
-          if (!response.ok) {
-            throw new Error("Failed to save schedule collection data");
-          }
-
-          const result = await response.json();
-          console.log("✅ Schedule collection saved successfully:", result);
-
-          if (result.message) {
-            toast.success(
-              `Schedule collected successfully! Record ID: ${
-                result.collection?._id?.slice(-6) || "Unknown"
-              }`
-            );
-          } else {
-            toast.success("Schedule collection saved but with warnings");
-          }
-        } catch (apiError) {
-          console.warn("Backend API not available, saving locally:", apiError);
-
-          // Fallback: Save to local storage if API is not available
-          const localCollections = JSON.parse(
-            localStorage.getItem("localScheduleCollections") || "[]"
-          );
-          const newCollection = {
-            ...collectionData,
-            id: Date.now().toString(),
-            timestamp: new Date().toISOString(),
-          };
-          localCollections.push(newCollection);
-          localStorage.setItem(
-            "localScheduleCollections",
-            JSON.stringify(localCollections)
-          );
-
-          toast.success("Schedule collected successfully! (Saved locally)");
-        }
-      }
-
-      // Set flag to indicate schedule collection was completed for map refresh
-      sessionStorage.setItem("refreshScheduleMap", "true");
-
-      navigate("/pickup-agent-map");
-    } catch (error) {
-      console.error("Error saving schedule collection:", error);
-      toast.error("Failed to save schedule collection data");
-    } finally {
-      setSubmitting(false);
-    }
-  };
 
   if (!currentScheduleData) {
     return (
@@ -397,7 +269,7 @@ const CollectScheduleWaste = () => {
                   step="0.1"
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   placeholder="Enter weight in kg"
-                  disabled={loading || submitting}
+                  disabled={loading}
                 />
               </div>
             </div>
@@ -439,7 +311,6 @@ const CollectScheduleWaste = () => {
                 rows={3}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 placeholder="Any additional notes about the collection..."
-                disabled={submitting}
               />
             </div>
 
@@ -467,7 +338,6 @@ const CollectScheduleWaste = () => {
                 type="button"
                 onClick={() => navigate("/pickup-agent-map")}
                 className="flex-1 px-4 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
-                disabled={submitting}
               >
                 Cancel
               </button>

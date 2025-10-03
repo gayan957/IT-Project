@@ -52,9 +52,54 @@ const AgentPickups = () => {
         return;
       }
 
-      const response = await api.get('/api/collections/agent/history');
+      // Fetch both bin collections and schedule collections
+      const [binCollectionsResponse, scheduleCollectionsResponse] = await Promise.allSettled([
+        api.get('/api/collections/agent/history'),
+        api.get('/api/agent-schedules/history')
+      ]);
+
+      let allCollections = [];
+
+      // Process bin collections
+      if (binCollectionsResponse.status === 'fulfilled') {
+        const binCollections = binCollectionsResponse.value.data.collections || [];
+        // Add a type field to distinguish bin collections
+        const formattedBinCollections = binCollections.map(collection => ({
+          ...collection,
+          collectionType: 'bin'
+        }));
+        allCollections = [...allCollections, ...formattedBinCollections];
+      } else {
+        console.warn('Failed to fetch bin collections:', binCollectionsResponse.reason);
+      }
+
+      // Process schedule collections
+      if (scheduleCollectionsResponse.status === 'fulfilled') {
+        const scheduleCollections = scheduleCollectionsResponse.value.data.collections || [];
+        // Add a type field and transform structure to match bin collections
+        const formattedScheduleCollections = scheduleCollections.map(collection => ({
+          ...collection,
+          collectionType: 'schedule',
+          // Map schedule collection fields to bin collection structure for consistency
+          wasteWeight: collection.wasteWeight,
+          totalPrice: collection.totalPrice,
+          wasteType: collection.wasteType,
+          binId: {
+            location: {
+              address: collection.scheduleLocation?.address || 'Schedule Location'
+            }
+          },
+          createdAt: collection.createdAt || collection.collectionDate
+        }));
+        allCollections = [...allCollections, ...formattedScheduleCollections];
+      } else {
+        console.warn('Failed to fetch schedule collections:', scheduleCollectionsResponse.reason);
+      }
+
+      // Sort all collections by date (most recent first)
+      allCollections.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
       
-      setCollections(response.data.collections || []);
+      setCollections(allCollections);
       
     } catch (error) {
       console.error('Error fetching collections:', error);
@@ -657,8 +702,17 @@ const AgentPickups = () => {
                           </div>
                         </div>
                         <div>
-                          <h3 className="text-lg font-medium text-gray-900">
-                            Collection #{collection._id ? collection._id.slice(-8) : `${index + 1}`}
+                          <h3 className="text-lg font-medium text-gray-900 flex items-center space-x-2">
+                            <span>
+                              Collection #{collection._id ? collection._id.slice(-8) : `${index + 1}`}
+                            </span>
+                            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                              collection.collectionType === 'schedule' 
+                                ? 'bg-purple-100 text-purple-800' 
+                                : 'bg-blue-100 text-blue-800'
+                            }`}>
+                              {collection.collectionType === 'schedule' ? '📅 Schedule' : '🗑️ Bin'}
+                            </span>
                           </h3>
                           <p className="text-sm text-gray-500">
                             {formatDate(collection.createdAt)}
@@ -668,7 +722,9 @@ const AgentPickups = () => {
 
                       <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                         <div>
-                          <p className="text-sm text-gray-600">Bin Location</p>
+                          <p className="text-sm text-gray-600">
+                            {collection.collectionType === 'schedule' ? 'Schedule Location' : 'Bin Location'}
+                          </p>
                           <p className="text-sm text-gray-900 font-medium">
                             {formatLocation(collection.binId?.location)}
                           </p>
@@ -694,15 +750,28 @@ const AgentPickups = () => {
                       </div>
 
                       <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div>
-                          <p className="text-sm text-gray-600">Fill Level</p>
-                          <p className="text-sm text-gray-900">
-                            Before: <span className="font-medium">{collection.fillLevelBefore || 0}%</span>
-                          </p>
-                          <p className="text-sm text-gray-900">
-                            After: <span className="font-medium">{collection.fillLevelAfter || 0}%</span>
-                          </p>
-                        </div>
+                        {collection.collectionType === 'bin' && (
+                          <div>
+                            <p className="text-sm text-gray-600">Fill Level</p>
+                            <p className="text-sm text-gray-900">
+                              Before: <span className="font-medium">{collection.fillLevelBefore || 0}%</span>
+                            </p>
+                            <p className="text-sm text-gray-900">
+                              After: <span className="font-medium">{collection.fillLevelAfter || 0}%</span>
+                            </p>
+                          </div>
+                        )}
+                        {collection.collectionType === 'schedule' && (
+                          <div>
+                            <p className="text-sm text-gray-600">Collection Type</p>
+                            <p className="text-sm text-gray-900">
+                              <span className="font-medium">Scheduled Pickup</span>
+                            </p>
+                            <p className="text-sm text-gray-500">
+                              Payment processed via gateway
+                            </p>
+                          </div>
+                        )}
                       </div>
                       
                       {collection.notes && (

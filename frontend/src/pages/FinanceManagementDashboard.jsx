@@ -3,6 +3,7 @@ import { Link, Outlet, useLocation } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import { toast } from 'react-hot-toast';
 import api from '../lib/api';
+import CustomerPayments from '../components/CustomerPayments';
 
 export default function FinanceManagementDashboard() {
   const { user, logout } = useAuth();
@@ -17,6 +18,9 @@ export default function FinanceManagementDashboard() {
     totalSalaries: 0,
     operationalCosts: 0,
     profitMargin: 0,
+    totalPayments: 0,
+    successfulPayments: 0,
+    paymentRevenue: 0,
     loading: true
   });
   
@@ -39,7 +43,7 @@ export default function FinanceManagementDashboard() {
         wasteOrdersResponse,
         salariesResponse,
         usersResponse,
-        wastePricesResponse
+        paymentsResponse
       ] = await Promise.all([
         // Waste orders for revenue calculation
         api.get('/api/admin/waste-orders?limit=100').catch(() => ({ data: { orders: [] } })),
@@ -50,14 +54,22 @@ export default function FinanceManagementDashboard() {
         // Users count
         api.get('/api/admin/users').catch(() => ({ data: { users: [] } })),
         
-        // Waste prices for operational insights
-        api.get('/api/waste-prices').catch(() => ({ data: { wastePrices: [] } }))
+        // Customer payments
+        api.get('/api/payments/history?limit=100&status=success').catch(() => ({ data: { data: { payments: [] } } }))
       ]);
 
       // Calculate financial metrics
       const orders = wasteOrdersResponse.data?.orders || [];
       const salaries = salariesResponse.data?.data || []; // Updated to access the correct data field
       const users = usersResponse.data?.users || [];
+      const payments = paymentsResponse.data?.data?.payments || [];
+
+      // Payment statistics
+      const totalPayments = payments.length;
+      const successfulPayments = payments.filter(payment => payment.status === 'success').length;
+      const paymentRevenue = payments.reduce((sum, payment) => {
+        return payment.status === 'success' ? sum + (payment.amount || 0) : sum;
+      }, 0);
 
       // Total revenue from service charges
       const totalRevenue = orders.reduce((sum, order) => {
@@ -105,6 +117,9 @@ export default function FinanceManagementDashboard() {
         totalSalaries,
         operationalCosts,
         profitMargin,
+        totalPayments,
+        successfulPayments,
+        paymentRevenue,
         loading: false
       });
 
@@ -192,6 +207,13 @@ export default function FinanceManagementDashboard() {
     {
       title: 'Transactions & Payments',
       items: [
+        {
+          id: 'customer-payments',
+          label: 'Customer Payments',
+          icon: '💰',
+          path: '/admin/finance/customer-payments',
+          description: 'View all customer payment transactions'
+        },
         {
           id: 'waste-orders',
           label: 'Waste Orders',
@@ -447,7 +469,34 @@ function FinanceDashboardContent({ financeData, onRefresh }) {
       </div>
 
       {/* Financial Breakdown Cards */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+        {/* Customer Payments */}
+        <div className="bg-white rounded-2xl shadow-lg p-6 border border-gray-100">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold text-gray-900">Customer Payments</h3>
+            <div className="p-2 bg-green-100 rounded-lg">
+              <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
+              </svg>
+            </div>
+          </div>
+          <p className="text-2xl font-bold text-gray-900">{formatCurrency(financeData.paymentRevenue)}</p>
+          <p className="text-sm text-gray-600 mt-2">{financeData.successfulPayments} successful payments</p>
+        </div>
+
+        {/* Total Orders */}
+        <div className="bg-white rounded-2xl shadow-lg p-6 border border-gray-100">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold text-gray-900">Total Orders</h3>
+            <div className="p-2 bg-indigo-100 rounded-lg">
+              <svg className="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+            </div>
+          </div>
+          <p className="text-2xl font-bold text-gray-900">{financeData.totalOrders}</p>
+          <p className="text-sm text-gray-600 mt-2">Active users: {financeData.activeUsers}</p>
+        </div>
 
         {/* Operational Costs */}
         <div className="bg-white rounded-2xl shadow-lg p-6 border border-gray-100">
@@ -485,7 +534,7 @@ function FinanceDashboardContent({ financeData, onRefresh }) {
       {/* Quick Actions */}
       <div className="bg-white rounded-2xl shadow-lg p-6 border border-gray-100">
         <h3 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h3>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
           <Link
             to="/admin/finance/analytics"
             className="flex flex-col items-center p-4 border border-gray-200 rounded-xl hover:bg-emerald-50 hover:border-emerald-200 transition-all duration-200 group"
@@ -496,6 +545,18 @@ function FinanceDashboardContent({ financeData, onRefresh }) {
               </svg>
             </div>
             <span className="text-sm font-medium text-gray-700 mt-2 text-center">Revenue Analytics</span>
+          </Link>
+
+          <Link
+            to="/admin/finance/customer-payments"
+            className="flex flex-col items-center p-4 border border-gray-200 rounded-xl hover:bg-green-50 hover:border-green-200 transition-all duration-200 group"
+          >
+            <div className="p-2 bg-green-100 rounded-lg group-hover:bg-green-200 transition-colors">
+              <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
+              </svg>
+            </div>
+            <span className="text-sm font-medium text-gray-700 mt-2 text-center">Customer Payments</span>
           </Link>
 
           <Link
@@ -535,6 +596,9 @@ function FinanceDashboardContent({ financeData, onRefresh }) {
           </Link>
         </div>
       </div>
+
+      {/* Customer Payments Section */}
+      <CustomerPayments />
     </div>
   );
 }

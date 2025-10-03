@@ -306,6 +306,36 @@ const PickupAgentMap = () => {
     }
   }, []);
   
+  // Refresh schedule data specifically (for when schedules are collected)
+  const refreshScheduleData = useCallback(async () => {
+    try {
+      console.log('Refreshing schedule data...');
+      
+      // Try to load real schedule data
+      const realSchedules = await scheduleApi.getSchedulesForMap();
+      if (realSchedules && realSchedules.length > 0) {
+        console.log('Refreshed schedules:', realSchedules.length);
+        setSchedules(realSchedules);
+      } else {
+        console.log('No active schedules found');
+        setSchedules([]);
+      }
+      
+      // Clear selected schedule if it was collected
+      if (selectedSchedule) {
+        const stillExists = realSchedules.find(s => s._id === selectedSchedule._id);
+        if (!stillExists) {
+          setSelectedSchedule(null);
+          setDirectionsResponse(null);
+          setRouteInfo(null);
+        }
+      }
+      
+    } catch (error) {
+      console.error('Error refreshing schedule data:', error);
+    }
+  }, [selectedSchedule]);
+  
   useEffect(() => {
     if (!apiKey) {
       console.error('Google Maps API key not configured');
@@ -334,6 +364,8 @@ const PickupAgentMap = () => {
   useEffect(() => {
     const checkForCollectionUpdate = () => {
       const collectionCompleted = sessionStorage.getItem('collectionCompleted');
+      const scheduleCollectionCompleted = sessionStorage.getItem('refreshScheduleMap');
+      
       if (collectionCompleted) {
         console.log('Collection completed detected, forcing map data refresh...');
         sessionStorage.removeItem('collectionCompleted');
@@ -342,6 +374,15 @@ const PickupAgentMap = () => {
         sessionStorage.removeItem('pickupBinsTime');
         if (isLoaded) {
           fetchMapData(true); // Force refresh
+        }
+      }
+      
+      if (scheduleCollectionCompleted) {
+        console.log('Schedule collection completed detected, refreshing schedules...');
+        sessionStorage.removeItem('refreshScheduleMap');
+        // Refresh schedules to remove collected ones
+        if (isLoaded) {
+          refreshScheduleData();
         }
       }
     };
@@ -360,7 +401,7 @@ const PickupAgentMap = () => {
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, [isLoaded, fetchMapData]);
+  }, [isLoaded, fetchMapData, refreshScheduleData]);
 
   // Loading timeout to prevent infinite loading
   useEffect(() => {

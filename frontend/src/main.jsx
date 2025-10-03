@@ -58,6 +58,8 @@ import PickupPartnerOrders from './pages/PickupPartnerOrders';
 import AdminWasteOrders from './pages/AdminWasteOrders';
 import AIWastePriceForecasting from './pages/AIWastePriceForecasting';
 import AdminSupportTickets from './pages/AdminSupportTickets';
+import PaymentSuccess from './pages/PaymentSuccess';
+import CustomerPaymentsPage from './pages/CustomerPaymentsPage';
 import './index.css';
 
 const router = createBrowserRouter([
@@ -71,6 +73,7 @@ const router = createBrowserRouter([
       { path: 'login', element: <Login /> },
       { path: 'register', element: <Register /> },
       { path: 'unauthorized', element: <Unauthorized /> },
+      { path: 'payment-success', element: <PaymentSuccess /> },
       { path: 'admin/login', element: <AdminLogin /> },
       {
         path: 'dashboard',
@@ -228,6 +231,14 @@ const router = createBrowserRouter([
             element: (
               <ProtectedRoute allowedRoles={['admin']}>
                 <RevenueAnalytics />
+              </ProtectedRoute>
+            ),
+          },
+          {
+            path: 'customer-payments',
+            element: (
+              <ProtectedRoute allowedRoles={['admin']}>
+                <CustomerPaymentsPage />
               </ProtectedRoute>
             ),
           },

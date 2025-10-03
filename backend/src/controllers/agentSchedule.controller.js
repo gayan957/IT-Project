@@ -71,15 +71,51 @@ export const collectScheduleWaste = async (req, res) => {
             pricePerKg,
             totalPrice,
             scheduleLocation,
-            notes
+            notes,
+            paymentOrderId
         } = req.body;
         
         const { user } = req; // Get user from authentication middleware
 
         console.log('📋 Extracted fields:', {
-            scheduleId, wasteType, actualWeight, pricePerKg, totalPrice, scheduleLocation, notes
+            scheduleId, wasteType, actualWeight, pricePerKg, totalPrice, scheduleLocation, notes, paymentOrderId
         });
         console.log('👤 Authenticated user:', user?.id);
+
+        // Check for duplicate collection if paymentOrderId is provided
+        if (paymentOrderId) {
+            const existingCollection = await AgentSchedule.findOne({
+                scheduleId,
+                notes: { $regex: paymentOrderId, $options: 'i' }
+            });
+
+            if (existingCollection) {
+                console.log('⚠️ Duplicate collection detected for payment:', paymentOrderId);
+                return res.status(200).json({
+                    message: 'Collection already exists for this payment',
+                    collection: existingCollection,
+                    isDuplicate: true
+                });
+            }
+        }
+
+        // Check for recent duplicate collections (within last 5 minutes) for the same schedule
+        const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
+        const recentCollection = await AgentSchedule.findOne({
+            scheduleId,
+            wasteWeight: actualWeight,
+            totalPrice: totalPrice || (actualWeight * pricePerKg),
+            createdAt: { $gte: fiveMinutesAgo }
+        });
+
+        if (recentCollection) {
+            console.log('⚠️ Recent duplicate collection detected within 5 minutes');
+            return res.status(200).json({
+                message: 'Recent collection already exists for this schedule',
+                collection: recentCollection,
+                isDuplicate: true
+            });
+        }
 
         // Validate required fields
         if (!scheduleId || !wasteType || !actualWeight || !pricePerKg || !scheduleLocation) {
@@ -97,7 +133,7 @@ export const collectScheduleWaste = async (req, res) => {
         }
 
         // Find the schedule
-        console.log('� Finding schedule with ID:', scheduleId);
+        console.log('🔍 Finding schedule with ID:', scheduleId);
         const schedule = await UserSchedule.findById(scheduleId).populate('userId');
         if (!schedule) {
             console.error('❌ Schedule not found:', scheduleId);
