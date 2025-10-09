@@ -288,31 +288,29 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Call to Action - Always Visible */}
+      {/* Call to Action - Simplified */}
       <section className="py-20 bg-gradient-to-br from-emerald-600 to-teal-600 text-white">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <h2 className="text-4xl font-bold mb-6 transform transition-all duration-1000 opacity-0 animate-fade-in-up">
+          <h2 className="text-4xl font-bold mb-6">
             Start Your Eco-Friendly Journey Today
           </h2>
-          <p className="text-xl mb-8 text-emerald-100 transform transition-all duration-1000 delay-300 opacity-0 animate-fade-in-up">
+          <p className="text-xl mb-8 text-emerald-100">
             Join the movement that's transforming waste management in Sri Lanka. 
             Every piece of trash you recycle helps build a cleaner, greener future.
           </p>
           
-          <div className="flex flex-col sm:flex-row gap-4 justify-center transform transition-all duration-1000 delay-500 opacity-0 animate-fade-in-up">
+          <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link
               to="/register"
-              className="group bg-yellow-500 text-gray-900 px-8 py-4 rounded-lg font-semibold text-lg hover:bg-yellow-400 transform hover:scale-105 transition-all duration-300 shadow-lg hover:shadow-2xl relative overflow-hidden"
+              className="bg-white text-emerald-600 px-8 py-4 rounded-lg font-semibold text-lg hover:bg-gray-100 transform hover:scale-105 transition-all duration-300 shadow-lg"
             >
-              <span className="relative z-10">Get Started for Free</span>
-              <div className="absolute inset-0 bg-gradient-to-r from-yellow-400 to-orange-400 transform scale-x-0 group-hover:scale-x-100 transition-transform duration-300 origin-left"></div>
+              Get Started for Free
             </Link>
             <Link
               to="/login"
-              className="group border-2 border-white text-white px-8 py-4 rounded-lg font-semibold text-lg hover:bg-white hover:text-emerald-800 transform hover:scale-105 transition-all duration-300 relative overflow-hidden"
+              className="border-2 border-white text-white px-8 py-4 rounded-lg font-semibold text-lg hover:bg-white hover:text-emerald-600 transform hover:scale-105 transition-all duration-300"
             >
-              <span className="relative z-10">I Have an Account</span>
-              <div className="absolute inset-0 bg-white transform scale-x-0 group-hover:scale-x-100 transition-transform duration-300 origin-left"></div>
+              I Have an Account
             </Link>
           </div>
         </div>

@@ -49,6 +49,8 @@ export default function DashboardAnalytics() {
   const [searchTerm, setSearchTerm] = useState('');
   const [filteredActivities, setFilteredActivities] = useState([]);
   const [filteredCollections, setFilteredCollections] = useState([]);
+  const [searchError, setSearchError] = useState('');
+  const [isSearching, setIsSearching] = useState(false);
 
   const chartOptions = [
     { id: 'collections-overview', name: 'Collections Overview', icon: '📈' },
@@ -215,38 +217,79 @@ export default function DashboardAnalytics() {
     }
   };
 
-  // Search and filter function
+  // First letter based search function with real-time validation
   const handleSearch = (searchValue) => {
+    setIsSearching(true);
+    setSearchError('');
+    
+    // Real-time validation - only allow letters, numbers, spaces, and basic punctuation
+    const validCharPattern = /^[a-zA-Z0-9\s.\-_]*$/;
+    
+    if (searchValue && !validCharPattern.test(searchValue)) {
+      setSearchError('Please use only letters, numbers, spaces, dots, hyphens, and underscores');
+      setIsSearching(false);
+      return;
+    }
+    
     setSearchTerm(searchValue);
     
     if (!searchValue.trim()) {
       setFilteredActivities(analytics.recentActivity);
       setFilteredCollections(analytics.allCollections);
+      setIsSearching(false);
       return;
     }
 
-    const searchLower = searchValue.toLowerCase();
+    const searchLower = searchValue.toLowerCase().trim();
     
-    // Filter recent activities
-    const filteredActivitiesResult = analytics.recentActivity.filter(activity =>
-      activity.action.toLowerCase().includes(searchLower) ||
-      activity.amount.toLowerCase().includes(searchLower) ||
-      activity.time.toLowerCase().includes(searchLower) ||
-      activity.type.toLowerCase().includes(searchLower)
-    );
+    // Strict first letter matching logic
+    const matchesFirstLetter = (text, searchTerm) => {
+      if (!text) return false;
+      const textLower = text.toString().toLowerCase();
+      
+      // For single character search, check if any word starts with that character
+      if (searchTerm.length === 1) {
+        const words = textLower.split(/\s+/);
+        return words.some(word => word.startsWith(searchTerm));
+      }
+      
+      // For multi-character search, check if the text starts with the search term
+      return textLower.startsWith(searchTerm);
+    };
     
-    // Filter all collections
-    const filteredCollectionsResult = analytics.allCollections.filter(collection =>
-      collection.wasteType.toLowerCase().includes(searchLower) ||
-      collection.type.toLowerCase().includes(searchLower) ||
-      collection.location.toLowerCase().includes(searchLower) ||
-      collection.status.toLowerCase().includes(searchLower) ||
-      collection.weight.toString().includes(searchLower) ||
-      collection.totalPrice.toString().includes(searchLower)
-    );
+    // Filter recent activities with strict first letter matching
+    const filteredActivitiesResult = analytics.recentActivity.filter(activity => {
+      // Extract waste type from action (e.g., "Waste collected - Glass" -> "Glass")
+      const wasteTypeMatch = activity.action.match(/- (.+)$/);
+      const wasteType = wasteTypeMatch ? wasteTypeMatch[1] : '';
+      
+      return matchesFirstLetter(wasteType, searchLower) ||
+             matchesFirstLetter(activity.type, searchLower) ||
+             // For numbers, check amounts
+             (searchLower.match(/^\d+$/) && activity.amount.includes(searchLower));
+    });
+    
+    // Filter all collections with strict first letter matching
+    const filteredCollectionsResult = analytics.allCollections.filter(collection => {
+      return matchesFirstLetter(collection.wasteType, searchLower) ||
+             matchesFirstLetter(collection.type, searchLower) ||
+             matchesFirstLetter(collection.location, searchLower) ||
+             matchesFirstLetter(collection.status, searchLower) ||
+             // For numbers, check weight or price
+             (searchLower.match(/^\d+$/) && (
+               collection.weight.toString().startsWith(searchLower) ||
+               collection.totalPrice.toString().startsWith(searchLower) ||
+               collection.pricePerKg.toString().startsWith(searchLower)
+             ));
+    });
     
     setFilteredActivities(filteredActivitiesResult);
     setFilteredCollections(filteredCollectionsResult);
+    
+    // Simulate search delay for better UX
+    setTimeout(() => {
+      setIsSearching(false);
+    }, 300);
   };
 
   const renderSelectedChart = () => {
@@ -771,25 +814,40 @@ export default function DashboardAnalytics() {
               </div>
             </div>
 
-            {/* Search Bar */}
+            {/* Enhanced Search Bar with Real-time Validation */}
             <div className="mb-6">
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                  </svg>
+                  {isSearching ? (
+                    <svg className="animate-spin h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                  ) : (
+                    <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                    </svg>
+                  )}
                 </div>
                 <input
                   type="text"
-                  placeholder="Search by waste type, amount, location, or date..."
+                  placeholder="Search by first letter: 'p' for plastic, 'g' for glass, 'm' for metal..."
                   value={searchTerm}
                   onChange={(e) => handleSearch(e.target.value)}
-                  className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-sm"
+                  className={`block w-full pl-10 pr-10 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:border-transparent text-sm transition-colors ${
+                    searchError 
+                      ? 'border-red-300 focus:ring-red-500 bg-red-50' 
+                      : 'border-gray-300 focus:ring-purple-500 focus:border-purple-500'
+                  }`}
                 />
                 {searchTerm && (
                   <button
-                    onClick={() => handleSearch('')}
-                    className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                    onClick={() => {
+                      handleSearch('');
+                      setSearchError('');
+                    }}
+                    className="absolute inset-y-0 right-0 pr-3 flex items-center hover:bg-gray-100 rounded-r-lg transition-colors"
+                    title="Clear search"
                   >
                     <svg className="h-4 w-4 text-gray-400 hover:text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -797,9 +855,36 @@ export default function DashboardAnalytics() {
                   </button>
                 )}
               </div>
-              {searchTerm && (
-                <div className="mt-2 text-sm text-gray-600">
-                  Found {!showDetailedTable ? filteredActivities.length : filteredCollections.length} result(s) for "{searchTerm}"
+              
+              {/* Search Error Message */}
+              {searchError && (
+                <div className="mt-2 flex items-center text-red-600 text-sm">
+                  <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  {searchError}
+                </div>
+              )}
+              
+              {/* Search Results Info */}
+              {searchTerm && !searchError && (
+                <div className="mt-2 flex items-center justify-between text-sm">
+                  <div className="text-gray-600">
+                    {isSearching ? (
+                      <span className="flex items-center">
+                        <svg className="animate-pulse w-4 h-4 mr-1 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clipRule="evenodd" />
+                        </svg>
+                        Searching...
+                      </span>
+                    ) : (
+                      <span>
+                        Found <span className="font-medium text-purple-600">
+                          {!showDetailedTable ? filteredActivities.length : filteredCollections.length}
+                        </span> result(s) for "<span className="font-medium">{searchTerm}</span>"
+                      </span>
+                    )}
+                  </div>
                 </div>
               )}
             </div>
@@ -829,12 +914,38 @@ export default function DashboardAnalytics() {
                   ))}
                 </div>
               ) : (
-                <div className="text-center py-8 text-gray-500">
-                  <svg className="w-12 h-12 mx-auto mb-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                <div className="text-center py-12">
+                  <svg className="w-16 h-16 mx-auto mb-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.172 16.172a4 4 0 015.656 0M9 12h6m-6-4h6m2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                   </svg>
-                  <p>{searchTerm ? `No activities found matching "${searchTerm}"` : 'No collection activity yet'}</p>
-                  <p className="text-sm mt-1">{searchTerm ? 'Try adjusting your search terms' : 'Start collecting waste to see your activity here'}</p>
+                  
+                  {searchTerm ? (
+                    <div>
+                      <p className="text-lg font-medium text-gray-900 mb-2">
+                        No activities found for "{searchTerm}"
+                      </p>
+                      <p className="text-gray-500 mb-4">
+                        We couldn't find any activities matching your search criteria.
+                      </p>
+                      
+                      <div className="flex justify-center">
+                        <button
+                          onClick={() => {
+                            handleSearch('');
+                            setSearchError('');
+                          }}
+                          className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors text-sm"
+                        >
+                          Clear Search
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div>
+                      <p className="text-lg font-medium text-gray-500">No collection activity yet</p>
+                      <p className="text-sm mt-1 text-gray-400">Start collecting waste to see your activity here</p>
+                    </div>
+                  )}
                 </div>
               )
             ) : (
@@ -916,25 +1027,81 @@ export default function DashboardAnalytics() {
                       ))
                     ) : (
                       <tr>
-                        <td colSpan="8" className="px-6 py-12 text-center text-gray-500">
-                          <svg className="w-12 h-12 mx-auto mb-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                          </svg>
-                          <p className="text-lg font-medium">{searchTerm ? `No collections found matching "${searchTerm}"` : 'No collection data available'}</p>
-                          <p className="text-sm mt-1">{searchTerm ? 'Try adjusting your search terms' : 'Start collecting waste to see detailed records here'}</p>
+                        <td colSpan="8" className="px-6 py-16 text-center">
+                          <div className="flex flex-col items-center">
+                            <svg className="w-16 h-16 mx-auto mb-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                            </svg>
+                            
+                            {searchTerm ? (
+                              <div className="max-w-md">
+                                <p className="text-lg font-medium text-gray-900 mb-2">
+                                  No collections found for "{searchTerm}"
+                                </p>
+                                <p className="text-gray-500 mb-4">
+                                  Your search didn't match any collection records.
+                                </p>
+                                
+                                {/* Quick Action Buttons */}
+                                <div className="flex justify-center space-x-3 mb-4">
+                                  <button
+                                    onClick={() => {
+                                      handleSearch('');
+                                      setSearchError('');
+                                    }}
+                                    className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors text-sm font-medium"
+                                  >
+                                    Show All Collections
+                                  </button>
+                                  <button
+                                    onClick={() => handleSearch('g')}
+                                    className="px-4 py-2 bg-green-100 text-green-700 rounded-lg hover:bg-green-200 transition-colors text-sm font-medium"
+                                  >
+                                    Try "g"
+                                  </button>
+                                </div>
+                                
+                                {/* Search Examples */}
+                                <div className="bg-gray-50 rounded-lg p-3 text-xs text-gray-600">
+                                  <p className="font-medium mb-1">First letter examples:</p>
+                                  <div className="grid grid-cols-2 gap-1">
+                                    <span>• "p" → plastic waste</span>
+                                    <span>• "g" → glass waste</span>
+                                    <span>• "m" → metal waste</span>
+                                    <span>• "s" → schedule collections</span>
+                                  </div>
+                                </div>
+                              </div>
+                            ) : (
+                              <div>
+                                <p className="text-lg font-medium text-gray-500">No collection data available</p>
+                                <p className="text-sm mt-1 text-gray-400">Start collecting waste to see detailed records here</p>
+                              </div>
+                            )}
+                          </div>
                         </td>
                       </tr>
                     )}
                   </tbody>
                 </table>
                 
-                {/* Table Summary */}
+                {/* Enhanced Table Summary with Search Stats */}
                 {filteredCollections.length > 0 && (
                   <div className="mt-4 p-4 bg-gray-50 rounded-lg">
                     <div className="flex justify-between items-center text-sm">
-                      <span className="text-gray-600">
-                        Showing {filteredCollections.length} {searchTerm ? 'filtered' : 'total'} collections
-                      </span>
+                      <div className="flex items-center space-x-4">
+                        <span className="text-gray-600">
+                          Showing <span className="font-semibold text-gray-900">{filteredCollections.length}</span>
+                          {searchTerm && (
+                            <span> of {analytics.allCollections.length} total</span>
+                          )} collections
+                          {searchTerm && (
+                            <span className="ml-2 px-2 py-1 bg-purple-100 text-purple-700 rounded-full text-xs font-medium">
+                              Filtered by: "{searchTerm}"
+                            </span>
+                          )}
+                        </span>
+                      </div>
                       <div className="flex space-x-4">
                         <span className="text-gray-600">
                           Total Weight: <span className="font-semibold text-gray-900">
@@ -948,6 +1115,20 @@ export default function DashboardAnalytics() {
                         </span>
                       </div>
                     </div>
+                    
+                    {/* Search Performance Indicator */}
+                    {searchTerm && (
+                      <div className="mt-2 pt-2 border-t border-gray-200">
+                        <div className="flex items-center justify-between text-xs text-gray-500">
+                          <span>
+                            Match rate: {((filteredCollections.length / analytics.allCollections.length) * 100).toFixed(1)}%
+                          </span>
+                          <span>
+                            Search method: {searchTerm.length === 1 ? 'First letter' : 'Partial match'}
+                          </span>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
