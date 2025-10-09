@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "../lib/auth";
 import api from "../lib/api";
+import toast from "react-hot-toast";
 import ImprovedMapPicker from "./ImprovedMapPicker";
 import { 
     validateName, 
@@ -30,6 +31,7 @@ export default function UserDetails() {
     address: "",
     birthday: "",
     idCardNumber: "",
+    password: "",
   });
   const [mapPos, setMapPos] = useState(null);
 
@@ -84,6 +86,12 @@ export default function UserDetails() {
       birthday: form.birthday,
       idCardNumber: form.idCardNumber,
     };
+    
+    // Include password if provided
+    if (form.password) {
+      p.password = form.password;
+    }
+    
     if (mapPos) p.location = { type: "Point", coordinates: [mapPos.lng, mapPos.lat] };
     return p;
   }, [form, mapPos]);
@@ -126,6 +134,11 @@ export default function UserDetails() {
       errors.idCardNumber = idCardError;
     }
     
+    // Validate password if provided
+    if (form.password && form.password.length < 6) {
+      errors.password = 'Password must be at least 6 characters long';
+    }
+    
     if (Object.keys(errors).length > 0) {
       setValidationErrors(errors);
       setError('Please correct the highlighted errors');
@@ -136,10 +149,23 @@ export default function UserDetails() {
     setSaving(true);
     setError("");
     setOk("");
+    
     try {
+      // Update profile data (including password if provided)
       const { data } = await api.put("/api/users/me", payload);
       setUser?.(data);
-      setOk("Profile updated successfully.");
+      
+      // Show success message
+      if (form.password) {
+        toast.success("Profile and password updated successfully!");
+        setOk("Profile and password updated successfully.");
+        // Clear password field after successful update
+        setForm(prev => ({ ...prev, password: "" }));
+      } else {
+        toast.success("Profile updated successfully!");
+        setOk("Profile updated successfully.");
+      }
+      
     } catch (err) {
       const msg = err?.response?.data?.message || err?.message || "Update failed";
       setError(msg);
@@ -184,6 +210,37 @@ export default function UserDetails() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <Field label="Email" name="email" type="email" value={form.email} onChange={onChange} required />
             <Field label="Phone" name="phone" value={form.phone} onChange={onChange} required validationError={validationErrors.phone} />
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div>
+              <Label text="Password" />
+              <div className="relative">
+                <input
+                  className={`mt-1 w-full rounded-xl border px-3 py-2 outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-200 ${
+                    validationErrors.password ? 'border-red-500' : ''
+                  }`}
+                  name="password"
+                  type="password"
+                  value={form.password}
+                  onChange={onChange}
+                  placeholder="Change current password"
+                />
+                {!form.password && (
+                  <div className="absolute right-3 top-1/2 transform -translate-y-1/2 text-sm text-green-600 font-medium">
+                    ✓ Set
+                  </div>
+                )}
+              </div>
+              {validationErrors.password && (
+                <p className="text-red-500 text-sm mt-1">{validationErrors.password}</p>
+              )}
+              <p className="text-gray-500 text-xs mt-1">
+                Your password is secure and protected. Enter a new password above to change it (minimum 6 characters).
+              </p>
+            </div>
+            <div>
+              {/* Empty div to maintain grid layout */}
+            </div>
           </div>
         </div>
 
@@ -298,7 +355,7 @@ function Label({ text }) {
   return <label className="block text-sm font-medium text-gray-700">{text}</label>;
 }
 
-function Field({ label, name, value, onChange, type = "text", required, validationError }) {
+function Field({ label, name, value, onChange, type = "text", required, validationError, placeholder }) {
   return (
     <div>
       <Label text={label} />
@@ -311,9 +368,15 @@ function Field({ label, name, value, onChange, type = "text", required, validati
         value={value}
         onChange={onChange}
         required={required}
+        placeholder={placeholder}
       />
       {validationError && (
         <p className="text-red-500 text-sm mt-1">{validationError}</p>
+      )}
+      {name === 'password' && !validationError && (
+        <p className="text-gray-500 text-xs mt-1">
+          Your password is currently set and secure. Enter a new password here to change it (minimum 6 characters).
+        </p>
       )}
     </div>
   );

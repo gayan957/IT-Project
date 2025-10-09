@@ -2,6 +2,7 @@ import User from '../models/User.js';
 import Admin from '../models/Admin.js';
 import PickUpAgent from '../models/PickUpAgent.js';
 import PickUpPartner from '../models/PickUpPartner.js';
+import bcrypt from 'bcryptjs';
 
 export async function getMe(req, res, next) {
     try {
@@ -34,11 +35,11 @@ export async function getMe(req, res, next) {
 
 export async function updateMe(req, res, next) {
   try {
-    // allow location + profile fields
+    // allow location + profile fields + password
     const allowed = [
       'firstName', 'middleName', 'lastName',
       'email', 'phone', 'address', 'birthday', 'idCardNumber',
-      'location' // ✅ include location
+      'location', 'password' // ✅ include password
     ];
 
     const updates = Object.fromEntries(
@@ -57,10 +58,20 @@ export async function updateMe(req, res, next) {
       }
     }
 
+    // Handle password update if provided
+    if (updates.password) {
+      if (updates.password.length < 6) {
+        return res.status(400).json({ message: 'Password must be at least 6 characters long' });
+      }
+      // Hash the new password
+      const salt = await bcrypt.genSalt(10);
+      updates.password = await bcrypt.hash(updates.password, salt);
+    }
+
     const user = await User.findByIdAndUpdate(req.user.id, updates, {
       new: true,           // ✅ return updated document
       runValidators: true, // ✅ run schema validation
-    });
+    }).select('-password'); // Don't return password in response
 
     if (!user) return res.status(404).json({ message: 'User not found' });
     res.json(user);

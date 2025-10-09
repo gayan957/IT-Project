@@ -23,21 +23,54 @@ const orderWasteSchema = new mongoose.Schema(
             type: Number,
             required: true,
             min: 0,
-            default: 0
+            default: 0,
+            validate: {
+                validator: function(value) {
+                    // Check if the number has more than 2 decimal places
+                    return Number.isInteger(value * 100);
+                },
+                message: 'Admin tax amount can have maximum 2 decimal places'
+            },
+            set: function(value) {
+                // Round to 2 decimal places when setting the value
+                return Math.round(value * 100) / 100;
+            }
         },
         
         // Amount of waste being ordered (in kg)
         wasteAmount: {
             type: Number,
             required: true,
-            min: 0.1
+            min: 0.1,
+            validate: {
+                validator: function(value) {
+                    // Check if the number has more than 2 decimal places
+                    return Number.isInteger(value * 100);
+                },
+                message: 'Waste amount can have maximum 2 decimal places'
+            },
+            set: function(value) {
+                // Round to 2 decimal places when setting the value
+                return Math.round(value * 100) / 100;
+            }
         },
         
         // Total order value (calculated field)
         totalOrderValue: {
             type: Number,
             required: true,
-            min: 0
+            min: 0,
+            validate: {
+                validator: function(value) {
+                    // Check if the number has more than 2 decimal places
+                    return Number.isInteger(value * 100);
+                },
+                message: 'Total order value can have maximum 2 decimal places'
+            },
+            set: function(value) {
+                // Round to 2 decimal places when setting the value
+                return Math.round(value * 100) / 100;
+            }
         },
           
         // Order completion details
@@ -49,7 +82,18 @@ const orderWasteSchema = new mongoose.Schema(
         weight: {
             type: Number,
             required: true,
-            min: 0
+            min: 0,
+            validate: {
+                validator: function(value) {
+                    // Check if the number has more than 2 decimal places
+                    return Number.isInteger(value * 100);
+                },
+                message: 'Weight can have maximum 2 decimal places'
+            },
+            set: function(value) {
+                // Round to 2 decimal places when setting the value
+                return Math.round(value * 100) / 100;
+            }
         },
 
         // Order status

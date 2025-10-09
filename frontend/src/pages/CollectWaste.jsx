@@ -269,20 +269,14 @@ const CollectWaste = () => {
           <h3 className="font-semibold text-gray-900 mb-2">Bin Information</h3>
           <div className="space-y-2 text-sm">
             <div className="flex justify-between">
-              <span className="text-gray-600">Location:</span>
+              <span className="text-gray-600">Bin Label:</span>
               <span className="text-gray-900">
-                {currentBinData.address || currentBinData.label || currentBinData._id || 'Unknown'}
+                {currentBinData.label || currentBinData.address || currentBinData._id || 'Unknown'}
               </span>
             </div>
             <div className="flex justify-between">
               <span className="text-gray-600">Current Fill:</span>
               <span className="text-gray-900">{currentBinData.fillLevel || 0}%</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-gray-600">Owner:</span>
-              <span className="text-gray-900">
-                {currentBinData.owner?.fullName || currentBinData.owner?.name || 'Unknown'}
-              </span>
             </div>
           </div>
         </div>

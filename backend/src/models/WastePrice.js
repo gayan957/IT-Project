@@ -28,11 +28,24 @@ const wastePriceSchema = new mongoose.Schema({
     type: Number,
     required: [true, 'Price per kg is required'],
     min: [0, 'Price cannot be negative'],
-    validate: {
-      validator: function(v) {
-        return Number.isFinite(v) && v >= 0;
+    validate: [
+      {
+        validator: function(v) {
+          return Number.isFinite(v) && v >= 0;
+        },
+        message: 'Price per kg must be a valid positive number'
       },
-      message: 'Price per kg must be a valid positive number'
+      {
+        validator: function(value) {
+          // Check if the number has more than 2 decimal places
+          return Number.isInteger(value * 100);
+        },
+        message: 'Price per kg can have maximum 2 decimal places'
+      }
+    ],
+    set: function(value) {
+      // Round to 2 decimal places when setting the value
+      return Math.round(value * 100) / 100;
     }
   },
   updatedBy: {

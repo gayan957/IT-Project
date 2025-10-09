@@ -17,9 +17,9 @@ export const getHighFillBins = async (req, res) => {
         const allBins = await Bin.find({}).select('fillLevel isActive').limit(5);
         console.log('Sample bins in database:', allBins.map(b => ({ _id: b._id, fillLevel: b.fillLevel, isActive: b.isActive })));
         
-        // Find bins with fill level > 75%
+        // Find bins with fill level >= 75% (75% or more)
         const highFillBins = await Bin.find({ 
-            fillLevel: { $gt: 75 },
+            fillLevel: { $gte: 75 },
             isActive: true 
         })
         .populate('owner', 'name email phoneNumber')
@@ -88,8 +88,8 @@ export const getBinForCollection = async (req, res) => {
             return res.status(404).json({ error: 'Bin not found' });
         }
 
-        if (bin.fillLevel <= 75) {
-            return res.status(400).json({ error: 'Bin fill level is not high enough for collection' });
+        if (bin.fillLevel < 75) {
+            return res.status(400).json({ error: 'Bin fill level is not high enough for collection (must be 75% or more)' });
         }
 
         res.json({ bin });
@@ -117,8 +117,8 @@ export const collectBin = async (req, res) => {
             return res.status(404).json({ error: 'Bin not found' });
         }
 
-        if (bin.fillLevel <= 75) {
-            return res.status(400).json({ error: 'Bin fill level is not high enough for collection' });
+        if (bin.fillLevel < 75) {
+            return res.status(400).json({ error: 'Bin fill level is not high enough for collection (must be 75% or more)' });
         }
 
         // Find the agent
