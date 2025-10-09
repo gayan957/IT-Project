@@ -81,7 +81,18 @@ const UserScheduleSchema = new Schema(
       type: Number,
       default: 0,
       min: [0, 'Estimated weight cannot be negative'],
-      max: [1000, 'Estimated weight seems too high']
+      max: [1000, 'Estimated weight seems too high'],
+      validate: {
+        validator: function(value) {
+          // Check if the number has more than 2 decimal places
+          return Number.isInteger(value * 100);
+        },
+        message: 'Estimated weight can have maximum 2 decimal places'
+      },
+      set: function(value) {
+        // Round to 2 decimal places when setting the value
+        return Math.round(value * 100) / 100;
+      }
     },
     status: {
       type: String,

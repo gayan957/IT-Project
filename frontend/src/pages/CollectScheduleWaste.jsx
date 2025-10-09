@@ -12,7 +12,6 @@ const CollectScheduleWaste = () => {
     const [actualWeight, setActualWeight] = useState('');
     const [wastePrice, setWastePrice] = useState(null);
     const [totalPrice, setTotalPrice] = useState(0);
-    const [notes, setNotes] = useState('');
 
     // Sample schedule data for testing when no data is passed
     const sampleScheduleData = {
@@ -168,7 +167,7 @@ const CollectScheduleWaste = () => {
                     longitude: currentScheduleData.location?.lng || 79.8612,
                     address: currentScheduleData.address || 'Unknown location'
                 },
-                notes: notes || `Schedule collection by ${agentInfo.name || 'Agent'} on ${new Date().toLocaleDateString()}`
+                notes: `Schedule collection by ${agentInfo.name || 'Agent'} on ${new Date().toLocaleDateString()}`
             };
 
             console.log('🎯 Agent Info:', agentInfo);
@@ -280,14 +279,6 @@ const CollectScheduleWaste = () => {
                                 <p className="text-gray-900">{currentScheduleData.scheduledTime}</p>
                             </div>
                             <div>
-                                <span className="font-medium text-gray-700">User:</span>
-                                <p className="text-gray-900">{currentScheduleData.userName || 'Unknown'}</p>
-                            </div>
-                            <div>
-                                <span className="font-medium text-gray-700">Estimated Weight:</span>
-                                <p className="text-gray-900">{currentScheduleData.estimatedWeight || 0} kg</p>
-                            </div>
-                            <div>
                                 <span className="font-medium text-gray-700">Waste Type:</span>
                                 <p className="text-gray-900 capitalize">{currentScheduleData.wasteType}</p>
                             </div>
@@ -339,22 +330,6 @@ const CollectScheduleWaste = () => {
                                 </div>
                             </div>
                         )}
-
-                        {/* Notes */}
-                        <div>
-                            <label htmlFor="notes" className="block text-sm font-medium text-gray-700 mb-2">
-                                Collection Notes (Optional)
-                            </label>
-                            <textarea
-                                id="notes"
-                                value={notes}
-                                onChange={(e) => setNotes(e.target.value)}
-                                rows={3}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                placeholder="Any additional notes about the collection..."
-                                disabled={submitting}
-                            />
-                        </div>
 
                         {/* Location Info (Read-only) */}
                         <div className="p-4 bg-gray-50 rounded-lg">

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -63,6 +63,14 @@ const RecyclerDashboard = () => {
   const [overviewWasteTypeFilter, setOverviewWasteTypeFilter] = useState('all');
   const [showAllOverviewResults, setShowAllOverviewResults] = useState(false);
 
+  // Available Waste section state
+  const [wasteSearchTerm, setWasteSearchTerm] = useState('');
+  const [wasteTypeFilter, setWasteTypeFilter] = useState('all');
+  const [weightFilter, setWeightFilter] = useState('all');
+  const [sortBy, setSortBy] = useState('newest');
+  const [refreshInterval, setRefreshInterval] = useState(null);
+  const [lastRefresh, setLastRefresh] = useState(new Date());
+
   // Filter orders based on search term and status
   const filteredOrders = recyclerOrders.filter(order => {
     const matchesSearch = !searchTerm || 
@@ -99,6 +107,39 @@ const RecyclerDashboard = () => {
     return matchesSearch && matchesWasteType && matchesDate;
   });
 
+  // Filter and sort available waste
+  const filteredAvailableWaste = availableWaste.filter(waste => {
+    const matchesSearch = !wasteSearchTerm || 
+      waste.wasteType?.toLowerCase().includes(wasteSearchTerm.toLowerCase()) ||
+      waste.pickupPartnerId?.companyName?.toLowerCase().includes(wasteSearchTerm.toLowerCase()) ||
+      waste.totalWeight?.toString().includes(wasteSearchTerm);
+    
+    const matchesWasteType = wasteTypeFilter === 'all' || 
+      waste.wasteType?.toLowerCase() === wasteTypeFilter.toLowerCase();
+    
+    const matchesWeight = weightFilter === 'all' || 
+      (weightFilter === 'small' && waste.totalWeight < 50) ||
+      (weightFilter === 'medium' && waste.totalWeight >= 50 && waste.totalWeight < 200) ||
+      (weightFilter === 'large' && waste.totalWeight >= 200);
+    
+    return matchesSearch && matchesWasteType && matchesWeight;
+  }).sort((a, b) => {
+    switch (sortBy) {
+      case 'newest':
+        return new Date(b.createdAt) - new Date(a.createdAt);
+      case 'oldest':
+        return new Date(a.createdAt) - new Date(b.createdAt);
+      case 'weight-high':
+        return b.totalWeight - a.totalWeight;
+      case 'weight-low':
+        return a.totalWeight - b.totalWeight;
+      case 'type':
+        return a.wasteType.localeCompare(b.wasteType);
+      default:
+        return 0;
+    }
+  });
+
   // Get unique waste types for filter dropdown
   const availableWasteTypes = [...new Set(completedOrders.map(order => 
     order.wasteWarehouseId?.wasteType || order.meta?.wasteType || ''
@@ -116,9 +157,9 @@ const RecyclerDashboard = () => {
       };
     }
 
-    const totalWeight = completedOrders.reduce((sum, order) => sum + (order.weight || 0), 0);
+    const totalWeight = parseFloat(completedOrders.reduce((sum, order) => sum + (order.weight || 0), 0).toFixed(2));
     const totalOrders = completedOrders.length;
-    const totalValue = completedOrders.reduce((sum, order) => sum + (order.totalOrderValue || 0), 0);
+    const totalValue = parseFloat(completedOrders.reduce((sum, order) => sum + (order.totalOrderValue || 0), 0).toFixed(2));
     
     // Get unique waste types
     const wasteTypesSet = new Set();
@@ -136,12 +177,12 @@ const RecyclerDashboard = () => {
     const currentMonth = currentDate.getMonth();
     const currentYear = currentDate.getFullYear();
     
-    const monthlyWeight = completedOrders
+    const monthlyWeight = parseFloat(completedOrders
       .filter(order => {
         const orderDate = new Date(order.completedAt || order.updatedAt);
         return orderDate.getMonth() === currentMonth && orderDate.getFullYear() === currentYear;
       })
-      .reduce((sum, order) => sum + (order.weight || 0), 0);
+      .reduce((sum, order) => sum + (order.weight || 0), 0).toFixed(2));
 
     return {
       totalWeight,
@@ -262,6 +303,46 @@ const RecyclerDashboard = () => {
     loadData();
   }, [navigate]);
 
+  // Real-time refresh for available waste
+  useEffect(() => {
+    if (activeTab === 'waste') {
+      const interval = setInterval(async () => {
+        try {
+          const wasteResponse = await getAvailableWaste(1, 50, wasteTypeFilter === 'all' ? 'all' : wasteTypeFilter);
+          if (wasteResponse.success) {
+            setAvailableWaste(wasteResponse.data.availableWaste || []);
+            setLastRefresh(new Date());
+          }
+        } catch (error) {
+          console.error('Error refreshing available waste:', error);
+        }
+      }, 30000); // Refresh every 30 seconds
+      
+      setRefreshInterval(interval);
+      return () => clearInterval(interval);
+    }
+  }, [activeTab, wasteTypeFilter]);
+
+  // Manual refresh function
+  const refreshAvailableWaste = async () => {
+    try {
+      setLoading(true);
+      const wasteResponse = await getAvailableWaste(1, 50, wasteTypeFilter === 'all' ? 'all' : wasteTypeFilter);
+      if (wasteResponse.success) {
+        setAvailableWaste(wasteResponse.data.availableWaste || []);
+        setLastRefresh(new Date());
+        toast.success('Available waste updated');
+      } else {
+        toast.error('Failed to refresh data');
+      }
+    } catch (error) {
+      console.error('Error refreshing available waste:', error);
+      toast.error('Failed to refresh data');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleLogout = async () => {
     try {
       if (user?.id) {
@@ -322,7 +403,7 @@ const RecyclerDashboard = () => {
         `Are you sure you want to mark this order as processed?\n\n` +
         `Order: ${order._id?.slice(-6)}\n` +
         `Waste Type: ${order.wasteWarehouseId?.wasteType || 'Unknown'}\n` +
-        `Weight: ${order.weight} kg\n` +
+        `Weight: ${parseFloat(order.weight || 0).toFixed(2)} kg\n` +
         `Total Price: $${order.totalOrderValue ? order.totalOrderValue.toFixed(2) : '0.00'}`
       );
 
@@ -462,8 +543,8 @@ const RecyclerDashboard = () => {
 
       // Summary statistics
       const totalOrders = filteredOrders.length;
-      const totalWeight = filteredOrders.reduce((sum, order) => sum + (order.weight || 0), 0);
-      const totalValue = filteredOrders.reduce((sum, order) => sum + (order.totalOrderValue || 0), 0);
+      const totalWeight = parseFloat(filteredOrders.reduce((sum, order) => sum + (order.weight || 0), 0).toFixed(2));
+      const totalValue = parseFloat(filteredOrders.reduce((sum, order) => sum + (order.totalOrderValue || 0), 0).toFixed(2));
       
       const pendingOrders = filteredOrders.filter(order => order.orderStatus === 'pending').length;
       const approvedOrders = filteredOrders.filter(order => order.orderStatus === 'approved').length;
@@ -525,7 +606,7 @@ const RecyclerDashboard = () => {
       const ordersData = filteredOrders.map(order => [
         order._id ? order._id.slice(-6) : 'N/A',
         (order.wasteWarehouseId?.wasteType || 'Unknown').charAt(0).toUpperCase() + (order.wasteWarehouseId?.wasteType || 'Unknown').slice(1),
-        `${order.weight || 0} kg`,
+        `${parseFloat(order.weight || 0).toFixed(2)} kg`,
         formatCurrency(order.totalOrderValue || 0),
         order.orderStatus ? order.orderStatus.charAt(0).toUpperCase() + order.orderStatus.slice(1) : 'N/A',
         formatDate(order.createdAt || new Date())
@@ -916,7 +997,7 @@ const RecyclerDashboard = () => {
                           </td>
                           <td className="py-4 px-4">
                             <span className="font-semibold text-emerald-600">
-                              {order.weight || 0}
+                              {parseFloat(order.weight || 0).toFixed(2)}
                             </span>
                           </td>
                           <td className="py-4 px-4">
@@ -1009,26 +1090,144 @@ const RecyclerDashboard = () => {
           </div>
         )}
 
-        {/* Available Waste Tab - Enhanced */}
+        {/* Available Waste Tab - Enhanced with Real-time Data */}
         {activeTab === 'waste' && (
           <div className="relative bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl p-8 border border-gray-100">
+            {/* Header with Real-time Indicator */}
             <div className="flex items-center justify-between mb-6">
               <div>
-                <h3 className="text-xl font-bold bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent">
-                  Available Waste for Processing
-                </h3>
-                <p className="text-gray-600 mt-1">Waste ready for collection and processing</p>
+                <div className="flex items-center gap-3">
+                  <h3 className="text-xl font-bold bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent">
+                    Available Waste for Processing
+                  </h3>
+                  <div className="flex items-center gap-2">
+                    <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                    <span className="text-xs text-gray-500">Live</span>
+                  </div>
+                </div>
+                <p className="text-gray-600 mt-1">
+                  Waste ready for collection and processing • Last updated: {lastRefresh.toLocaleTimeString()}
+                </p>
+                <p className="text-sm text-gray-500 mt-1">
+                  {filteredAvailableWaste.length} of {availableWaste.length} items shown
+                </p>
               </div>
-              <div className="w-10 h-10 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-xl flex items-center justify-center shadow-lg">
-                <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                </svg>
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={refreshAvailableWaste}
+                  className="p-2 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-xl text-white hover:shadow-lg transition-all duration-300 hover:scale-105"
+                  title="Refresh data"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                  </svg>
+                </button>
+                <div className="w-10 h-10 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-xl flex items-center justify-center shadow-lg">
+                  <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                  </svg>
+                </div>
               </div>
             </div>
+
+            {/* Enhanced Filters */}
+            <div className="mb-6 p-4 bg-gradient-to-r from-gray-50 to-gray-100 rounded-xl border border-gray-200">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                {/* Search */}
+                <div className="relative">
+                  <input
+                    type="text"
+                    placeholder="Search waste..."
+                    value={wasteSearchTerm}
+                    onChange={(e) => setWasteSearchTerm(e.target.value)}
+                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                  />
+                  <svg className="w-4 h-4 text-gray-400 absolute left-3 top-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                  </svg>
+                </div>
+
+                {/* Waste Type Filter */}
+                <select
+                  value={wasteTypeFilter}
+                  onChange={(e) => setWasteTypeFilter(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                >
+                  <option value="all">All Types</option>
+                  <option value="plastic">Plastic</option>
+                  <option value="metal">Metal</option>
+                  <option value="glass">Glass</option>
+                  <option value="paper">Paper</option>
+                  <option value="mixed">Mixed</option>
+                  <option value="organic">Organic</option>
+                  <option value="electronic">Electronic</option>
+                </select>
+
+                {/* Weight Filter */}
+                <select
+                  value={weightFilter}
+                  onChange={(e) => setWeightFilter(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                >
+                  <option value="all">All Weights</option>
+                  <option value="small">Small (&lt; 50kg)</option>
+                  <option value="medium">Medium (50-200kg)</option>
+                  <option value="large">Large (&gt; 200kg)</option>
+                </select>
+
+                {/* Sort By */}
+                <select
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                >
+                  <option value="newest">Newest First</option>
+                  <option value="oldest">Oldest First</option>
+                  <option value="weight-high">Weight: High to Low</option>
+                  <option value="weight-low">Weight: Low to High</option>
+                  <option value="type">By Type</option>
+                </select>
+              </div>
+
+              {/* Active Filters */}
+              {(wasteSearchTerm || wasteTypeFilter !== 'all' || weightFilter !== 'all' || sortBy !== 'newest') && (
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {wasteSearchTerm && (
+                    <span className="px-3 py-1 bg-emerald-100 text-emerald-800 rounded-full text-sm flex items-center gap-1">
+                      Search: {wasteSearchTerm}
+                      <button onClick={() => setWasteSearchTerm('')} className="ml-1 hover:text-emerald-600">×</button>
+                    </span>
+                  )}
+                  {wasteTypeFilter !== 'all' && (
+                    <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm flex items-center gap-1">
+                      Type: {wasteTypeFilter}
+                      <button onClick={() => setWasteTypeFilter('all')} className="ml-1 hover:text-blue-600">×</button>
+                    </span>
+                  )}
+                  {weightFilter !== 'all' && (
+                    <span className="px-3 py-1 bg-purple-100 text-purple-800 rounded-full text-sm flex items-center gap-1">
+                      Weight: {weightFilter}
+                      <button onClick={() => setWeightFilter('all')} className="ml-1 hover:text-purple-600">×</button>
+                    </span>
+                  )}
+                  <button
+                    onClick={() => {
+                      setWasteSearchTerm('');
+                      setWasteTypeFilter('all');
+                      setWeightFilter('all');
+                      setSortBy('newest');
+                    }}
+                    className="px-3 py-1 bg-gray-100 text-gray-600 rounded-full text-sm hover:bg-gray-200"
+                  >
+                    Clear All
+                  </button>
+                </div>
+              )}
+            </div>
             
-            {availableWaste.length > 0 ? (
+            {filteredAvailableWaste.length > 0 ? (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {availableWaste.map((waste) => {
+                {filteredAvailableWaste.map((waste) => {
                   // Define colors and icons for each waste type
                   const getWasteTypeInfo = (wasteType) => {
                     const type = wasteType.toLowerCase();
@@ -1150,38 +1349,69 @@ const RecyclerDashboard = () => {
                               </span>
                             </div>
                           </div>
+                          <div className="flex flex-col gap-1">
+                            <Link
+                              to={`/recycler/waste/${waste._id}`}
+                              className="p-2 bg-white/70 hover:bg-white rounded-lg transition-colors duration-200 shadow-sm"
+                              title="View details"
+                            >
+                              <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                              </svg>
+                            </Link>
+                            <span className="text-xs text-gray-500 text-center">ID: {waste._id.slice(-6)}</span>
+                          </div>
                         </div>
                         
                         <div className="space-y-3 mb-6">
                           <div className="flex items-center justify-between p-3 bg-white/60 backdrop-blur-sm rounded-lg border border-white/40">
                             <span className="text-sm text-gray-600 font-medium">Weight:</span>
-                            <span className={`text-lg font-bold ${wasteInfo.textColor}`}>{waste.totalWeight} kg</span>
+                            <span className={`text-lg font-bold ${wasteInfo.textColor}`}>{parseFloat(waste.totalWeight).toFixed(2)} kg</span>
                           </div>
                           <div className="flex items-center justify-between p-3 bg-white/60 backdrop-blur-sm rounded-lg border border-white/40">
                             <span className="text-sm text-gray-600 font-medium">From:</span>
-                            <span className="text-sm font-semibold text-gray-900">{waste.pickupPartnerId?.companyName || 'root'}</span>
+                            <Link 
+                              to={`/recycler/partner/${waste.pickupPartnerId?._id}`}
+                              className="text-sm font-semibold text-emerald-600 hover:text-emerald-700 hover:underline transition-colors"
+                              title="View partner details"
+                            >
+                              {waste.pickupPartnerId?.companyName || 'Unknown Partner'}
+                            </Link>
                           </div>
                           <div className="flex items-center justify-between p-3 bg-white/60 backdrop-blur-sm rounded-lg border border-white/40">
                             <span className="text-sm text-gray-600 font-medium">Date:</span>
                             <span className="text-sm font-medium text-gray-700">{formatDate(waste.createdAt)}</span>
                           </div>
+                          <div className="flex items-center justify-between p-3 bg-white/60 backdrop-blur-sm rounded-lg border border-white/40">
+                            <span className="text-sm text-gray-600 font-medium">Location:</span>
+                            <span className="text-sm font-medium text-gray-700">{waste.location || 'Not specified'}</span>
+                          </div>
                         </div>
 
-                        {/* Order Button */}
-                        <button 
-                          onClick={() => handleOrderWaste(waste)}
-                          className={`w-full bg-gradient-to-r ${wasteInfo.color} text-white font-bold py-4 px-6 rounded-xl hover:shadow-xl transform hover:scale-105 transition-all duration-300 flex items-center justify-center gap-3 group-hover:shadow-2xl relative overflow-hidden`}
-                          title={`Place order for ${waste.totalWeight} kg of ${waste.wasteType} waste`}
-                        >
-                          <div className="absolute inset-0 bg-white/20 transform -skew-x-12 -translate-x-full group-hover:translate-x-full transition-transform duration-700"></div>
-                          <svg className="w-5 h-5 relative z-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"/>
-                          </svg>
-                          <span className="relative z-10">Place Order</span>
-                          <svg className="w-4 h-4 group-hover:translate-x-1 transition-transform duration-300 relative z-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7"/>
-                          </svg>
-                        </button>
+                        {/* Action Buttons */}
+                        <div className="flex gap-2">
+                          <button 
+                            onClick={() => handleOrderWaste(waste)}
+                            className={`flex-1 bg-gradient-to-r ${wasteInfo.color} text-white font-bold py-3 px-4 rounded-xl hover:shadow-xl transform hover:scale-105 transition-all duration-300 flex items-center justify-center gap-2 group-hover:shadow-2xl relative overflow-hidden`}
+                            title={`Place order for ${parseFloat(waste.totalWeight).toFixed(2)} kg of ${waste.wasteType} waste`}
+                          >
+                            <div className="absolute inset-0 bg-white/20 transform -skew-x-12 -translate-x-full group-hover:translate-x-full transition-transform duration-700"></div>
+                            <svg className="w-4 h-4 relative z-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"/>
+                            </svg>
+                            <span className="relative z-10 text-sm">Order</span>
+                          </button>
+                          <Link
+                            to={`/recycler/waste/${waste._id}`}
+                            className="px-4 py-3 bg-white/80 hover:bg-white text-gray-700 font-medium rounded-xl border border-gray-200 hover:border-gray-300 transition-all duration-300 flex items-center justify-center"
+                            title="View full details"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                          </Link>
+                        </div>
                       </div>
                     </div>
                   );
@@ -1194,8 +1424,76 @@ const RecyclerDashboard = () => {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                   </svg>
                 </div>
-                <p className="text-gray-500 font-medium text-lg">No available waste found</p>
-                <p className="text-gray-400 text-sm mt-1">Available waste will appear here when ready for processing</p>
+                {availableWaste.length === 0 ? (
+                  <>
+                    <p className="text-gray-500 font-medium text-lg">No available waste found</p>
+                    <p className="text-gray-400 text-sm mt-1">Available waste will appear here when ready for processing</p>
+                    <button
+                      onClick={refreshAvailableWaste}
+                      className="mt-4 px-6 py-2 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 transition-colors"
+                    >
+                      Refresh Data
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-gray-500 font-medium text-lg">No waste matches your filters</p>
+                    <p className="text-gray-400 text-sm mt-1">
+                      Try adjusting your search or filter criteria
+                    </p>
+                    <div className="mt-4 flex justify-center gap-2">
+                      <button
+                        onClick={() => {
+                          setWasteSearchTerm('');
+                          setWasteTypeFilter('all');
+                          setWeightFilter('all');
+                          setSortBy('newest');
+                        }}
+                        className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+                      >
+                        Clear Filters
+                      </button>
+                      <Link
+                        to="/recycler/waste/all"
+                        className="px-4 py-2 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 transition-colors"
+                      >
+                        View All Waste
+                      </Link>
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
+
+            {/* Quick Stats Footer */}
+            {filteredAvailableWaste.length > 0 && (
+              <div className="mt-8 p-4 bg-gradient-to-r from-emerald-50 to-teal-50 rounded-xl border border-emerald-200">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
+                  <div>
+                    <div className="text-2xl font-bold text-emerald-600">
+                      {filteredAvailableWaste.reduce((sum, waste) => sum + waste.totalWeight, 0).toFixed(2)}kg
+                    </div>
+                    <div className="text-sm text-gray-600">Total Weight</div>
+                  </div>
+                  <div>
+                    <div className="text-2xl font-bold text-emerald-600">
+                      {[...new Set(filteredAvailableWaste.map(w => w.wasteType))].length}
+                    </div>
+                    <div className="text-sm text-gray-600">Waste Types</div>
+                  </div>
+                  <div>
+                    <div className="text-2xl font-bold text-emerald-600">
+                      {[...new Set(filteredAvailableWaste.map(w => w.pickupPartnerId?.companyName).filter(Boolean))].length}
+                    </div>
+                    <div className="text-sm text-gray-600">Partners</div>
+                  </div>
+                  <div>
+                    <div className="text-2xl font-bold text-emerald-600">
+                      {(filteredAvailableWaste.reduce((sum, waste) => sum + waste.totalWeight, 0) / filteredAvailableWaste.length || 0).toFixed(2)}kg
+                    </div>
+                    <div className="text-sm text-gray-600">Avg Weight</div>
+                  </div>
+                </div>
               </div>
             )}
           </div>
@@ -1401,7 +1699,7 @@ const RecyclerDashboard = () => {
                         <div className="space-y-3">
                           <div className="flex justify-between items-center">
                             <span className="text-sm text-gray-600 font-medium">Weight:</span>
-                            <span className="text-lg font-bold text-gray-900">{order.weight} kg</span>
+                            <span className="text-lg font-bold text-gray-900">{parseFloat(order.weight || 0).toFixed(2)} kg</span>
                           </div>
 
                           <div className="flex justify-between items-center">
@@ -1549,7 +1847,7 @@ const RecyclerDashboard = () => {
                       <div className="flex items-center justify-between">
                         <div>
                           <p className="text-green-100 text-sm font-medium">Total Weight</p>
-                          <p className="text-2xl font-bold">{calculateCompletedOrdersStats(completedOrders).totalWeight} kg</p>
+                          <p className="text-2xl font-bold">{calculateCompletedOrdersStats(completedOrders).totalWeight.toFixed(2)} kg</p>
                         </div>
                         <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center">
                           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1614,7 +1912,7 @@ const RecyclerDashboard = () => {
                                 </span>
                               </td>
                               <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                                {order.weight || 0}
+                                {parseFloat(order.weight || 0).toFixed(2)}
                               </td>
                               <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-green-600">
                                 {(order.totalOrderValue || 0).toFixed(2)}
@@ -1643,9 +1941,9 @@ const RecyclerDashboard = () => {
                             datasets: [{
                               label: 'Weight (kg)',
                               data: calculateCompletedOrdersStats(completedOrders).wasteTypes.map(type => {
-                                return completedOrders
+                                return parseFloat(completedOrders
                                   .filter(order => (order.wasteWarehouseId?.wasteType || order.meta?.wasteType) === type)
-                                  .reduce((sum, order) => sum + (order.weight || 0), 0);
+                                  .reduce((sum, order) => sum + (order.weight || 0), 0).toFixed(2));
                               }),
                               backgroundColor: [
                                 'rgba(34, 197, 94, 0.8)',
@@ -1729,9 +2027,9 @@ const RecyclerDashboard = () => {
                                   const date = new Date();
                                   date.setDate(date.getDate() - i);
                                   const dateString = date.toDateString();
-                                  const dayWeight = completedOrders
+                                  const dayWeight = parseFloat(completedOrders
                                     .filter(order => new Date(order.completedAt || order.updatedAt).toDateString() === dateString)
-                                    .reduce((sum, order) => sum + (order.weight || 0), 0);
+                                    .reduce((sum, order) => sum + (order.weight || 0), 0).toFixed(2));
                                   last7Days.push(dayWeight);
                                 }
                                 return last7Days;

@@ -49,7 +49,7 @@ export default function PickupAgentProfile() {
 
   // --- NEW: helper to sanitize name input to letters + spaces only ---
   const sanitizeNameInput = (value) => {
-    // If you need to allow hyphens/apostrophes, extend the regex to /[^A-Za-z\s'-]/g
+    // Allow letters and spaces, remove everything else
     return value.replace(/[^A-Za-z\s]/g, '');
   };
 
@@ -126,7 +126,7 @@ export default function PickupAgentProfile() {
   };
 
   // UPDATED: formatName now sanitizes to letters+spaces only, then Title-Cases
-  const formatName = (value) => {
+  const formatNameForSubmission = (value) => {
     const sanitized = sanitizeNameInput(value);
     return sanitized
       .split(' ')
@@ -147,8 +147,8 @@ export default function PickupAgentProfile() {
         formattedValue = formatPhoneNumber(value);
         break;
       case 'name':
-        // Ensure only letters/spaces are accepted in realtime
-        formattedValue = formatName(value);
+        // Only sanitize, don't format case on every keystroke to preserve natural typing
+        formattedValue = sanitizeNameInput(value);
         break;
       case 'vehicleNumber':
         formattedValue = formatVehicleNumber(value);
@@ -218,7 +218,7 @@ export default function PickupAgentProfile() {
       setSuccess('');
       
       const updateData = {
-        name: profile.name,
+        name: formatNameForSubmission(profile.name), // Apply proper formatting on submission
         email: profile.email,
         address: profile.address,
         phoneNumber: profile.phoneNumber.replace(/\D/g, ''), // Clean formatting for API
@@ -485,6 +485,7 @@ function FormField({
     if (!onlyLetters) return;
     // e.data can be null for non-text input (deletion, nav). Guard those.
     if (!e.data) return;
+    // Allow letters and spaces, block everything else
     if (/[^A-Za-z\s]/.test(e.data)) {
       e.preventDefault();
     }
@@ -493,6 +494,7 @@ function FormField({
   const handlePaste = (e) => {
     if (!onlyLetters) return;
     const text = e.clipboardData?.getData('text') ?? '';
+    // Allow letters and spaces, remove everything else
     if (/[^A-Za-z\s]/.test(text)) {
       e.preventDefault();
       const cleaned = text.replace(/[^A-Za-z\s]/g, '');

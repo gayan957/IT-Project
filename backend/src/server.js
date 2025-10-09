@@ -152,8 +152,8 @@ const startServer = async () => {
     // setTestBlynkService(blynkService);
 
     // Socket.IO connection handling
-    io.on('connection', (socket) => {
-      console.log(`📱 Client connected: ${socket.id}`);
+    // io.on('connection', (socket) => {
+    //   console.log(`📱 Client connected: ${socket.id}`);
       
       // Send current fill level to new client (temporarily disabled)
       // const currentData = blynkService.getCurrentFillLevel();
@@ -163,15 +163,15 @@ const startServer = async () => {
       //   timestamp: currentData.timestamp
       // });
 
-      socket.on('disconnect', () => {
-        console.log(`📱 Client disconnected: ${socket.id}`);
-      });
-    });
+    //   socket.on('disconnect', () => {
+    //     console.log(`📱 Client disconnected: ${socket.id}`);
+    //   });
+    // });
 
     // Start the server
     server.listen(PORT, "0.0.0.0", () => {
       console.log(`🚀 Trash2Cash Server running on http://0.0.0.0:${PORT}`);
-      console.log(`📡 Socket.IO enabled with CORS for real-time updates`);
+      //console.log(`📡 Socket.IO enabled with CORS for real-time updates`);
       // console.log(`🔄 Blynk polling: https://blynk.cloud/external/api/get?token=***&v0`);
       console.log(`🌐 Frontend: http://localhost:5173`);
       // console.log(`🗃️ ESP32 Bin ID: 68b86847d6e7f54b912c1638`);
