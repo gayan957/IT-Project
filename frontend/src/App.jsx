@@ -3,6 +3,7 @@ import { useEffect } from 'react';
 import { Toaster } from 'react-hot-toast';
 import Header from './components/Header';
 import Footer from './components/Footer';
+import ChatBot from './components/ChatBot';
 
 export default function App() {
   useEffect(() => {
@@ -16,6 +17,7 @@ export default function App() {
         <Outlet />
       </main>
       <Footer />
+      <ChatBot />
       <Toaster
         position="top-right"
         toastOptions={{
