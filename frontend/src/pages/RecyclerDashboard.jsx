@@ -107,8 +107,8 @@ const RecyclerDashboard = () => {
     return matchesSearch && matchesWasteType && matchesDate;
   });
 
-  // Filter and sort available waste
-  const filteredAvailableWaste = availableWaste.filter(waste => {
+  // Filter and sort available waste - ensure it's an array
+  const filteredAvailableWaste = (Array.isArray(availableWaste) ? availableWaste : []).filter(waste => {
     const matchesSearch = !wasteSearchTerm || 
       waste.wasteType?.toLowerCase().includes(wasteSearchTerm.toLowerCase()) ||
       waste.pickupPartnerId?.companyName?.toLowerCase().includes(wasteSearchTerm.toLowerCase()) ||
@@ -380,7 +380,9 @@ const RecyclerDashboard = () => {
     // Refresh the available waste data after successful order
     try {
       const wasteResponse = await getAvailableWaste(1, 10);
-      setAvailableWaste(wasteResponse.data || []);
+      if (wasteResponse.success) {
+        setAvailableWaste(wasteResponse.data.availableWaste || []);
+      }
       
       // Also refresh statistics and orders
       const statsResponse = await getRecyclerStatistics();

@@ -18,6 +18,9 @@ import AdminLogin from './pages/AdminLogin';
 import AdminDashboard from './pages/AdminDashboard';
 import AdminUsers from './pages/AdminUsers';
 import Unauthorized from './pages/Unauthorized';
+import ChatBotDemo from './pages/ChatBotDemo';
+import SpeechServiceTest from './components/SpeechServiceTest';
+import ChatBotAITest from './components/ChatBotAITest';
 import { AuthProvider } from './lib/auth';
 import ProtectedRoute from './components/ProtectedRoute';
 import PickupAgentLogin from './pages/PickupAgentLogin';
@@ -68,6 +71,9 @@ const router = createBrowserRouter([
       { index: true, element: <Home /> },
       { path: 'contact', element: <Contact /> },
       { path: 'services', element: <HomeService /> },
+      { path: 'chatbot-demo', element: <ChatBotDemo /> },
+      { path: 'speech-test', element: <SpeechServiceTest /> },
+      { path: 'ai-test', element: <ChatBotAITest /> },
       { path: 'login', element: <Login /> },
       { path: 'register', element: <Register /> },
       { path: 'unauthorized', element: <Unauthorized /> },
