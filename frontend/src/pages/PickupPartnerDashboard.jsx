@@ -182,17 +182,23 @@ export default function PickupPartnerDashboard() {
                       <span className="text-gray-600">Loading warehouse data...</span>
                     </div>
                   </div>
-                ) : warehouseData.length === 0 ? (
+                ) : warehouseData.length === 0 || warehouseData.filter(item => item.totalWeight > 5).length === 0 ? (
                   <div className="text-center py-12">
                     <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
                       <span className="text-3xl text-gray-400">📦</span>
                     </div>
                     <h4 className="text-lg font-semibold text-gray-700 mb-2">No Waste in Warehouse</h4>
-                    <p className="text-gray-500">Start collecting waste to see your inventory here</p>
+                    <p className="text-gray-500">
+                      {warehouseData.length === 0 
+                        ? "Start collecting waste to see your inventory here" 
+                        : "No waste items above 5kg minimum threshold"}
+                    </p>
                   </div>
                 ) : (
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                    {warehouseData.map((item, index) => {
+                    {warehouseData
+                      .filter(item => item.totalWeight > 5) // Only show waste with weight > 5kg
+                      .map((item, index) => {
                       const wasteInfo = getWasteTypeInfo(item.wasteType);
                       const percentage = totalWeight > 0 ? ((item.totalWeight / totalWeight) * 100).toFixed(1) : 0;
                       
