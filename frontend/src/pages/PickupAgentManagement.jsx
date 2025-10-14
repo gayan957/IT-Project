@@ -217,16 +217,22 @@ export default function PickupAgentManagement() {
     return true;
   };
 
+  // Validate search input - only allow letters, numbers, and spaces
+  const handleSearchChange = (e) => {
+    const value = e.target.value;
+    const validPattern = /^[a-zA-Z0-9\s]*$/;
+    
+    if (validPattern.test(value)) {
+      setSearchTerm(value);
+    }
+  };
+
   // Filter agents based on search term
   const filteredAgents = agents.filter(agent => {
     if (!searchTerm) return true;
     
     const searchLower = searchTerm.toLowerCase();
-    return (
-      agent.name?.toLowerCase().includes(searchLower) ||
-      agent.agentId?.toLowerCase().includes(searchLower) ||
-      agent.vehicleNumber?.toLowerCase().includes(searchLower)
-    );
+    return agent.name?.toLowerCase().startsWith(searchLower);
   });
 
   useEffect(() => {
@@ -390,9 +396,9 @@ export default function PickupAgentManagement() {
               <input
                 id="search"
                 type="text"
-                placeholder="Search by name, agent ID, or vehicle number..."
+                placeholder="Search by agent name..."
                 value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
+                onChange={handleSearchChange}
                 className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
               />
               <svg

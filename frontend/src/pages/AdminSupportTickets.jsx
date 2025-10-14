@@ -19,6 +19,17 @@ export default function AdminSupportTickets() {
   });
   const [submittingReply, setSubmittingReply] = useState(false);
 
+  // Handle search input change with validation
+  const handleSearchChange = (e) => {
+    const value = e.target.value;
+    // Allow only letters, numbers, and spaces
+    const validPattern = /^[a-zA-Z0-9\s]*$/;
+    
+    if (validPattern.test(value)) {
+      handleFilterChange('search', value);
+    }
+  };
+
   // Fetch all tickets
   const fetchTickets = async () => {
     setLoading(true);
@@ -305,7 +316,7 @@ export default function AdminSupportTickets() {
             <input
               type="text"
               value={filters.search}
-              onChange={(e) => handleFilterChange('search', e.target.value)}
+              onChange={handleSearchChange}
               placeholder="Search tickets..."
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
             />

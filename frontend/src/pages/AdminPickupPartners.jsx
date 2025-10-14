@@ -197,18 +197,28 @@ const AdminPickupPartners = () => {
     fetchPartners();
   }, []);
 
+  // Validate search input - only allow letters, numbers, and spaces
+  const handleSearchChange = (e) => {
+    const value = e.target.value;
+    const validPattern = /^[a-zA-Z0-9\s]*$/;
+    
+    if (validPattern.test(value)) {
+      setSearchTerm(value);
+    }
+  };
+
   // Filter partners based on search term
   const filteredPartners = partners.filter(partner => {
     if (!searchTerm) return true;
     
     const searchLower = searchTerm.toLowerCase();
     return (
-      partner.name?.toLowerCase().includes(searchLower) ||
-      partner.email?.toLowerCase().includes(searchLower) ||
-      partner.companyName?.toLowerCase().includes(searchLower) ||
-      partner.partnerId?.toLowerCase().includes(searchLower) ||
-      partner.phoneNumber?.includes(searchTerm) ||
-      partner.contactPerson?.toLowerCase().includes(searchLower)
+      partner.name?.toLowerCase().startsWith(searchLower) ||
+      partner.email?.toLowerCase().startsWith(searchLower) ||
+      partner.companyName?.toLowerCase().startsWith(searchLower) ||
+      partner.partnerId?.toLowerCase().startsWith(searchLower) ||
+      partner.phoneNumber?.startsWith(searchTerm) ||
+      partner.contactPerson?.toLowerCase().startsWith(searchLower)
     );
   });
 
@@ -375,7 +385,7 @@ const AdminPickupPartners = () => {
                 type="text"
                 placeholder="Search by name, email, company, partner ID, phone, or contact person..."
                 value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
+                onChange={handleSearchChange}
                 className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
               />
               <svg

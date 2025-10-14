@@ -13,6 +13,16 @@ export default function AdminSchedules() {
     fetchSchedules();
   }, []);
 
+  // Validate search input - only allow letters, numbers, and spaces
+  const handleSearchChange = (e) => {
+    const value = e.target.value;
+    const validPattern = /^[a-zA-Z0-9\s]*$/;
+    
+    if (validPattern.test(value)) {
+      setSearchTerm(value);
+    }
+  };
+
   const fetchSchedules = async () => {
     try {
       setLoading(true);
@@ -94,10 +104,8 @@ export default function AdminSchedules() {
 
   const filteredSchedules = schedules.filter(schedule => {
     const matchesSearch = 
-      schedule.userId?.firstName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      schedule.userId?.lastName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      schedule.userId?.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      schedule.address?.toLowerCase().includes(searchTerm.toLowerCase());
+      schedule.userId?.firstName?.toLowerCase().startsWith(searchTerm.toLowerCase()) ||
+      schedule.userId?.lastName?.toLowerCase().startsWith(searchTerm.toLowerCase());
     
     const matchesStatus = statusFilter === 'All' || schedule.status === statusFilter;
     const matchesWasteType = wasteTypeFilter === 'All' || schedule.wasteType === wasteTypeFilter;
@@ -198,9 +206,9 @@ export default function AdminSchedules() {
             <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 text-lg">🔍</span>
             <input
               type="text"
-              placeholder="Search by user name, email, or address..."
+              placeholder="Search by user name..."
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              onChange={handleSearchChange}
               className="w-full pl-10 pr-4 py-3 border-2 border-gray-200 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all duration-300"
             />
           </div>

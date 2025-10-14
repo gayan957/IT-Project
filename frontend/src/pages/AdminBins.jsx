@@ -16,6 +16,16 @@ export default function AdminBins() {
     fetchBins();
   }, []);
 
+  // Validate search input - only allow letters, numbers, and spaces
+  const handleSearchChange = (e) => {
+    const value = e.target.value;
+    const validPattern = /^[a-zA-Z0-9\s]*$/;
+    
+    if (validPattern.test(value)) {
+      setSearchTerm(value);
+    }
+  };
+
   const fetchBins = async () => {
     try {
       setLoading(true);
@@ -146,11 +156,11 @@ export default function AdminBins() {
 
   const filteredBins = bins.filter(bin => {
     const matchesSearch = 
-      bin.owner?.firstName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      bin.owner?.lastName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      bin.owner?.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      bin.label?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      bin.address?.toLowerCase().includes(searchTerm.toLowerCase());
+      bin.owner?.firstName?.toLowerCase().startsWith(searchTerm.toLowerCase()) ||
+      bin.owner?.lastName?.toLowerCase().startsWith(searchTerm.toLowerCase()) ||
+      bin.owner?.email?.toLowerCase().startsWith(searchTerm.toLowerCase()) ||
+      bin.label?.toLowerCase().startsWith(searchTerm.toLowerCase()) ||
+      bin.address?.toLowerCase().startsWith(searchTerm.toLowerCase());
     
     const matchesStatus = statusFilter === 'All' || bin.status === statusFilter;
     const matchesWasteType = wasteTypeFilter === 'All' || bin.wasteType === wasteTypeFilter;
@@ -271,7 +281,7 @@ export default function AdminBins() {
               type="text"
               placeholder="Search by owner, label, or address..."
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              onChange={handleSearchChange}
               className="w-full pl-10 pr-4 py-3 border-2 border-gray-200 rounded-lg focus:border-green-500 focus:ring-2 focus:ring-green-200 transition-all duration-300"
             />
           </div>
