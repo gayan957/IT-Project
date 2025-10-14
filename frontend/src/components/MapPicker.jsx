@@ -1,6 +1,7 @@
 // src/components/MapPicker.jsx
 import { GoogleMap, Marker, useJsApiLoader, Autocomplete } from "@react-google-maps/api";
 import { useEffect, useRef, useState } from "react";
+import { GOOGLE_MAPS_LIBRARIES } from "../config/googleMapsConfig";
 
 const SL_CENTER = { lat: 7.8731, lng: 80.7718 };
 
@@ -27,7 +28,7 @@ const CLEAN_MAP_STYLE = [
 export default function MapPicker({ value, onChange, height = "360px" }) {
   const { isLoaded } = useJsApiLoader({
     googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY,
-    libraries: ["places", "geometry"], // Added geometry library
+    libraries: GOOGLE_MAPS_LIBRARIES,
   });
 
   const initial = value ?? SL_CENTER;

@@ -117,12 +117,15 @@ const RecyclerDashboard = () => {
     const matchesWasteType = wasteTypeFilter === 'all' || 
       waste.wasteType?.toLowerCase() === wasteTypeFilter.toLowerCase();
     
+    // Only show waste with weight more than 5kg
+    const hasMinimumWeight = waste.totalWeight > 5;
+    
     const matchesWeight = weightFilter === 'all' || 
-      (weightFilter === 'small' && waste.totalWeight < 50) ||
+      (weightFilter === 'small' && waste.totalWeight >= 5 && waste.totalWeight < 50) ||
       (weightFilter === 'medium' && waste.totalWeight >= 50 && waste.totalWeight < 200) ||
       (weightFilter === 'large' && waste.totalWeight >= 200);
     
-    return matchesSearch && matchesWasteType && matchesWeight;
+    return matchesSearch && matchesWasteType && matchesWeight && hasMinimumWeight;
   }).sort((a, b) => {
     switch (sortBy) {
       case 'newest':
@@ -1110,9 +1113,10 @@ const RecyclerDashboard = () => {
                 <p className="text-gray-600 mt-1">
                   Waste ready for collection and processing • Last updated: {lastRefresh.toLocaleTimeString()}
                 </p>
-                <p className="text-sm text-gray-500 mt-1">
-                  {filteredAvailableWaste.length} of {availableWaste.length} items shown
-                </p>
+                <div className="flex items-center gap-4 mt-1">
+                  
+                  
+                </div>
               </div>
               <div className="flex items-center gap-3">
                 <button
@@ -1171,8 +1175,8 @@ const RecyclerDashboard = () => {
                   onChange={(e) => setWeightFilter(e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
                 >
-                  <option value="all">All Weights</option>
-                  <option value="small">Small (&lt; 50kg)</option>
+                  <option value="all">All Weights (5kg+)</option>
+                  <option value="small">Small (5-50kg)</option>
                   <option value="medium">Medium (50-200kg)</option>
                   <option value="large">Large (&gt; 200kg)</option>
                 </select>
@@ -1429,7 +1433,7 @@ const RecyclerDashboard = () => {
                 {availableWaste.length === 0 ? (
                   <>
                     <p className="text-gray-500 font-medium text-lg">No available waste found</p>
-                    <p className="text-gray-400 text-sm mt-1">Available waste will appear here when ready for processing</p>
+                    <p className="text-gray-400 text-sm mt-1">Available waste (minimum 5kg) will appear here when ready for processing</p>
                     <button
                       onClick={refreshAvailableWaste}
                       className="mt-4 px-6 py-2 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 transition-colors"
@@ -1441,7 +1445,7 @@ const RecyclerDashboard = () => {
                   <>
                     <p className="text-gray-500 font-medium text-lg">No waste matches your filters</p>
                     <p className="text-gray-400 text-sm mt-1">
-                      Try adjusting your search or filter criteria
+                      Try adjusting your search or filter criteria (all waste must be 5kg or more)
                     </p>
                     <div className="mt-4 flex justify-center gap-2">
                       <button
