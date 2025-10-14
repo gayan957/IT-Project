@@ -36,13 +36,13 @@ export default function AgentSalaries() {
   const filteredSalaries = useMemo(() => {
     let filtered = salaries;
 
-    // Filter by search term (agent name or ID)
+    // Filter by search term (agent name or ID starting with search term)
     if (searchTerm) {
       filtered = filtered.filter(salary => {
         const name = salary.employee.name.toLowerCase();
         const agentId = salary.employee.agentId.toLowerCase();
         const search = searchTerm.toLowerCase();
-        return name.includes(search) || agentId.includes(search);
+        return name.startsWith(search) || agentId.startsWith(search);
       });
     }
 
@@ -70,18 +70,9 @@ export default function AgentSalaries() {
       // Generate PDF as base64
       console.log('Generating PDF for salary:', salary);
       const pdfBase64 = await generatePaySlipPdfBase64({ slip: salary });
-      console.log('PDF generated successfully, length:', pdfBase64?.length);
-      
-      // Validate PDF data before sending
-      if (!pdfBase64 || pdfBase64.length < 100) {
-        throw new Error('Generated PDF is invalid or too small');
-      }
       
       // Send PDF via email
-      console.log('Sending PDF via email to:', salary.employee.email);
-      console.log('Salary ID:', salary._id);
-      console.log('PDF size:', pdfBase64.length, 'characters');
-      
+      console.log('Sending PDF via email...');
       await salaryApi.sendSalarySlipEmail(salary._id, pdfBase64);
       
       setSuccess(`Salary slip sent successfully to ${salary.employee.name} (${salary.employee.email})`);
@@ -91,33 +82,19 @@ export default function AgentSalaries() {
       
     } catch (error) {
       console.error('Error sending salary slip:', error);
-      console.error('Error details:', {
-        name: error.name,
-        message: error.message,
-        status: error.response?.status,
-        statusText: error.response?.statusText,
-        data: error.response?.data
-      });
-      
-      let errorMessage = 'Failed to send salary slip via email';
-      
-      if (error.response?.status === 500) {
-        errorMessage = `Server error: ${error.response?.data?.message || 'Internal server error occurred'}`;
-      } else if (error.response?.status === 400) {
-        errorMessage = `Invalid request: ${error.response?.data?.message || 'Bad request'}`;
-      } else if (error.response?.status === 401) {
-        errorMessage = 'Authentication failed. Please log in again.';
-      } else if (error.response?.status === 404) {
-        errorMessage = 'Salary record not found.';
-      } else if (error.response?.data?.message) {
-        errorMessage = error.response.data.message;
-      } else if (error.message) {
-        errorMessage = error.message;
-      }
-      
-      setError(errorMessage);
+      setError(error.message || 'Failed to send salary slip via email');
     } finally {
       setSendLoading(null);
+    }
+  };
+
+  // Validate search input - only allow letters, numbers, and spaces
+  const handleSearchChange = (e) => {
+    const value = e.target.value;
+    const validPattern = /^[a-zA-Z0-9\s]*$/;
+    
+    if (validPattern.test(value)) {
+      setSearchTerm(value);
     }
   };
 
@@ -204,7 +181,7 @@ export default function AgentSalaries() {
                   type="text"
                   placeholder="Search by agent name or ID..."
                   value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
+                  onChange={handleSearchChange}
                   className="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
                 />
                 {searchTerm && (

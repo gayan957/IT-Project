@@ -135,7 +135,7 @@ export default function PickupAgentDashboard() {
                     <div className="flex items-center justify-between">
                       <div>
                         <p className="text-yellow-100 text-sm font-medium">Earnings</p>
-                        <p className="text-3xl font-bold">${stats.earnings}</p>
+                        <p className="text-3xl font-bold">Rs.{stats.earnings}</p>
                       </div>
                       <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center">
                         <span className="text-2xl">💰</span>
