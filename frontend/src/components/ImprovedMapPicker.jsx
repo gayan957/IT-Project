@@ -1,5 +1,6 @@
 import { GoogleMap, Marker, useJsApiLoader, InfoWindow, Autocomplete } from "@react-google-maps/api";
 import { useEffect, useRef, useState, useCallback } from "react";
+import { GOOGLE_MAPS_LIBRARIES } from "../config/googleMapsConfig";
 
 const SL_CENTER = { lat: 7.8731, lng: 80.7718 };
 const SL_BOUNDS = { north: 10.1, south: 5.7, west: 79.4, east: 82.1 };
@@ -149,7 +150,7 @@ export default function ImprovedMapPicker({
 }) {
   const { isLoaded, loadError } = useJsApiLoader({
     googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY,
-    libraries: ["geometry", "places"],
+    libraries: GOOGLE_MAPS_LIBRARIES,
   });
 
   const initial = value ?? SL_CENTER;
