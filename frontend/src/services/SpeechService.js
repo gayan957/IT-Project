@@ -80,7 +80,7 @@ class SpeechService {
     }
   }
 
-  // Text to speech
+  // Text to speech with enhanced natural voice
   speak(text, options = {}) {
     return new Promise((resolve, reject) => {
       if (!this.speechSynthesis) {
@@ -91,23 +91,21 @@ class SpeechService {
       // Stop any ongoing speech
       this.stopSpeaking();
 
-      const utterance = new SpeechSynthesisUtterance(text);
+      // Clean and prepare text for more natural speech
+      const cleanText = this.prepareTextForSpeech(text);
+      const utterance = new SpeechSynthesisUtterance(cleanText);
       
-      // Configure voice options
-      utterance.rate = options.rate || 1.0;
-      utterance.pitch = options.pitch || 1.0;
-      utterance.volume = options.volume || 1.0;
+      // Configure voice options for more natural, fluid speech
+      utterance.rate = options.rate || 0.85; // Slightly slower for more natural feel
+      utterance.pitch = options.pitch || 0.9; // Slightly lower for male voice
+      utterance.volume = options.volume || 0.9; // Slightly lower for comfort
       utterance.lang = options.lang || 'en-US';
 
-      // Try to use a preferred voice
-      const voices = this.speechSynthesis.getVoices();
-      const preferredVoice = voices.find(voice => 
-        voice.lang.startsWith('en') && 
-        (voice.name.includes('Female') || voice.name.includes('Google'))
-      );
-      
-      if (preferredVoice) {
-        utterance.voice = preferredVoice;
+      // Find the best male voice available
+      const bestVoice = this.getBestMaleVoice();
+      if (bestVoice) {
+        utterance.voice = bestVoice;
+        console.log(`🎤 Using voice: ${bestVoice.name} (${bestVoice.lang})`);
       }
 
       utterance.onstart = () => {
@@ -124,8 +122,90 @@ class SpeechService {
         reject(new Error('Speech synthesis error: ' + event.error));
       };
 
-      this.speechSynthesis.speak(utterance);
+      // Add small delay for better browser compatibility
+      setTimeout(() => {
+        this.speechSynthesis.speak(utterance);
+      }, 100);
     });
+  }
+
+  // Prepare text for more natural speech
+  prepareTextForSpeech(text) {
+    return text
+      // Remove markdown formatting
+      .replace(/\*\*(.*?)\*\*/g, '$1') // Remove bold
+      .replace(/\*(.*?)\*/g, '$1') // Remove italic
+      .replace(/`(.*?)`/g, '$1') // Remove code blocks
+      .replace(/#{1,6}\s/g, '') // Remove headers
+      .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1') // Remove links, keep text
+      // Clean up special characters and emojis for speech
+      .replace(/[\u{1F300}-\u{1F9FF}]/gu, '') // Remove emojis using Unicode ranges
+      // Replace bullet points with pauses
+      .replace(/•\s/g, '. ')
+      .replace(/\n•/g, '. ')
+      // Add natural pauses
+      .replace(/\n\n/g, '. ')
+      .replace(/\n/g, '. ')
+      // Clean up multiple spaces and periods
+      .replace(/\.\s*\./g, '.')
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
+
+  // Find the best male voice available
+  getBestMaleVoice() {
+    const voices = this.speechSynthesis.getVoices();
+    
+    // Priority order for male voices (most natural to least)
+    const maleVoicePriority = [
+      // High-quality Google/Chrome voices
+      'Google UK English Male',
+      'Google US English Male',
+      'Chrome Male',
+      // Microsoft voices (Windows)
+      'Microsoft David Desktop',
+      'Microsoft Mark Mobile',
+      'Microsoft Richard Desktop',
+      // Apple voices (macOS/iOS)
+      'Daniel',
+      'Alex',
+      'Tom',
+      'Fred',
+      'Ralph',
+      // General patterns for male voices
+      'Male',
+      'Man'
+    ];
+
+    // First, try to find exact matches from priority list
+    for (const preferredName of maleVoicePriority) {
+      const voice = voices.find(v => 
+        v.name === preferredName && 
+        v.lang.startsWith('en')
+      );
+      if (voice) return voice;
+    }
+
+    // Then try pattern matching for male voices
+    const maleVoice = voices.find(voice => 
+      voice.lang.startsWith('en') && (
+        voice.name.toLowerCase().includes('male') ||
+        voice.name.toLowerCase().includes('man') ||
+        voice.name.toLowerCase().includes('david') ||
+        voice.name.toLowerCase().includes('daniel') ||
+        voice.name.toLowerCase().includes('alex') ||
+        voice.name.toLowerCase().includes('mark') ||
+        voice.name.toLowerCase().includes('richard') ||
+        voice.name.toLowerCase().includes('tom') ||
+        voice.name.toLowerCase().includes('fred') ||
+        voice.name.toLowerCase().includes('ralph')
+      )
+    );
+
+    if (maleVoice) return maleVoice;
+
+    // Fallback to any English voice
+    return voices.find(voice => voice.lang.startsWith('en')) || null;
   }
 
   // Stop speaking
@@ -159,6 +239,63 @@ class SpeechService {
   // Get available voices
   getVoices() {
     return this.speechSynthesis ? this.speechSynthesis.getVoices() : [];
+  }
+
+  // Get detailed voice information for debugging
+  getVoiceInfo() {
+    const voices = this.getVoices();
+    const maleVoices = voices.filter(voice => 
+      voice.lang.startsWith('en') && (
+        voice.name.toLowerCase().includes('male') ||
+        voice.name.toLowerCase().includes('man') ||
+        voice.name.toLowerCase().includes('david') ||
+        voice.name.toLowerCase().includes('daniel') ||
+        voice.name.toLowerCase().includes('alex') ||
+        voice.name.toLowerCase().includes('mark') ||
+        voice.name.toLowerCase().includes('richard') ||
+        voice.name.toLowerCase().includes('tom') ||
+        voice.name.toLowerCase().includes('fred') ||
+        voice.name.toLowerCase().includes('ralph')
+      )
+    );
+
+    return {
+      totalVoices: voices.length,
+      englishVoices: voices.filter(v => v.lang.startsWith('en')).length,
+      maleVoices: maleVoices.length,
+      bestMaleVoice: this.getBestMaleVoice(),
+      availableMaleVoices: maleVoices.map(v => ({ name: v.name, lang: v.lang }))
+    };
+  }
+
+  // Speak with enhanced natural pauses and emotion
+  speakNaturally(text, options = {}) {
+    // Add natural speech patterns
+    const enhancedText = this.addNaturalSpeechPatterns(text);
+    
+    return this.speak(enhancedText, {
+      rate: 0.8, // Slower for more natural conversation
+      pitch: 1.15, // Higher for feminine voice
+      volume: 0.85,
+      ...options
+    });
+  }
+
+  // Add natural speech patterns for more human-like delivery
+  addNaturalSpeechPatterns(text) {
+    return text
+      // Add pauses before important information
+      .replace(/(\d+\.|\*\*|###)/g, '. $1')
+      // Add emphasis pauses
+      .replace(/(Important|Note|Remember|However|Additionally)/gi, '... $1')
+      // Natural conversation starters
+      .replace(/^(Let me|I can|Here's)/i, '$1...')
+      // Question responses
+      .replace(/^(Yes|No|Sure|Absolutely)/i, '$1,')
+      // Lists with natural pauses
+      .replace(/(\d+\.\s)/g, '$1... ')
+      // Breathing pauses in long sentences
+      .replace(/([.!?])\s+([A-Z])/g, '$1 ... $2');
   }
 }
 
