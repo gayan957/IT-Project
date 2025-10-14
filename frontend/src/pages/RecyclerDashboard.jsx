@@ -56,12 +56,34 @@ const RecyclerDashboard = () => {
   // Search functionality state
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+
+  // Handle orders search input change with validation
+  const handleOrdersSearchChange = (e) => {
+    const value = e.target.value;
+    // Allow only letters, numbers, and spaces
+    const validPattern = /^[a-zA-Z0-9\s]*$/;
+    
+    if (validPattern.test(value)) {
+      setSearchTerm(value);
+    }
+  };
   
   // Overview search functionality state
   const [overviewSearchTerm, setOverviewSearchTerm] = useState('');
   const [overviewDateFilter, setOverviewDateFilter] = useState('all');
   const [overviewWasteTypeFilter, setOverviewWasteTypeFilter] = useState('all');
   const [showAllOverviewResults, setShowAllOverviewResults] = useState(false);
+
+  // Handle overview search input change with validation
+  const handleOverviewSearchChange = (e) => {
+    const value = e.target.value;
+    // Allow only letters, numbers, and spaces
+    const validPattern = /^[a-zA-Z0-9\s]*$/;
+    
+    if (validPattern.test(value)) {
+      setOverviewSearchTerm(value);
+    }
+  };
 
   // Available Waste section state
   const [wasteSearchTerm, setWasteSearchTerm] = useState('');
@@ -71,13 +93,24 @@ const RecyclerDashboard = () => {
   const [refreshInterval, setRefreshInterval] = useState(null);
   const [lastRefresh, setLastRefresh] = useState(new Date());
 
+  // Handle waste search input change with validation
+  const handleWasteSearchChange = (e) => {
+    const value = e.target.value;
+    // Allow only letters, numbers, and spaces
+    const validPattern = /^[a-zA-Z0-9\s]*$/;
+    
+    if (validPattern.test(value)) {
+      setWasteSearchTerm(value);
+    }
+  };
+
   // Filter orders based on search term and status
   const filteredOrders = recyclerOrders.filter(order => {
     const matchesSearch = !searchTerm || 
-      order._id?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      order.wasteWarehouseId?.wasteType?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      order.weight?.toString().includes(searchTerm) ||
-      order.totalOrderValue?.toString().includes(searchTerm);
+      order._id?.toLowerCase().startsWith(searchTerm.toLowerCase()) ||
+      order.wasteWarehouseId?.wasteType?.toLowerCase().startsWith(searchTerm.toLowerCase()) ||
+      order.weight?.toString().startsWith(searchTerm) ||
+      order.totalOrderValue?.toString().startsWith(searchTerm);
     
     const matchesStatus = statusFilter === 'all' || order.orderStatus === statusFilter;
     
@@ -87,10 +120,10 @@ const RecyclerDashboard = () => {
   // Filter completed orders for Overview section
   const filteredCompletedOrders = completedOrders.filter(order => {
     const matchesSearch = !overviewSearchTerm || 
-      order._id?.toLowerCase().includes(overviewSearchTerm.toLowerCase()) ||
-      (order.wasteWarehouseId?.wasteType || order.meta?.wasteType || '').toLowerCase().includes(overviewSearchTerm.toLowerCase()) ||
-      order.weight?.toString().includes(overviewSearchTerm) ||
-      order.totalOrderValue?.toString().includes(overviewSearchTerm);
+      order._id?.toLowerCase().startsWith(overviewSearchTerm.toLowerCase()) ||
+      (order.wasteWarehouseId?.wasteType || order.meta?.wasteType || '').toLowerCase().startsWith(overviewSearchTerm.toLowerCase()) ||
+      order.weight?.toString().startsWith(overviewSearchTerm) ||
+      order.totalOrderValue?.toString().startsWith(overviewSearchTerm);
     
     const wasteType = order.wasteWarehouseId?.wasteType || order.meta?.wasteType || '';
     const matchesWasteType = overviewWasteTypeFilter === 'all' || 
@@ -110,9 +143,9 @@ const RecyclerDashboard = () => {
   // Filter and sort available waste - ensure it's an array
   const filteredAvailableWaste = (Array.isArray(availableWaste) ? availableWaste : []).filter(waste => {
     const matchesSearch = !wasteSearchTerm || 
-      waste.wasteType?.toLowerCase().includes(wasteSearchTerm.toLowerCase()) ||
-      waste.pickupPartnerId?.companyName?.toLowerCase().includes(wasteSearchTerm.toLowerCase()) ||
-      waste.totalWeight?.toString().includes(wasteSearchTerm);
+      waste.wasteType?.toLowerCase().startsWith(wasteSearchTerm.toLowerCase()) ||
+      waste.pickupPartnerId?.companyName?.toLowerCase().startsWith(wasteSearchTerm.toLowerCase()) ||
+      waste.totalWeight?.toString().startsWith(wasteSearchTerm);
     
     const matchesWasteType = wasteTypeFilter === 'all' || 
       waste.wasteType?.toLowerCase() === wasteTypeFilter.toLowerCase();
@@ -897,7 +930,7 @@ const RecyclerDashboard = () => {
                       <input
                         type="text"
                         value={overviewSearchTerm}
-                        onChange={(e) => setOverviewSearchTerm(e.target.value)}
+                        onChange={handleOverviewSearchChange}
                         placeholder="Search completed orders..."
                         className="block w-full pl-10 pr-3 py-2.5 border border-gray-300 rounded-lg leading-5 bg-white/90 backdrop-blur-sm placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all duration-200"
                       />
@@ -1145,7 +1178,7 @@ const RecyclerDashboard = () => {
                     type="text"
                     placeholder="Search waste..."
                     value={wasteSearchTerm}
-                    onChange={(e) => setWasteSearchTerm(e.target.value)}
+                    onChange={handleWasteSearchChange}
                     className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
                   />
                   <svg className="w-4 h-4 text-gray-400 absolute left-3 top-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1562,7 +1595,7 @@ const RecyclerDashboard = () => {
                   <input
                     type="text"
                     value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
+                    onChange={handleOrdersSearchChange}
                     placeholder="Search by Order ID, waste type, weight..."
                     className="block w-full pl-10 pr-3 py-2.5 border border-gray-300 rounded-lg leading-5 bg-white/90 backdrop-blur-sm placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all duration-200"
                   />

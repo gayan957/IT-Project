@@ -224,20 +224,30 @@ export default function AdminPickupAgents() {
     fetchPartners();
   }, []);
 
+  // Validate search input - only allow letters, numbers, and spaces
+  const handleSearchChange = (e) => {
+    const value = e.target.value;
+    const validPattern = /^[a-zA-Z0-9\s]*$/;
+    
+    if (validPattern.test(value)) {
+      setSearchTerm(value);
+    }
+  };
+
   // Filter agents based on search term
   const filteredAgents = agents.filter(agent => {
     if (!searchTerm) return true;
     
     const searchLower = searchTerm.toLowerCase();
     return (
-      agent.name?.toLowerCase().includes(searchLower) ||
-      agent.email?.toLowerCase().includes(searchLower) ||
-      agent.agentId?.toLowerCase().includes(searchLower) ||
-      agent.phoneNumber?.includes(searchTerm) ||
-      agent.vehicleNumber?.toLowerCase().includes(searchLower) ||
-      agent.assignedArea?.toLowerCase().includes(searchLower) ||
-      agent.partnerId?.companyName?.toLowerCase().includes(searchLower) ||
-      agent.partnerId?.name?.toLowerCase().includes(searchLower)
+      agent.name?.toLowerCase().startsWith(searchLower) ||
+      agent.email?.toLowerCase().startsWith(searchLower) ||
+      agent.agentId?.toLowerCase().startsWith(searchLower) ||
+      agent.phoneNumber?.startsWith(searchTerm) ||
+      agent.vehicleNumber?.toLowerCase().startsWith(searchLower) ||
+      agent.assignedArea?.toLowerCase().startsWith(searchLower) ||
+      agent.partnerId?.companyName?.toLowerCase().startsWith(searchLower) ||
+      agent.partnerId?.name?.toLowerCase().startsWith(searchLower)
     );
   });
 
@@ -419,7 +429,7 @@ export default function AdminPickupAgents() {
                 type="text"
                 placeholder="Search by name, email, agent ID, partner, phone, vehicle, or area..."
                 value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
+                onChange={handleSearchChange}
                 className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all duration-200"
               />
               <svg

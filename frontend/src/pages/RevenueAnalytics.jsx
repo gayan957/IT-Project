@@ -9,6 +9,18 @@ const RevenueAnalytics = () => {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('all'); // all, this-month, last-month, this-year
   const [searchTerm, setSearchTerm] = useState('');
+
+  // Handle search input change with validation
+  const handleSearchChange = (e) => {
+    const value = e.target.value;
+    // Allow only letters, numbers, and spaces
+    const validPattern = /^[a-zA-Z0-9\s]*$/;
+    
+    if (validPattern.test(value)) {
+      setSearchTerm(value);
+    }
+  };
+
   const [revenueStats, setRevenueStats] = useState({
     totalServiceCharge: 0,
     totalOrderValue: 0,
@@ -57,20 +69,20 @@ const RevenueAnalytics = () => {
     
     // Search in recycler name, email, company name
     const recyclerMatch = 
-      order.recyclerId?.name?.toLowerCase().includes(searchLower) ||
-      order.recyclerId?.email?.toLowerCase().includes(searchLower) ||
-      order.recyclerId?.companyName?.toLowerCase().includes(searchLower);
+      order.recyclerId?.name?.toLowerCase().startsWith(searchLower) ||
+      order.recyclerId?.email?.toLowerCase().startsWith(searchLower) ||
+      order.recyclerId?.companyName?.toLowerCase().startsWith(searchLower);
     
     // Search in waste type
     const wasteTypeMatch = 
-      order.wasteWarehouseId?.wasteType?.toLowerCase().includes(searchLower) ||
-      order.meta?.wasteType?.toLowerCase().includes(searchLower);
+      order.wasteWarehouseId?.wasteType?.toLowerCase().startsWith(searchLower) ||
+      order.meta?.wasteType?.toLowerCase().startsWith(searchLower);
     
     // Search in order ID (last 6 characters)
-    const orderIdMatch = order._id?.slice(-6).toLowerCase().includes(searchLower);
+    const orderIdMatch = order._id?.slice(-6).toLowerCase().startsWith(searchLower);
     
     // Search in status
-    const statusMatch = order.orderStatus?.toLowerCase().includes(searchLower);
+    const statusMatch = order.orderStatus?.toLowerCase().startsWith(searchLower);
     
     return recyclerMatch || wasteTypeMatch || orderIdMatch || statusMatch;
   });
@@ -549,7 +561,7 @@ const RevenueAnalytics = () => {
                   type="text"
                   placeholder="Search by recycler name, waste type, order ID, or status..."
                   value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
+                  onChange={handleSearchChange}
                   className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all duration-200"
                 />
                 <svg
@@ -635,58 +647,94 @@ const RevenueAnalytics = () => {
 
       {/* Revenue Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        <div className="bg-white rounded-lg shadow-lg p-6">
-          <div className="flex items-center">
-            <div className="p-3 rounded-full bg-emerald-100 mr-4">
-              <svg className="w-6 h-6 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
-              </svg>
-            </div>
-            <div>
-              <p className="text-sm font-medium text-gray-600">Total Service Charge</p>
-              <p className="text-2xl font-semibold text-gray-900">{formatCurrency(revenueStats.totalServiceCharge)}</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-lg shadow-lg p-6">
-          <div className="flex items-center">
-            <div className="p-3 rounded-full bg-blue-100 mr-4">
-              <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
-              </svg>
-            </div>
-            <div>
-              <p className="text-sm font-medium text-gray-600">Total Order Value</p>
-              <p className="text-2xl font-semibold text-gray-900">{formatCurrency(revenueStats.totalOrderValue)}</p>
+        {/* Total Service Charge Card */}
+        <div className="group bg-gradient-to-br from-emerald-50 to-teal-50 rounded-2xl p-6 border-2 border-emerald-100 hover:border-emerald-300 hover:shadow-2xl transform hover:-translate-y-2 transition-all duration-300">
+          <div className="flex items-center justify-between">
+            <div className="flex-1">
+              <div className="flex items-center mb-3">
+                <div className="w-12 h-12 bg-gradient-to-br from-emerald-400 to-teal-500 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform duration-300 shadow-lg">
+                  <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
+                  </svg>
+                </div>
+              </div>
+              <p className="text-sm font-medium text-emerald-700 uppercase tracking-wide mb-1">Total Service Charge</p>
+              <p className="text-2xl font-bold text-gray-900 mb-2">{formatCurrency(revenueStats.totalServiceCharge)}</p>
+              <div className="flex items-center">
+                <svg className="w-4 h-4 text-emerald-500 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+                </svg>
+                <span className="text-sm text-emerald-600 font-medium">Revenue earned</span>
+              </div>
             </div>
           </div>
         </div>
 
-        <div className="bg-white rounded-lg shadow-lg p-6">
-          <div className="flex items-center">
-            <div className="p-3 rounded-full bg-purple-100 mr-4">
-              <svg className="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-              </svg>
-            </div>
-            <div>
-              <p className="text-sm font-medium text-gray-600">Total Orders</p>
-              <p className="text-2xl font-semibold text-gray-900">{revenueStats.totalOrders}</p>
+        {/* Total Order Value Card */}
+        <div className="group bg-gradient-to-br from-blue-50 to-indigo-50 rounded-2xl p-6 border-2 border-blue-100 hover:border-blue-300 hover:shadow-2xl transform hover:-translate-y-2 transition-all duration-300">
+          <div className="flex items-center justify-between">
+            <div className="flex-1">
+              <div className="flex items-center mb-3">
+                <div className="w-12 h-12 bg-gradient-to-br from-blue-400 to-indigo-500 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform duration-300 shadow-lg">
+                  <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+                  </svg>
+                </div>
+              </div>
+              <p className="text-sm font-medium text-blue-700 uppercase tracking-wide mb-1">Total Order Value</p>
+              <p className="text-2xl font-bold text-gray-900 mb-2">{formatCurrency(revenueStats.totalOrderValue)}</p>
+              <div className="flex items-center">
+                <svg className="w-4 h-4 text-blue-500 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                </svg>
+                <span className="text-sm text-blue-600 font-medium">Total transactions</span>
+              </div>
             </div>
           </div>
         </div>
 
-        <div className="bg-white rounded-lg shadow-lg p-6">
-          <div className="flex items-center">
-            <div className="p-3 rounded-full bg-orange-100 mr-4">
-              <svg className="w-6 h-6 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-              </svg>
+        {/* Total Orders Card */}
+        <div className="group bg-gradient-to-br from-purple-50 to-violet-50 rounded-2xl p-6 border-2 border-purple-100 hover:border-purple-300 hover:shadow-2xl transform hover:-translate-y-2 transition-all duration-300">
+          <div className="flex items-center justify-between">
+            <div className="flex-1">
+              <div className="flex items-center mb-3">
+                <div className="w-12 h-12 bg-gradient-to-br from-purple-400 to-violet-500 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform duration-300 shadow-lg">
+                  <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                </div>
+              </div>
+              <p className="text-sm font-medium text-purple-700 uppercase tracking-wide mb-1">Total Orders</p>
+              <p className="text-2xl font-bold text-gray-900 mb-2">{revenueStats.totalOrders}</p>
+              <div className="flex items-center">
+                <svg className="w-4 h-4 text-purple-500 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                </svg>
+                <span className="text-sm text-purple-600 font-medium">Orders processed</span>
+              </div>
             </div>
-            <div>
-              <p className="text-sm font-medium text-gray-600">Avg Service Charge</p>
-              <p className="text-2xl font-semibold text-gray-900">{formatCurrency(revenueStats.avgServiceCharge)}</p>
+          </div>
+        </div>
+
+        {/* Average Service Charge Card */}
+        <div className="group bg-gradient-to-br from-orange-50 to-amber-50 rounded-2xl p-6 border-2 border-orange-100 hover:border-orange-300 hover:shadow-2xl transform hover:-translate-y-2 transition-all duration-300">
+          <div className="flex items-center justify-between">
+            <div className="flex-1">
+              <div className="flex items-center mb-3">
+                <div className="w-12 h-12 bg-gradient-to-br from-orange-400 to-amber-500 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform duration-300 shadow-lg">
+                  <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                  </svg>
+                </div>
+              </div>
+              <p className="text-sm font-medium text-orange-700 uppercase tracking-wide mb-1">Avg Service Charge</p>
+              <p className="text-2xl font-bold text-gray-900 mb-2">{formatCurrency(revenueStats.avgServiceCharge)}</p>
+              <div className="flex items-center">
+                <svg className="w-4 h-4 text-orange-500 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                </svg>
+                <span className="text-sm text-orange-600 font-medium">Per order average</span>
+              </div>
             </div>
           </div>
         </div>

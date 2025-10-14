@@ -36,10 +36,20 @@ export default function AdminUsers() {
     }
   };
 
+  // Validate search input - only allow letters and spaces
+  const handleSearchChange = (e) => {
+    const value = e.target.value;
+    const validPattern = /^[a-zA-Z\s]*$/;
+    
+    if (validPattern.test(value)) {
+      setSearchTerm(value);
+    }
+  };
+
   const filteredUsers = users.filter(user =>
-    user.firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    user.lastName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    user.email.toLowerCase().includes(searchTerm.toLowerCase())
+    user.firstName.toLowerCase().startsWith(searchTerm.toLowerCase()) ||
+    user.lastName.toLowerCase().startsWith(searchTerm.toLowerCase()) ||
+    user.email.toLowerCase().startsWith(searchTerm.toLowerCase())
   );
 
   if (loading) {
@@ -80,7 +90,7 @@ export default function AdminUsers() {
             type="text"
             placeholder="Search users by name or email..."
             value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
+            onChange={handleSearchChange}
             className="w-full pl-10 pr-4 py-3 border-2 border-gray-200 rounded-lg focus:border-red-500 focus:ring-2 focus:ring-red-200 transition-all duration-300"
           />
         </div>

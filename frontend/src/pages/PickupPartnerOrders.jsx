@@ -107,6 +107,16 @@ const PickupPartnerOrders = () => {
     }
   };
 
+  // Validate search input - only allow letters, numbers, and spaces
+  const handleSearchChange = (e) => {
+    const value = e.target.value;
+    const validPattern = /^[a-zA-Z0-9\s]*$/;
+    
+    if (validPattern.test(value)) {
+      setSearchTerm(value);
+    }
+  };
+
   // PDF Generation Function for Partner Orders
   const generateOrdersReport = () => {
     try {
@@ -369,10 +379,10 @@ const PickupPartnerOrders = () => {
   const filteredOrders = orders.filter(order => {
     const matchesStatus = statusFilter === 'all' || order.orderStatus === statusFilter;
     const matchesSearch = searchTerm === '' || 
-      (order.wasteWarehouseId?.wasteType?.toLowerCase().includes(searchTerm.toLowerCase())) ||
-      (order.orderStatus?.toLowerCase().includes(searchTerm.toLowerCase())) ||
-      (order.recyclerId?.companyName?.toLowerCase().includes(searchTerm.toLowerCase())) ||
-      (order.recyclerId?.name?.toLowerCase().includes(searchTerm.toLowerCase()));
+      (order.wasteWarehouseId?.wasteType?.toLowerCase().startsWith(searchTerm.toLowerCase())) ||
+      (order.orderStatus?.toLowerCase().startsWith(searchTerm.toLowerCase())) ||
+      (order.recyclerId?.companyName?.toLowerCase().startsWith(searchTerm.toLowerCase())) ||
+      (order.recyclerId?.name?.toLowerCase().startsWith(searchTerm.toLowerCase()));
     
     return matchesStatus && matchesSearch;
   });
@@ -416,7 +426,7 @@ const PickupPartnerOrders = () => {
                   type="text"
                   placeholder="Search by waste type, status, or recycler..."
                   value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
+                  onChange={handleSearchChange}
                   className="w-full px-4 py-2 pl-10 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
                 />
                 <svg
