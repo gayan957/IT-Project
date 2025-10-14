@@ -131,6 +131,59 @@ export default function SalaryCalculation() {
     }
   };
 
+  // Auto-calculate overtime and no-pay when dependencies change
+  useEffect(() => {
+    if (formData.salary.basic && formData.attendance.workingDays && formData.attendance.overtimeHours >= 0) {
+      const overtimePay = SalaryCalculator.calculateOvertime(
+        formData.salary.basic,
+        formData.attendance.workingDays,
+        formData.attendance.overtimeHours
+      );
+      // Only update if the calculated value is different to avoid infinite loops
+      setFormData(prev => {
+        if (prev.salary.perks.overtime !== overtimePay) {
+          return {
+            ...prev,
+            salary: {
+              ...prev.salary,
+              perks: {
+                ...prev.salary.perks,
+                overtime: overtimePay
+              }
+            }
+          };
+        }
+        return prev;
+      });
+    }
+  }, [formData.salary.basic, formData.attendance.workingDays, formData.attendance.overtimeHours]);
+
+  useEffect(() => {
+    if (formData.salary.basic && formData.attendance.workingDays && formData.attendance.noPayDays >= 0) {
+      const noPayDeduction = SalaryCalculator.calculateNoPayDeduction(
+        formData.salary.basic,
+        formData.attendance.workingDays,
+        formData.attendance.noPayDays
+      );
+      // Only update if the calculated value is different to avoid infinite loops
+      setFormData(prev => {
+        if (prev.salary.deductions.noPay !== noPayDeduction) {
+          return {
+            ...prev,
+            salary: {
+              ...prev.salary,
+              deductions: {
+                ...prev.salary.deductions,
+                noPay: noPayDeduction
+              }
+            }
+          };
+        }
+        return prev;
+      });
+    }
+  }, [formData.salary.basic, formData.attendance.workingDays, formData.attendance.noPayDays]);
+
   // Real-time calculations for preview
   const previewCalculation = useMemo(() => {
     if (!formData.salary.basic) return null;
@@ -334,20 +387,30 @@ export default function SalaryCalculation() {
                         type="number"
                         value={formData.attendance.overtimeHours}
                         onChange={(e) => {
-                          const overtimeHours = Number(e.target.value);
-                          updateFormData('attendance.overtimeHours', overtimeHours);
+                          const value = e.target.value;
+                          const numValue = Number(value);
                           
-                          if (formData.salary.basic && formData.attendance.workingDays && overtimeHours >= 0) {
-                            const overtimePay = SalaryCalculator.calculateOvertime(
-                              formData.salary.basic,
-                              formData.attendance.workingDays,
-                              overtimeHours
-                            );
-                            updateFormData('salary.perks.overtime', overtimePay);
+                          if (value === '') {
+                            updateFormData('attendance.overtimeHours', '');
+                            return;
+                          }
+                          
+                          if (numValue >= 0 && numValue <= 48) {
+                            updateFormData('attendance.overtimeHours', numValue);
+                          } else if (numValue < 0) {
+                            updateFormData('attendance.overtimeHours', 0);
+                          } else if (numValue > 48) {
+                            updateFormData('attendance.overtimeHours', 48);
                           }
                         }}
-                        placeholder="22"
+                        onBlur={(e) => {
+                          if (e.target.value === '' || Number(e.target.value) < 0) {
+                            updateFormData('attendance.overtimeHours', 0);
+                          }
+                        }}
+                        placeholder="0"
                         min="0"
+                        max="48"
                         className="bg-white border-slate-300 focus:border-emerald-500 focus:ring-emerald-500"
                       />
                     </Field>
@@ -359,15 +422,6 @@ export default function SalaryCalculation() {
                         onChange={(e) => {
                           const noPayDays = Number(e.target.value);
                           updateFormData('attendance.noPayDays', noPayDays);
-                          
-                          if (formData.salary.basic && formData.attendance.workingDays && noPayDays >= 0) {
-                            const noPayDeduction = SalaryCalculator.calculateNoPayDeduction(
-                              formData.salary.basic,
-                              formData.attendance.workingDays,
-                              noPayDays
-                            );
-                            updateFormData('salary.deductions.noPay', noPayDeduction);
-                          }
                         }}
                         placeholder="0"
                         min="0"
@@ -398,8 +452,40 @@ export default function SalaryCalculation() {
                   <Input
                     type="number"
                     value={formData.salary.basic}
-                    onChange={(e) => updateFormData('salary.basic', Number(e.target.value))}
-                    placeholder="1000"
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      
+                      // Allow empty input for user to type
+                      if (value === '') {
+                        updateFormData('salary.basic', '');
+                        return;
+                      }
+                      
+                      // Check for decimal places
+                      if (value.includes('.')) {
+                        const decimalParts = value.split('.');
+                        // Allow only 2 decimal places
+                        if (decimalParts[1] && decimalParts[1].length > 2) {
+                          return; // Don't update if more than 2 decimal places
+                        }
+                      }
+                      
+                      const numValue = Number(value);
+                      if (!isNaN(numValue) && numValue >= 0) {
+                        updateFormData('salary.basic', numValue);
+                      }
+                    }}
+                    onBlur={(e) => {
+                      // Ensure field is not empty on blur and format to 2 decimal places
+                      if (e.target.value === '' || Number(e.target.value) <= 0) {
+                        updateFormData('salary.basic', 0);
+                      } else {
+                        // Format to 2 decimal places
+                        const formatted = Number(e.target.value).toFixed(2);
+                        updateFormData('salary.basic', Number(formatted));
+                      }
+                    }}
+                    placeholder="1000.00"
                     min="0"
                     step="0.01"
                     className="text-xl font-semibold bg-white border-2 border-purple-200 focus:border-purple-500 focus:ring-purple-500 py-4"
@@ -427,8 +513,35 @@ export default function SalaryCalculation() {
                       <Input
                         type="number"
                         value={formData.salary.allowances.food}
-                        onChange={(e) => updateFormData('salary.allowances.food', Number(e.target.value))}
-                        placeholder="0"
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          
+                          if (value === '') {
+                            updateFormData('salary.allowances.food', '');
+                            return;
+                          }
+                          
+                          if (value.includes('.')) {
+                            const decimalParts = value.split('.');
+                            if (decimalParts[1] && decimalParts[1].length > 2) {
+                              return;
+                            }
+                          }
+                          
+                          const numValue = Number(value);
+                          if (!isNaN(numValue) && numValue >= 0) {
+                            updateFormData('salary.allowances.food', numValue);
+                          }
+                        }}
+                        onBlur={(e) => {
+                          if (e.target.value === '' || Number(e.target.value) < 0) {
+                            updateFormData('salary.allowances.food', 0);
+                          } else {
+                            const formatted = Number(e.target.value).toFixed(2);
+                            updateFormData('salary.allowances.food', Number(formatted));
+                          }
+                        }}
+                        placeholder="0.00"
                         min="0"
                         step="0.01"
                         className="bg-white border-slate-300 focus:border-green-500 focus:ring-green-500"
@@ -439,8 +552,35 @@ export default function SalaryCalculation() {
                       <Input
                         type="number"
                         value={formData.salary.allowances.medical}
-                        onChange={(e) => updateFormData('salary.allowances.medical', Number(e.target.value))}
-                        placeholder="0"
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          
+                          if (value === '') {
+                            updateFormData('salary.allowances.medical', '');
+                            return;
+                          }
+                          
+                          if (value.includes('.')) {
+                            const decimalParts = value.split('.');
+                            if (decimalParts[1] && decimalParts[1].length > 2) {
+                              return;
+                            }
+                          }
+                          
+                          const numValue = Number(value);
+                          if (!isNaN(numValue) && numValue >= 0) {
+                            updateFormData('salary.allowances.medical', numValue);
+                          }
+                        }}
+                        onBlur={(e) => {
+                          if (e.target.value === '' || Number(e.target.value) < 0) {
+                            updateFormData('salary.allowances.medical', 0);
+                          } else {
+                            const formatted = Number(e.target.value).toFixed(2);
+                            updateFormData('salary.allowances.medical', Number(formatted));
+                          }
+                        }}
+                        placeholder="0.00"
                         min="0"
                         step="0.01"
                         className="bg-white border-slate-300 focus:border-green-500 focus:ring-green-500"
@@ -451,8 +591,35 @@ export default function SalaryCalculation() {
                       <Input
                         type="number"
                         value={formData.salary.allowances.cola}
-                        onChange={(e) => updateFormData('salary.allowances.cola', Number(e.target.value))}
-                        placeholder="0"
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          
+                          if (value === '') {
+                            updateFormData('salary.allowances.cola', '');
+                            return;
+                          }
+                          
+                          if (value.includes('.')) {
+                            const decimalParts = value.split('.');
+                            if (decimalParts[1] && decimalParts[1].length > 2) {
+                              return;
+                            }
+                          }
+                          
+                          const numValue = Number(value);
+                          if (!isNaN(numValue) && numValue >= 0) {
+                            updateFormData('salary.allowances.cola', numValue);
+                          }
+                        }}
+                        onBlur={(e) => {
+                          if (e.target.value === '' || Number(e.target.value) < 0) {
+                            updateFormData('salary.allowances.cola', 0);
+                          } else {
+                            const formatted = Number(e.target.value).toFixed(2);
+                            updateFormData('salary.allowances.cola', Number(formatted));
+                          }
+                        }}
+                        placeholder="0.00"
                         min="0"
                         step="0.01"
                         className="bg-white border-slate-300 focus:border-green-500 focus:ring-green-500"
@@ -463,8 +630,35 @@ export default function SalaryCalculation() {
                       <Input
                         type="number"
                         value={formData.salary.perks.bonus}
-                        onChange={(e) => updateFormData('salary.perks.bonus', Number(e.target.value))}
-                        placeholder="0"
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          
+                          if (value === '') {
+                            updateFormData('salary.perks.bonus', '');
+                            return;
+                          }
+                          
+                          if (value.includes('.')) {
+                            const decimalParts = value.split('.');
+                            if (decimalParts[1] && decimalParts[1].length > 2) {
+                              return;
+                            }
+                          }
+                          
+                          const numValue = Number(value);
+                          if (!isNaN(numValue) && numValue >= 0) {
+                            updateFormData('salary.perks.bonus', numValue);
+                          }
+                        }}
+                        onBlur={(e) => {
+                          if (e.target.value === '' || Number(e.target.value) < 0) {
+                            updateFormData('salary.perks.bonus', 0);
+                          } else {
+                            const formatted = Number(e.target.value).toFixed(2);
+                            updateFormData('salary.perks.bonus', Number(formatted));
+                          }
+                        }}
+                        placeholder="0.00"
                         min="0"
                         step="0.01"
                         className="bg-white border-slate-300 focus:border-green-500 focus:ring-green-500"
@@ -473,11 +667,11 @@ export default function SalaryCalculation() {
 
                     <Field label="Overtime Pay" helpText="Auto-calculated from attendance">
                       <Input
-                        type="number"
-                        value={formData.salary.perks.overtime}
+                        type="text"
+                        value={SalaryCalculator.formatCurrency(formData.salary.perks.overtime || 0)}
                         readOnly
-                        placeholder="0"
-                        className="bg-gradient-to-r from-slate-100 to-slate-200 border-slate-300 cursor-not-allowed"
+                        placeholder="Rs. 0.00"
+                        className="bg-gradient-to-r from-green-50 to-green-100 border-green-200 cursor-not-allowed text-green-800 font-medium"
                       />
                     </Field>
                   </div>
@@ -499,41 +693,41 @@ export default function SalaryCalculation() {
                   <div className="space-y-5">
                     <Field label="No Pay Amount" helpText="Auto-calculated from attendance">
                       <Input
-                        type="number"
-                        value={formData.salary.deductions.noPay}
+                        type="text"
+                        value={SalaryCalculator.formatCurrency(formData.salary.deductions.noPay || 0)}
                         readOnly
-                        placeholder="0"
-                        className="bg-gradient-to-r from-slate-100 to-slate-200 border-slate-300 cursor-not-allowed"
+                        placeholder="Rs. 0.00"
+                        className="bg-gradient-to-r from-red-50 to-red-100 border-red-200 cursor-not-allowed text-red-800 font-medium"
                       />
                     </Field>
 
                     <Field label="EPF (Employee 8%)">
                       <Input
-                        type="number"
-                        value={previewCalculation?.statutory.epfEmployee || 0}
+                        type="text"
+                        value={SalaryCalculator.formatCurrency(previewCalculation?.statutory.epfEmployee || 0)}
                         readOnly
-                        placeholder="80"
-                        className="bg-gradient-to-r from-slate-100 to-slate-200 border-slate-300 cursor-not-allowed"
+                        placeholder="Rs. 0.00"
+                        className="bg-gradient-to-r from-blue-50 to-blue-100 border-blue-200 cursor-not-allowed text-blue-800 font-medium"
                       />
                     </Field>
 
                     <Field label="ETF (Employer 3%)">
                       <Input
-                        type="number"
-                        value={previewCalculation?.statutory.etfEmployer || 0}
+                        type="text"
+                        value={SalaryCalculator.formatCurrency(previewCalculation?.statutory.etfEmployer || 0)}
                         readOnly
-                        placeholder="30"
-                        className="bg-gradient-to-r from-slate-100 to-slate-200 border-slate-300 cursor-not-allowed"
+                        placeholder="Rs. 0.00"
+                        className="bg-gradient-to-r from-purple-50 to-purple-100 border-purple-200 cursor-not-allowed text-purple-800 font-medium"
                       />
                     </Field>
 
                     <Field label="EPF (Employer 12%)">
                       <Input
-                        type="number"
-                        value={previewCalculation?.statutory.epfEmployer || 0}
+                        type="text"
+                        value={SalaryCalculator.formatCurrency(previewCalculation?.statutory.epfEmployer || 0)}
                         readOnly
-                        placeholder="120"
-                        className="bg-gradient-to-r from-slate-100 to-slate-200 border-slate-300 cursor-not-allowed"
+                        placeholder="Rs. 0.00"
+                        className="bg-gradient-to-r from-indigo-50 to-indigo-100 border-indigo-200 cursor-not-allowed text-indigo-800 font-medium"
                       />
                     </Field>
 
@@ -541,8 +735,35 @@ export default function SalaryCalculation() {
                       <Input
                         type="number"
                         value={formData.salary.deductions.loans}
-                        onChange={(e) => updateFormData('salary.deductions.loans', Number(e.target.value))}
-                        placeholder="0"
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          
+                          if (value === '') {
+                            updateFormData('salary.deductions.loans', '');
+                            return;
+                          }
+                          
+                          if (value.includes('.')) {
+                            const decimalParts = value.split('.');
+                            if (decimalParts[1] && decimalParts[1].length > 2) {
+                              return;
+                            }
+                          }
+                          
+                          const numValue = Number(value);
+                          if (!isNaN(numValue) && numValue >= 0) {
+                            updateFormData('salary.deductions.loans', numValue);
+                          }
+                        }}
+                        onBlur={(e) => {
+                          if (e.target.value === '' || Number(e.target.value) < 0) {
+                            updateFormData('salary.deductions.loans', 0);
+                          } else {
+                            const formatted = Number(e.target.value).toFixed(2);
+                            updateFormData('salary.deductions.loans', Number(formatted));
+                          }
+                        }}
+                        placeholder="0.00"
                         min="0"
                         step="0.01"
                         className="bg-white border-slate-300 focus:border-red-500 focus:ring-red-500"

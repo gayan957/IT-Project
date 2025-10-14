@@ -40,8 +40,8 @@ export default function FinanceSalaryManagement() {
   const filteredSalaries = useMemo(() => {
     return salaries.filter(salary => {
       const matchesSearch = searchTerm === '' || 
-        salary.employee?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        salary.employee?.agentId?.toLowerCase().includes(searchTerm.toLowerCase());
+        salary.employee?.name?.toLowerCase().startsWith(searchTerm.toLowerCase()) ||
+        salary.employee?.agentId?.toLowerCase().startsWith(searchTerm.toLowerCase());
       
       const matchesMonth = selectedMonth === '' || 
         salary.attendance?.month?.toLowerCase() === selectedMonth.toLowerCase();
@@ -227,6 +227,16 @@ export default function FinanceSalaryManagement() {
       setError('Failed to delete salary record');
     } finally {
       setDeleteLoading(null);
+    }
+  };
+
+  // Validate search input - only allow letters, numbers, and spaces
+  const handleSearchChange = (e) => {
+    const value = e.target.value;
+    const validPattern = /^[a-zA-Z0-9\s]*$/;
+    
+    if (validPattern.test(value)) {
+      setSearchTerm(value);
     }
   };
 
@@ -610,7 +620,7 @@ export default function FinanceSalaryManagement() {
                 type="text"
                 placeholder="Enter employee name or agent ID..."
                 value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
+                onChange={handleSearchChange}
                 className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
               />
               <svg

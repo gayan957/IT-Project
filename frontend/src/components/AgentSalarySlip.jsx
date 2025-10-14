@@ -110,7 +110,7 @@ export async function generatePaySlipPdfBase64({ slip }) {
       doc.text('ECO', 17.5, 16.5);
     }
     
-    // Company name and payslip title - aligned with logo
+    // Company name and address - aligned with logo
     doc.setTextColor(255, 255, 255);
     doc.setFontSize(16);
     doc.setFont('helvetica', 'bold');
@@ -118,9 +118,6 @@ export async function generatePaySlipPdfBase64({ slip }) {
     doc.setFontSize(9);
     doc.setFont('helvetica', 'normal');
     doc.text('No 23/A, Kandy Road, Malabe', 30, 20); // Company address
-    doc.setFontSize(11);
-    doc.setFont('helvetica', 'normal');
-    doc.text('Monthly Salary Slip', 30, 25); // Adjusted spacing
     
     // Period and date
     doc.setFontSize(9);
@@ -129,6 +126,12 @@ export async function generatePaySlipPdfBase64({ slip }) {
     
     y = 40;
     doc.setTextColor(0, 0, 0);
+
+    // Monthly Salary Slip title at top center of white section
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(14);
+    doc.text('Monthly Salary Slip', pageWidth / 2, y, { align: 'center' });
+    y += 12;
 
     // Employee Information Section (Compact)
     doc.setFont('helvetica', 'bold');
@@ -139,12 +142,14 @@ export async function generatePaySlipPdfBase64({ slip }) {
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(9);
     
-    // Two-column layout for employee info
+    // Two-column layout for employee info - improved alignment
     doc.text(`Name: ${safeEmployee.name}`, 15, y);
-    doc.text(`Agent ID: ${safeEmployee.agentId}`, 110, y);
+    doc.text(`Employee ID: ${safeEmployee.agentId}`, pageWidth - 20, y, { align: 'right' });
     y += 6;
-    doc.text(`EPF No: ${safeEmployee.epfNo}`, 15, y);
-    doc.text(`Email: ${safeEmployee.email}`, 110, y);
+    doc.text(`Designation: Pickup Agent`, 15, y);
+    doc.text(`EPF No: ${safeEmployee.epfNo}`, pageWidth - 20, y, { align: 'right' });
+    y += 6;
+    doc.text(`Email: ${safeEmployee.email}`, 15, y);
     y += 10;
 
     // Attendance Summary (Compact horizontal layout)
@@ -157,8 +162,8 @@ export async function generatePaySlipPdfBase64({ slip }) {
     doc.setFontSize(9);
     const attendanceY = y;
     doc.text(`Working Days: ${safeAttendance.workingDays}`, 15, attendanceY);
-    doc.text(`Overtime: ${safeAttendance.overtimeHours}h`, 70, attendanceY);
-    doc.text(`No Pay Days: ${safeAttendance.noPayDays}`, 125, attendanceY);
+    doc.text(`Overtime: ${safeAttendance.overtimeHours}h`, pageWidth / 2 - 10, attendanceY);
+    doc.text(`No Pay Days: ${safeAttendance.noPayDays}`, pageWidth - 50, attendanceY);
     y += 12;
 
     // Salary Breakdown (Single comprehensive section)
@@ -219,6 +224,26 @@ export async function generatePaySlipPdfBase64({ slip }) {
     
     y += 5;
     
+    // Employer Contributions
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(9);
+    doc.text('Employer Contributions:', 18, y);
+    y += 5;
+    
+    // Calculate ETF and EPF
+    const etfAmount = safeSalary.basic * 0.03; // ETF 3%
+    const epfEmployerAmount = safeSalary.basic * 0.12; // EPF 12%
+    
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8);
+    doc.text('ETF (Employer 3%)', 18, y);
+    doc.text(formatCurrency(etfAmount), pageWidth - 20, y, { align: 'right' });
+    y += 4;
+    
+    doc.text('EPF (Employer 12%)', 18, y);
+    doc.text(formatCurrency(epfEmployerAmount), pageWidth - 20, y, { align: 'right' });
+    y += 8;
+    
     // Net salary (highlighted)
     doc.setFillColor(220, 245, 220);
     doc.rect(15, y - 3, pageWidth - 30, 10, 'F');
@@ -240,15 +265,14 @@ export async function generatePaySlipPdfBase64({ slip }) {
     // Compact signature section
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(8);
-    doc.text('Employee Signature: _________________', 15, y);
-    doc.text('HR Signature: _________________', pageWidth - 80, y);
+    doc.text('Accountant : _________________', 15, y);
+    doc.text('HR Manager: _________________', pageWidth - 20, y, { align: 'right' });
     y += 8;
 
     // Footer note
     doc.setFontSize(7);
     doc.setTextColor(100, 100, 100);
-    doc.text('This is a system-generated payslip. No signature required.', 15, y);
-    doc.text(`Generated on ${formatDate(new Date())}`, pageWidth - 60, y);
+    doc.text(`Generated on ${formatDate(new Date())}`, pageWidth - 20, y, { align: 'right' });
 
     // Return PDF as base64 string
     const pdfOutput = doc.output('datauristring');
@@ -385,7 +409,7 @@ export async function downloadPaySlipPdf({ slip }) {
       doc.text('ECO', 17.5, 16.5);
     }
     
-    // Company name and title - aligned with logo
+    // Company name and address - aligned with logo
     doc.setTextColor(255, 255, 255);
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(16);
@@ -393,8 +417,6 @@ export async function downloadPaySlipPdf({ slip }) {
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(9);
     doc.text('No 23/A, Kandy Road, Malabe', 30, 20); // Company address
-    doc.setFontSize(11);
-    doc.text('Monthly Salary Slip', 30, 25); // Adjusted spacing
     
     // Period and generation date (right side)
     doc.setFontSize(9);
@@ -402,6 +424,13 @@ export async function downloadPaySlipPdf({ slip }) {
     doc.text(`Generated: ${formatDate(new Date())}`, pageWidth - 15, 18, { align: 'right' });
 
     y = 40;
+
+    // Monthly Salary Slip title at top center of white section
+    doc.setTextColor(0, 0, 0);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(14);
+    doc.text('Monthly Salary Slip', pageWidth / 2, y, { align: 'center' });
+    y += 12;
 
     // Employee Information Section
     doc.setTextColor(0, 0, 0);
@@ -413,12 +442,14 @@ export async function downloadPaySlipPdf({ slip }) {
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(9);
     
-    // Left side employee info
+    // Left side employee info - improved alignment
     doc.text(`Name: ${safeEmployee.name}`, 15, y);
-    doc.text(`Agent ID: ${safeEmployee.agentId}`, pageWidth / 2, y);
+    doc.text(`Employee ID: ${safeEmployee.agentId}`, pageWidth - 20, y, { align: 'right' });
     y += 6;
-    doc.text(`EPF No: ${safeEmployee.epfNo}`, 15, y);
-    doc.text(`Email: ${safeEmployee.email}`, pageWidth / 2, y);
+    doc.text(`Designation: Pickup Agent`, 15, y);
+    doc.text(`EPF No: ${safeEmployee.epfNo}`, pageWidth - 20, y, { align: 'right' });
+    y += 6;
+    doc.text(`Email: ${safeEmployee.email}`, 15, y);
     y += 10;
 
     // Attendance Summary Section
@@ -430,8 +461,8 @@ export async function downloadPaySlipPdf({ slip }) {
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(9);
     doc.text(`Working Days: ${safeAttendance.workingDays}`, 15, y);
-    doc.text(`Overtime: ${safeAttendance.overtimeHours}h`, pageWidth / 2 - 20, y);
-    doc.text(`No Pay Days: ${safeAttendance.noPayDays}`, pageWidth / 2 + 40, y);
+    doc.text(`Overtime: ${safeAttendance.overtimeHours}h`, pageWidth / 2 - 10, y);
+    doc.text(`No Pay Days: ${safeAttendance.noPayDays}`, pageWidth - 50, y);
 
     y += 15;
 
@@ -493,6 +524,26 @@ export async function downloadPaySlipPdf({ slip }) {
     
     y += 5;
     
+    // Employer Contributions
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(9);
+    doc.text('Employer Contributions:', 18, y);
+    y += 5;
+    
+    // Calculate ETF and EPF
+    const etfAmount2 = safeSalary.basic * 0.03; // ETF 3%
+    const epfEmployerAmount2 = safeSalary.basic * 0.12; // EPF 12%
+    
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8);
+    doc.text('ETF (Employer 3%)', 18, y);
+    doc.text(formatCurrency(etfAmount2), pageWidth - 20, y, { align: 'right' });
+    y += 4;
+    
+    doc.text('EPF (Employer 12%)', 18, y);
+    doc.text(formatCurrency(epfEmployerAmount2), pageWidth - 20, y, { align: 'right' });
+    y += 8;
+    
     // Net salary (highlighted)
     doc.setFillColor(220, 245, 220);
     doc.rect(15, y - 3, pageWidth - 30, 10, 'F');
@@ -519,13 +570,12 @@ export async function downloadPaySlipPdf({ slip }) {
     doc.setTextColor(0, 0, 0);
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(8);
-    doc.text('Employee Signature: ___________________________', 20, y);
-    doc.text('HR Signature: ___________________________', pageWidth - 100, y);
+    doc.text('Accountant : ___________________________', 20, y);
+    doc.text('HR Manager : ___________________________', pageWidth - 20, y, { align: 'right' });
     
     y += 10;
     doc.setFontSize(7);
-    doc.text('This is a system-generated payslip. No signature required.', 20, y);
-    doc.text(`Generated on ${formatDate(new Date())}`, pageWidth - 70, y);
+    doc.text(`Generated on ${formatDate(new Date())}`, pageWidth - 20, y, { align: 'right' });
 
     // Generate professional filename with timestamp
     const timestamp = new Date().toISOString().slice(0, 7); // YYYY-MM format
