@@ -46,6 +46,26 @@ export default function ChatBot() {
     }
   }, [isOpen]);
 
+  // Initialize voice information when component mounts
+  useEffect(() => {
+    if (SpeechService.isTTSSupported()) {
+      // Wait for voices to load
+      setTimeout(() => {
+        const voiceInfo = SpeechService.getVoiceInfo();
+        console.log('🎤 Voice System Info:', voiceInfo);
+        
+        if (voiceInfo.bestMaleVoice) {
+          console.log('✨ Selected Male Voice:', {
+            name: voiceInfo.bestMaleVoice.name,
+            lang: voiceInfo.bestMaleVoice.lang
+          });
+        } else {
+          console.log('⚠️ No optimal male voice found, using default voice');
+        }
+      }, 1000);
+    }
+  }, []);
+
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
@@ -89,13 +109,28 @@ export default function ChatBot() {
       updateMessage(typingId, reply);
       setIsTyping(false);
 
-      // Speak response if enabled
+      // Speak response if enabled with natural male voice
       if (speechEnabled && SpeechService.isTTSSupported()) {
         setIsSpeaking(true);
         try {
-          await SpeechService.speak(reply, { rate: 0.9 });
+          // Use enhanced natural speech for better conversation feel
+          await SpeechService.speakNaturally(reply, { 
+            rate: 0.75,   // Slower for more natural conversation
+            pitch: 0.85,  // Lower pitch for male voice
+            volume: 0.8   // Comfortable volume level
+          });
         } catch (error) {
           console.error("TTS error:", error);
+          // Fallback to regular speech if enhanced fails
+          try {
+            await SpeechService.speak(reply, { 
+              rate: 0.8, 
+              pitch: 0.9, 
+              volume: 0.8 
+            });
+          } catch (fallbackError) {
+            console.error("Fallback TTS error:", fallbackError);
+          }
         } finally {
           setIsSpeaking(false);
         }
@@ -155,6 +190,29 @@ export default function ChatBot() {
     setSpeechEnabled(!speechEnabled);
   };
 
+  const testVoice = async () => {
+    if (!SpeechService.isTTSSupported()) {
+      addMessage("bot", "Voice synthesis is not supported in your browser.");
+      return;
+    }
+
+    setIsSpeaking(true);
+    try {
+      const testMessage = "Hello! I'm your Trash2Cash Assistant. I'm here to help you with smart waste management and recycling. How does my voice sound?";
+      await SpeechService.speakNaturally(testMessage, {
+        rate: 0.75,
+        pitch: 0.85,  // Male voice pitch
+        volume: 0.8
+      });
+      addMessage("bot", "🎤 Voice test complete! How did I sound? You can adjust your system volume if needed.");
+    } catch (error) {
+      console.error("Voice test error:", error);
+      addMessage("bot", "Voice test failed. Please check your audio settings.");
+    } finally {
+      setIsSpeaking(false);
+    }
+  };
+
   const clearChat = () => {
     setMessages([{
       id: 1,
@@ -211,6 +269,14 @@ export default function ChatBot() {
                 </div>
               </div>
               <div className="flex items-center space-x-2">
+                <button
+                  onClick={testVoice}
+                  disabled={isSpeaking}
+                  className="p-2 hover:bg-white/10 rounded-lg transition-colors disabled:opacity-50"
+                  title="Test voice quality"
+                >
+                  <MicrophoneIcon className="w-4 h-4" />
+                </button>
                 <button
                   onClick={toggleSpeech}
                   className="p-2 hover:bg-white/10 rounded-lg transition-colors"
